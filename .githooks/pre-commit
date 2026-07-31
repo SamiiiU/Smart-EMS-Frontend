@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Rejects any staged path under backend/ — that directory is a local
+# clone of Ali's separate backend repository (its own .git), kept only
+# to run the API for development. It must never be committed here.
+# .gitignore alone is one `git add -f` away from letting this through,
+# so this hook is the actual guard.
+
+set -euo pipefail
+
+staged_backend_paths="$(git diff --cached --name-only -- backend/ || true)"
+
+if [ -n "$staged_backend_paths" ]; then
+  echo "error: refusing to commit path(s) under backend/:" >&2
+  echo "$staged_backend_paths" >&2
+  echo "" >&2
+  echo "backend/ is Ali's separate repository, cloned locally only to run" >&2
+  echo "the API for development. It is never part of this repo's history." >&2
+  echo "Unstage it with: git restore --staged backend/" >&2
+  exit 1
+fi
+
+exit 0

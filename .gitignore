@@ -1,0 +1,23 @@
+# Ali's backend repo, cloned locally only to run the API for development.
+# It has its own .git — never staged, never edited from this repo.
+backend/
+
+# Flutter build artifacts
+frontend/build/
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/ios/Pods/
+frontend/android/.gradle/
+frontend/*.iml
+
+# Golden-test failure output. flutter_test writes master/test/diff PNGs here
+# whenever a golden mismatches — pure debug artifacts, several MB, regenerated
+# on every failing run. The REFERENCE images in frontend/test/goldens/ ARE
+# committed; these are not.
+frontend/test/failures/
+
+# Per-developer Claude Code overrides
+.claude/settings.local.json
+
+.DS_Store

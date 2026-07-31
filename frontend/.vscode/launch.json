@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Port 3000 is fixed and required: the backend's CORS allowlist accepts
+      // http://localhost:3000 specifically (verified 2026-07-30, see
+      // BACKEND_CONTRACT.md). On any other port the browser will block calls.
+      //
+      // Web security is NOT disabled here, deliberately. CORS is enforced, so
+      // a CORS regression shows up in development instead of at deployment.
+      "name": "SmartEMS (Chrome, port 3000)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port=3000"
+      ]
+    },
+    {
+      "name": "SmartEMS (Android/default device)",
+      "request": "launch",
+      "type": "dart"
+    }
+  ]
+}
