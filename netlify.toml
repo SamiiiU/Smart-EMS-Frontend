@@ -1,0 +1,53 @@
+# Netlify build config for the Smart EMS Flutter web app.
+#
+# Netlify's build image has no Flutter toolchain, and frontend/build/ is
+# gitignored, so the build installs Flutter itself before building.
+
+[build]
+  # The Flutter project lives in frontend/, not at the repo root.
+  base    = "frontend"
+
+  # Relative to `base`, i.e. frontend/build/web.
+  publish = "build/web"
+
+  command = """
+    set -e
+
+    # Pinned to the same version used locally. Do NOT switch this to `stable`:
+    # the app targets Dart SDK ^3.12.0 and uses language features that a
+    # drifting toolchain could break, and a deploy is a bad place to discover
+    # that. Bump deliberately, together with the local SDK.
+    FLUTTER_VERSION=3.44.0
+
+    if [ ! -d "$HOME/flutter" ]; then
+      git clone https://github.com/flutter/flutter.git \
+        -b "$FLUTTER_VERSION" --depth 1 "$HOME/flutter"
+    fi
+    export PATH="$HOME/flutter/bin:$PATH"
+
+    flutter --version
+    flutter pub get
+    flutter build web --release
+  """
+
+# SPA routing. Flutter web is a single page — without this, refreshing on or
+# deep-linking to any route returns 404, because Netlify looks for a real file
+# at that path. Not needed today (the gallery is one screen) but go_router
+# arrives in T5, and this is the failure that would otherwise show up then.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# Long-lived caching for the hashed build assets, but never for index.html —
+# that must always be revalidated or users get a stale shell pointing at
+# assets that no longer exist.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
