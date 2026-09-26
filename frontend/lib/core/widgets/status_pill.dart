@@ -20,14 +20,29 @@ enum AppStatus {
   late,
   leave,
   excused,
+  /// STAFF attendance only — students have no half day, and staff have no
+  /// `excused`. Two five-value vocabularies that share four values, verified
+  /// against both endpoints (open item 37). Kept in the attendance family so
+  /// it carries colour, letter AND shape like the rest (D-21).
+  halfDay,
   // Entity
   active,
   inactive,
   complete,
   notStarted,
-  partial;
+  partial,
+  // Fee statuses (T14). Appended so the attendance family keeps the low
+  // indices that `isAttendance` and the `showLabel` assert depend on.
+  //
+  // `partial` above is reused for a part-paid invoice rather than duplicated:
+  // it already means "some of it, not all of it" and already reads warning.
+  // There is no `overdue` here because the backend has no overdue status —
+  // an overdue invoice is `unpaid` with a past due date, and the screens say
+  // so in words next to the pill.
+  unpaid,
+  paid;
 
-  bool get isAttendance => index <= AppStatus.excused.index;
+  bool get isAttendance => index <= AppStatus.halfDay.index;
 }
 
 /// The shape half of D-21. Never rendered without its letter and colour.
@@ -65,7 +80,8 @@ class StatusPill extends StatelessWidget {
                       status == AppStatus.absent ||
                       status == AppStatus.late ||
                       status == AppStatus.leave ||
-                      status == AppStatus.excused)),
+                      status == AppStatus.excused ||
+                      status == AppStatus.halfDay)),
           'A pill with no label must carry a letter, and only a MEDIUM '
           'ATTENDANCE pill does (D-37). A small glyph is 12px and cannot hold '
           'a discriminable letter, and entity statuses have no letter at all — '
@@ -89,6 +105,11 @@ class StatusPill extends StatelessWidget {
         AppStatus.late => '—',
         AppStatus.leave => 'Lv',
         AppStatus.excused => 'E',
+        // 'H' on a half-filled circle. The SHAPE is shared with Late, which
+        // D-21 allows — Present and Leave already share one — because the
+        // (shape + letter) PAIR is what must be unique, and '—' vs 'H' makes
+        // it so. Half-filled is also simply what a half day looks like.
+        AppStatus.halfDay => 'H',
         _ => null,
       };
 
@@ -98,6 +119,7 @@ class StatusPill extends StatelessWidget {
         AppStatus.late => StatusShape.halfFilledCircle,
         AppStatus.leave => StatusShape.filledCircle,
         AppStatus.excused => StatusShape.dashedRing,
+        AppStatus.halfDay => StatusShape.halfFilledCircle,
         _ => null,
       };
 
@@ -107,11 +129,14 @@ class StatusPill extends StatelessWidget {
         AppStatus.late => 'Late',
         AppStatus.leave => 'Leave',
         AppStatus.excused => 'Excused',
+        AppStatus.halfDay => 'Half day',
         AppStatus.active => 'Active',
         AppStatus.inactive => 'Inactive',
         AppStatus.complete => 'Complete',
         AppStatus.notStarted => 'Not started',
         AppStatus.partial => 'Partial',
+        AppStatus.unpaid => 'Unpaid',
+        AppStatus.paid => 'Paid',
       };
 
   /// Colours for a status, resolved from the token set.
@@ -143,6 +168,10 @@ class StatusPill extends StatelessWidget {
         // needed: textSecondary on surfaceSunken already measures ~6:1.
         AppStatus.excused =>
           (glyph: t.textSecondary, text: t.textSecondary, bg: t.surfaceSunken),
+        // Info rather than warning: a half day is an arrangement, not a
+        // problem, and Late already owns the warning pairing.
+        AppStatus.halfDay =>
+          (glyph: t.info, text: t.infoTextOnBg, bg: t.infoBg),
         AppStatus.active =>
           (glyph: t.success, text: t.successTextOnBg, bg: t.successBg),
         AppStatus.inactive =>
@@ -153,6 +182,13 @@ class StatusPill extends StatelessWidget {
           (glyph: t.textSecondary, text: t.textSecondary, bg: t.surfaceSunken),
         AppStatus.partial =>
           (glyph: t.warning, text: t.warningTextOnBg, bg: t.warningBg),
+        // An unpaid invoice is not an error — it is the normal state of a
+        // fee the day it is issued. Neutral, like `notStarted`, so that a
+        // whole freshly-generated class does not read as a wall of red.
+        AppStatus.unpaid =>
+          (glyph: t.textSecondary, text: t.textSecondary, bg: t.surfaceSunken),
+        AppStatus.paid =>
+          (glyph: t.success, text: t.successTextOnBg, bg: t.successBg),
       };
 
   @override

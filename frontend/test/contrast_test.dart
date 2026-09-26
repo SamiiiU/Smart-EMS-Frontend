@@ -88,6 +88,14 @@ void main() {
       bothModes('Late', (t) => t.warningTextOnBg, (t) => t.warningBg);
       bothModes('Leave', (t) => t.infoTextOnBg, (t) => t.infoBg);
       bothModes('Excused', (t) => t.textSecondary, (t) => t.surfaceSunken);
+      // T16 staff attendance. Info pairing, shared with Leave.
+      bothModes('Half day', (t) => t.infoTextOnBg, (t) => t.infoBg);
+      // T14 fee statuses. `Unpaid` is deliberately the neutral pairing, not
+      // a danger one: an unpaid invoice is the normal state of a fee on the
+      // day it is issued, and a freshly-generated class rendering as a wall
+      // of red would train the admin to ignore the colour.
+      bothModes('Unpaid', (t) => t.textSecondary, (t) => t.surfaceSunken);
+      bothModes('Paid', (t) => t.successTextOnBg, (t) => t.successBg);
     });
 
     // D-38 — the filled-glyph letter uses onFilledGlyph, which INVERTS with
@@ -296,6 +304,200 @@ void main() {
       expect(maxLightL, greaterThan(minDarkL));
       // ...which is why primaryAccent can be mode-fixed and still pass.
       expect(light.primaryAccent, dark.primaryAccent);
+    });
+  });
+
+  group('T5 — shell and navigation', () {
+    // These reuse combinations already verified above under their own names;
+    // named again here so the SHELL's specific usage is traceable and cannot
+    // silently decouple from the underlying pair if either changes.
+
+    test('SyncIndicator: synced (successBg/successTextOnBg)', () {
+      bothModes('synced label', (t) => t.successTextOnBg, (t) => t.successBg);
+      bothModes('synced icon', (t) => t.success, (t) => t.successBg,
+          floor: aaNonText);
+    });
+
+    test('SyncIndicator: syncing (textSecondary/surfaceSunken)', () {
+      bothModes(
+          'syncing label', (t) => t.textSecondary, (t) => t.surfaceSunken);
+      bothModes(
+          'syncing icon', (t) => t.textSecondary, (t) => t.surfaceSunken,
+          floor: aaNonText);
+    });
+
+    test('SyncIndicator: offline (warningBg/warningTextOnBg)', () {
+      bothModes(
+          'offline label', (t) => t.warningTextOnBg, (t) => t.warningBg);
+      bothModes('offline icon', (t) => t.warning, (t) => t.warningBg,
+          floor: aaNonText);
+    });
+
+    test('BottomNav selected label/icon (primaryTextOnSurface on surface)',
+        () {
+      bothModes('selected tab label', (t) => t.primaryTextOnSurface,
+          (t) => t.surface);
+    });
+
+    test('BottomNav indicator bar (primaryAccent, non-text)', () {
+      bothModes('indicator bar', (t) => t.primaryAccent, (t) => t.surface,
+          floor: aaNonText);
+    });
+
+    test('BottomNav unselected label/icon (textSecondary on surface)', () {
+      bothModes(
+          'unselected tab', (t) => t.textSecondary, (t) => t.surface);
+    });
+
+    test('DesktopSidebar selected item label (textPrimary on primarySubtle)',
+        () {
+      // NOT primaryTextOnSurface: D-36 confines it to surface/page, and
+      // primarySubtle is neither — that pairing measured 3.88:1 in dark,
+      // caught here before it shipped. See the comment in desktop_sidebar.dart.
+      bothModes(
+          'sidebar selected label', (t) => t.textPrimary, (t) => t.primarySubtle);
+      expect(
+        contrastRatio(dark.primaryTextOnSurface, dark.primarySubtle),
+        lessThan(aaText),
+        reason: 'primaryTextOnSurface now clears primarySubtle in dark — if '
+            'the palette changed, this is fine to use again; otherwise the '
+            'guard above is still doing real work',
+      );
+    });
+
+    test('DesktopSidebar active border (primaryAccent, non-text)', () {
+      bothModes('sidebar active border', (t) => t.primaryAccent,
+          (t) => t.surface, floor: aaNonText);
+    });
+
+    test('DesktopSidebar unselected item (textSecondary on surface)', () {
+      bothModes('sidebar unselected label', (t) => t.textSecondary,
+          (t) => t.surface);
+    });
+
+    test('MobileAppBar title (textPrimary on surface)', () {
+      bothModes('app bar title', (t) => t.textPrimary, (t) => t.surface);
+    });
+
+    test('MobileAppBar unread dot is non-text and needs only 3:1', () {
+      bothModes('unread dot', (t) => t.danger, (t) => t.surface,
+          floor: aaNonText);
+    });
+  });
+
+  // ==========================================================================
+  // T8 — attendance marking.
+  // ==========================================================================
+  group('T8 — attendance and today', () {
+    test('selected status choice label (textPrimary on primarySubtle)', () {
+      // textPrimary, NOT primaryTextOnSurface: D-36 confines that token to
+      // `surface`/`page`, and primarySubtle is neither — the same trap the
+      // DesktopSidebar hit in T5.
+      bothModes('status choice selected', (t) => t.textPrimary,
+          (t) => t.primarySubtle);
+    });
+
+    test('unselected status choice label (textSecondary on surface)', () {
+      bothModes('status choice unselected', (t) => t.textSecondary,
+          (t) => t.surface);
+    });
+
+    test('SELECTED status choice border clears the non-text floor', () {
+      // Only the selected border is load-bearing: it is what distinguishes
+      // the chosen status. The idle border is deliberately NOT asserted at
+      // 3:1 — `border` measures ~1.28:1 and is used that way for every card
+      // and sidebar in the app. It is decorative refinement; the chip is
+      // identified by its own text label, so WCAG 1.4.11 does not bind it.
+      // Asserting 3:1 there would not find a bug, it would just force a
+      // design change the spec never asked for.
+      bothModes('status choice selected border', (t) => t.primaryAccent,
+          (t) => t.surface, floor: aaNonText);
+    });
+
+    test('roster student name (textPrimary on page)', () {
+      bothModes('roster name', (t) => t.textPrimary, (t) => t.page);
+    });
+
+    test('Today current-period card: heading and meta on primarySubtle', () {
+      bothModes('today current heading', (t) => t.textPrimary,
+          (t) => t.primarySubtle);
+      bothModes('today current meta', (t) => t.textSecondary,
+          (t) => t.primarySubtle);
+    });
+
+    test('Today non-current period card on surface', () {
+      bothModes('today heading', (t) => t.textPrimary, (t) => t.surface);
+      bothModes('today meta', (t) => t.textSecondary, (t) => t.surface);
+    });
+
+    test('Today current-period left border is non-text', () {
+      bothModes('today current border', (t) => t.primaryAccent,
+          (t) => t.page, floor: aaNonText);
+    });
+  });
+
+  // ==========================================================================
+  // T9 — parent landing and child attendance.
+  // ==========================================================================
+  group('T9 — parent screens', () {
+    test('selected child chip label (textPrimary on primarySubtle)', () {
+      // Same D-36 trap as the sidebar and the status chips: primarySubtle is
+      // neither `surface` nor `page`, so primaryTextOnSurface is banned here.
+      bothModes('child chip selected', (t) => t.textPrimary,
+          (t) => t.primarySubtle);
+    });
+
+    test('unselected child chip label (textSecondary on surface)', () {
+      bothModes('child chip unselected', (t) => t.textSecondary,
+          (t) => t.surface);
+    });
+
+    test('selected child chip border clears the non-text floor', () {
+      bothModes('child chip selected border', (t) => t.primaryAccent,
+          (t) => t.surface, floor: aaNonText);
+    });
+
+    test('child name and class on the today card (surface)', () {
+      bothModes('child name', (t) => t.textPrimary, (t) => t.surface);
+      bothModes('child class', (t) => t.textSecondary, (t) => t.surface);
+    });
+
+    test('"not marked yet" copy and its icon on surface', () {
+      // This message replaces a StatusPill, so it carries the whole answer
+      // and must be as legible as the pill would have been.
+      bothModes('not-marked copy', (t) => t.textSecondary, (t) => t.surface);
+    });
+
+    test('attendance day row: date on surface, over the page', () {
+      bothModes('day row date', (t) => t.textPrimary, (t) => t.surface);
+      bothModes('day row card border', (t) => t.border, (t) => t.page,
+          floor: 1);
+    });
+
+    test('history link chevron is non-text', () {
+      bothModes('history chevron', (t) => t.textSecondary, (t) => t.surface,
+          floor: aaNonText);
+    });
+  });
+
+  group('T11 — diary and student surfaces', () {
+    test('diary field label (textSecondary) and text (textPrimary)', () {
+      bothModes('diary field label on page', (t) => t.textSecondary,
+          (t) => t.page);
+      bothModes('diary text on surface', (t) => t.textPrimary,
+          (t) => t.surface);
+      bothModes('diary text while saving (surfaceSunken)',
+          (t) => t.textPrimary, (t) => t.surfaceSunken);
+    });
+
+    test('"not available yet" state: info icon on the page', () {
+      // Same pairing UnlinkedProfileState has used since T4 without ever
+      // being asserted. A 40px glyph — non-text, so 3:1.
+      bothModes('info state icon on page', (t) => t.info, (t) => t.page,
+          floor: aaNonText);
+      bothModes('state title on page', (t) => t.textPrimary, (t) => t.page);
+      bothModes('state message on page', (t) => t.textSecondary,
+          (t) => t.page);
     });
   });
 }

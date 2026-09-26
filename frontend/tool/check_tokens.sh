@@ -43,6 +43,16 @@ PATTERN_EDGEINSETS='EdgeInsets\.[a-zA-Z]+\(([[:space:]]*[0-9]|[^)]*[:,][[:space:
 PATTERN_BORDERRADIUS='BorderRadius\.[a-zA-Z]+\(([[:space:]]*[0-9]|[^)]*[:,][[:space:]]*[0-9])'
 PATTERN_RADIUS_CIRCULAR='Radius\.circular\([[:space:]]*[0-9]'
 PATTERN_SIZEDBOX_INLINE='SizedBox\([^)]*\b(width|height):[[:space:]]*[0-9]'
+# Motion durations belong in AppMotion (D-03/D-04/D-29), for the same reason
+# colours belong in the token set: one place to change, one place to review,
+# and a decision that cannot drift a screen at a time.
+#
+# A millisecond-scale Duration is practically always animation — network
+# timeouts are written in seconds, so they do not trip this. As with
+# EdgeInsets, only a BARE digit is a violation: a named constant such as
+# `Duration(milliseconds: _Timing.totalMs)` is fine, because the value is
+# already defined once and reviewable where it lives.
+PATTERN_MOTION_DURATION='Duration\([[:space:]]*milliseconds:[[:space:]]*[0-9]'
 
 check_pattern() {
   local pattern="$1"
@@ -64,6 +74,36 @@ check_pattern() {
 # Scoped to a short window after an unclosed `SizedBox(` so that `height:` on
 # a TextStyle (where it is a line-height MULTIPLIER, not a dimension) is not
 # mistaken for a size.
+check_multiline_edgeinsets() {
+  local file="$1"
+  local out
+  out="$(awk '
+    # An EdgeInsets whose arguments run onto following lines. grep is
+    # line-based, so PATTERN_EDGEINSETS above cannot see them — and
+    # `EdgeInsets.fromLTRB(` across five lines is the common house style,
+    # which made a whole shape of violation invisible. Found while planting
+    # a negative for the T16 polish pass.
+    /EdgeInsets\.[a-zA-Z]+\(/ && !/EdgeInsets\.[a-zA-Z]+\([^)]*\)/ { window = 6; next }
+    window > 0 {
+      # A VALUE position: a digit opening the line, or following : or ,
+      # A digit after a letter is part of an identifier (AppSpacing.space6).
+      if ($0 ~ /^[[:space:]]*[0-9]/ || $0 ~ /[:,][[:space:]]*[0-9]/) {
+        sub(/^[[:space:]]+/, "", $0)
+        printf "%d:%s\n", NR, $0
+      }
+      if ($0 ~ /\)/) { window = 0 } else { window-- }
+    }
+  ' "$file")"
+
+  if [ -n "$out" ]; then
+    while IFS=: read -r lineno content; do
+      [ -z "$lineno" ] && continue
+      echo "$file:$lineno: EdgeInsets built from a bare numeric literal (multi-line) -> $content"
+      violations=$((violations + 1))
+    done <<< "$out"
+  fi
+}
+
 check_multiline_sizedbox() {
   local file="$1"
   local out
@@ -95,6 +135,9 @@ for file in "${files[@]}"; do
   check_pattern "$PATTERN_BORDERRADIUS" "BorderRadius built from a bare numeric literal" "$file"
   check_pattern "$PATTERN_RADIUS_CIRCULAR" "Radius.circular built from a bare numeric literal" "$file"
   check_pattern "$PATTERN_SIZEDBOX_INLINE" "SizedBox sized from a bare numeric literal (use AppSizing/AppSpacing)" "$file"
+  check_pattern "$PATTERN_MOTION_DURATION" \
+    "animation Duration from a bare numeric literal (use AppMotion)" "$file"
+  check_multiline_edgeinsets "$file"
   check_multiline_sizedbox "$file"
 done
 

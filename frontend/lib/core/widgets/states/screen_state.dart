@@ -23,7 +23,19 @@ class LoadFailure {
   const LoadFailure({
     this.message,
     this.kind = LoadFailureKind.transient,
+    this.unreachable = false,
   });
+
+  /// True when the request never reached the server (no connection,
+  /// timeout) — as opposed to the server answering with an error.
+  ///
+  /// Separate from [kind] on purpose: it is still a transient failure, and
+  /// every existing classification stays as it was. What it adds is the
+  /// ability to render the OFFLINE state instead of a generic error. Added
+  /// in T11, which found that no screen had ever set
+  /// `connection: NetworkStatus.offline` — the offline state existed in the
+  /// states gallery but no real screen could reach it.
+  final bool unreachable;
 
   /// The backend's message, VERBATIM. Backend messages name the actual problem
   /// and often the next step; replacing them with "Something went wrong"

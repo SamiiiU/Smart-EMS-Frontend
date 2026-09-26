@@ -5,6 +5,7 @@ import 'package:smartems/core/theme/app_theme.dart';
 import 'package:smartems/core/theme/composites_gallery.dart';
 import 'package:smartems/core/theme/primitives_gallery.dart';
 import 'package:smartems/core/theme/scales.dart';
+import 'package:smartems/core/theme/shell_gallery.dart';
 import 'package:smartems/core/theme/states_gallery.dart';
 import 'package:smartems/core/theme/token_gallery.dart';
 import 'package:smartems/core/theme/typography.dart';
@@ -132,6 +133,30 @@ void main() {
       await expectLater(
         find.byType(StatesGallerySection),
         matchesGoldenFile('goldens/states_$mode.png'),
+      );
+    });
+
+    testWidgets('shell golden — $mode', (tester) async {
+      tester.view.physicalSize = const Size(900, 3200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        app(
+          isDark: isDark,
+          home: const Scaffold(
+            body: Padding(
+              padding: EdgeInsets.all(AppSpacing.space6),
+              child: ShellGallerySection(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await expectLater(
+        find.byType(ShellGallerySection),
+        matchesGoldenFile('goldens/shell_$mode.png'),
       );
     });
 

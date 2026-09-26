@@ -4,6 +4,7 @@ import 'app_theme.dart';
 import 'composites_gallery.dart';
 import 'primitives_gallery.dart';
 import 'scales.dart';
+import 'shell_gallery.dart';
 import 'states_gallery.dart';
 import 'tokens.dart';
 import 'typography.dart';
@@ -135,6 +136,10 @@ class TokenGalleryScreen extends StatelessWidget {
 
           // --- Global states (T4) --------------------------------------
           const StatesGallerySection(),
+          const SizedBox(height: AppSpacing.space10),
+
+          // --- Shell and navigation (T5) --------------------------------
+          const ShellGallerySection(),
           const SizedBox(height: AppSpacing.space10),
         ],
       ),

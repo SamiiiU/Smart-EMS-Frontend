@@ -125,9 +125,21 @@ class _AppButtonState extends State<AppButton> {
           ),
           const SizedBox(width: AppSpacing.space3),
         ],
-        Text(
-          widget.label,
-          style: textStyle.copyWith(color: enabled ? fg : t.textDisabled),
+        // Flexible + ellipsis so a long label DEGRADES instead of
+        // overflowing. Found in T8: 'Submit attendance' on a full-width
+        // button overflowed by 2.4px at a 2x text scale on a 360px phone —
+        // the button height is fixed by AppSizing, so the label cannot wrap,
+        // and without this it renders the yellow overflow stripes to a user
+        // who has merely turned text size up. Prefer a shorter label; this
+        // is the safety net, not a licence for long ones.
+        Flexible(
+          child: Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: textStyle.copyWith(color: enabled ? fg : t.textDisabled),
+          ),
         ),
       ],
     );

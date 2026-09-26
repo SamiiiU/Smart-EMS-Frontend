@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../theme/motion.dart';
 import '../../theme/scales.dart';
 import '../../theme/sizing.dart';
 
@@ -96,7 +97,7 @@ class _ShimmerState extends State<_Shimmer>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 900),
+      duration: AppMotion.shimmerPeriod,
       vsync: this,
     );
   }

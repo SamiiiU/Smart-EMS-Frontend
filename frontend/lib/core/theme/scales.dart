@@ -12,6 +12,16 @@ library;
 
 /// Spacing scale. Use for padding, margins, and gaps.
 abstract final class AppSpacing {
+  /// No spacing.
+  ///
+  /// Not a step on the scale — it is the ABSENCE of one, which is why it is
+  /// excluded from [all] and from the gallery. It exists so a zero edge in
+  /// a multi-sided `EdgeInsets` can be written without a bare literal, and
+  /// so the token rule needs no "except zero" exception for anyone to
+  /// remember. `EdgeInsets.zero` remains the right choice when every side
+  /// is zero.
+  static const double none = 0;
+
   static const double space1 = 2;
   static const double space2 = 4;
   static const double space3 = 6;

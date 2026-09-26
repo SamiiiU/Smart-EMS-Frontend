@@ -22,18 +22,21 @@ Widget host(Widget child, {TargetPlatform? platform, bool dark = false}) {
 
 void main() {
   group('StatusPill — D-21', () {
-    test('all ten statuses have a label', () {
-      expect(AppStatus.values.length, 10);
+    test('all thirteen statuses have a label', () {
+      // Ten from T1–T13, `unpaid`/`paid` for fees (T14), and `halfDay` for
+      // STAFF attendance (T16) — staff have no `excused`, students no
+      // half day.
+      expect(AppStatus.values.length, 13);
       for (final s in AppStatus.values) {
         expect(StatusPill.labelFor(s), isNotEmpty, reason: '$s has no label');
       }
     });
 
-    test('the five attendance statuses each carry colour, letter AND shape',
+    test('every attendance status carries colour, letter AND shape',
         () {
       final attendance =
           AppStatus.values.where((s) => s.isAttendance).toList();
-      expect(attendance.length, 5);
+      expect(attendance.length, 6, reason: 'five student + halfDay for staff');
 
       for (final s in attendance) {
         expect(StatusPill.letterFor(s), isNotNull, reason: '$s has no letter');
@@ -57,13 +60,18 @@ void main() {
       // share a shape (present and leave are both a filled circle per the
       // spec table), so the non-colour signal is the (shape, letter) PAIR.
       // If this ever fails, a status has become colour-only-distinguishable.
+      final attendance =
+          AppStatus.values.where((s) => s.isAttendance).toList();
       final signals = <String>{};
-      for (final s in AppStatus.values.where((s) => s.isAttendance)) {
+      for (final s in attendance) {
         signals.add('${StatusPill.shapeFor(s)}|${StatusPill.letterFor(s)}');
       }
+      // Asserted against the NUMBER OF STATUSES rather than a literal, so
+      // adding a sixth (T16's `halfDay`) cannot pass by someone bumping a
+      // magic number — the pairs still have to be distinct.
       expect(
         signals.length,
-        5,
+        attendance.length,
         reason: 'two attendance statuses share both shape and letter, leaving '
             'colour as the only difference',
       );
@@ -428,11 +436,44 @@ void main() {
     });
 
     testWidgets('obscures the value when asked', (tester) async {
+      // Asserts the real mechanism, not a rendering artifact. Before T7 this
+      // widget was a display-only mock that drew a literal '••••' Text, and
+      // the test matched that string. It is now a real TextField, where
+      // obscuring is done by the framework at paint time — the underlying
+      // text is still 'abcd', so matching on bullet characters would be
+      // testing Flutter's renderer rather than this widget's contract.
       await tester.pumpWidget(
         host(const AppTextField(label: 'PIN', value: 'abcd', obscure: true)),
       );
-      expect(find.text('abcd'), findsNothing);
-      expect(find.text('••••'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).obscureText,
+        isTrue,
+      );
+
+      // POSITIVE CASE: the same field does NOT obscure when not asked to,
+      // so the assertion above is not passing by default.
+      await tester.pumpWidget(
+        host(const AppTextField(label: 'PIN', value: 'abcd')),
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).obscureText,
+        isFalse,
+      );
+      expect(find.text('abcd'), findsOneWidget);
+    });
+
+    testWidgets('onChanged actually fires — it was dead code until T7',
+        (tester) async {
+      // Regression test for the defect T7 uncovered: `onChanged` was a
+      // declared parameter wired to nothing, so every form built on this
+      // primitive would have silently discarded user input.
+      final captured = <String>[];
+      await tester.pumpWidget(
+        host(AppTextField(label: 'Name', onChanged: captured.add)),
+      );
+
+      await tester.enterText(find.byType(TextField), 'hello');
+      expect(captured, ['hello']);
     });
 
     testWidgets('renders every state in both modes', (tester) async {

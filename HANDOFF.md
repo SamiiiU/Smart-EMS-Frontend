@@ -1,218 +1,304 @@
-# Handoff — Rulings 5.1 / 5.2 + T4 Global states (2026-07-30)
+﻿# Handoff — current state (2026-09-27)
 
-**T5 not started.**
+**T0–T16 are done. Every feature batch has shipped.** T12 is deferred; T17
+is the acceptance pass over the whole surface and needs its own prompt.
 
-## Part 1 — Rulings 5.1 and 5.2
+Per-task history is in `PROJECT_STATUS.md`, `DECISIONS.md` and
+`BACKEND_CONTRACT.md`. This file is only what the next session needs.
 
-**RULING 5.1 — glyph letter size (D-37)**
-- `sizing.dart` — `statusGlyphMd` 16 → **22**, new `statusGlyphLetterMd` **13**
-  (an explicit size, not the old ratio). `statusGlyphSm` stays 12 and now
-  carries **shape only**; `statusGlyphLetterRatio` is gone.
-- `status_pill.dart` — a letterless pill is **unrepresentable**: the
-  constructor asserts `showLabel || (md && attendance)`, written as a
-  const-evaluable disjunction so const call sites fail at **compile time**,
-  not just in debug. `letterFitsAt(size)` exposes the rule.
-- The sub-floor pin test is deleted (it did its job) and replaced with four
-  D-37 tests, including that a small pill shows the WORD and that both
-  letterless combinations throw.
-- Gallery updated: at `sm` it now renders the words plus a note that
-  `showLabel: false` is unrepresentable there.
+| | |
+|---|---|
+| Tests | **671** passing, 4 skipped (the four live tests, by design) · analyze clean · `check_tokens.sh` clean with a planted negative |
+| Backend | **local** — `http://localhost:8080` (Railway is dead) |
+| Test accounts | `admin`, `teacher1`, `parent1`, `student1` — all `Test1234!`, institution `test-school` |
 
-**RULING 5.2 — inverting filled-glyph letter (D-38)**
-- `tokens.dart` — new `onFilledGlyph(statusBg)`: `#FFFFFF` in light, the
-  status's own `…Bg` in dark. Required adding a `brightness` field to the
-  extension.
-- Contrast test rewritten: the known-exception range is gone, and it now
-  asserts the ruling's reasoning — that white-in-dark would be **1.91:1**,
-  which is why the token inverts rather than being pinned.
+---
 
-**Verified visually** in `primitives_dark.png`: the `sm` row shows words with
-shape-only glyphs; `md` glyphs are visibly larger with legible `P` / `A` / `—`
-/ `Lv` / `E`.
+# 0. Two things to read before anything else
 
-**One figure correction.** RULING 5.2 gave white-on-`success` as 4.72:1; it
-measures **5.07:1**. The conclusion holds with a larger margin. The same
-formula reproduces the ruling's other figure (4.45:1) exactly, so 4.72 looks
-like the outlier. Asserted at 5.07 with a comment.
+## 0a. 🔴 The privacy defect that is still open (T15)
 
-## Part 2 — T4 Global states
+**A student can read any student's remarks, including ones a teacher marked
+not-parent-visible.** The student path has neither a visibility filter nor
+an ownership check; parents are correctly filtered AND scoped.
 
-**`lib/core/widgets/states/`**
-- `screen_state.dart` — `ScreenState<T>`, `NetworkStatus`, `LoadFailure`,
-  `ScreenOutcome`, `resolveOutcome()`, `adornmentFor()`. The rule, once.
-- `screen_state_builder.dart` — `ScreenStateBuilder<T>` + `OfflineBanner`.
-- `loading_skeleton.dart` — 4 variants, opacity-only shimmer.
-- `empty_state.dart` — `StateFrame`, `EmptyState`, `FilteredEmptyState`.
-- `error_state.dart` — `ErrorState`, `OfflineState`, `UnlinkedProfileState`.
+The remarks screen ships because the flag works for its named audience, its
+copy says **"not shown to parents"** and never "private", nothing is
+filtered client-side, and **no student-facing remarks surface exists**.
+Open item 23 — still the first thing on Ali's list.
 
-**Gallery** — `states_gallery.dart`: all six components, every variant, and
-**all ten precedence rows rendered live**, wired into the gallery screen.
+## 0b. ⚠️ `integration_test` is written but has NOT been run
 
-**Tests** — `test/states_test.dart`, 54 tests.
+`integration_test/app_smoke_test.dart` exists, analyzes clean and is scoped
+as agreed — sign in, load a screen, perform a write, against the real
+backend. **It has never been executed.** This machine has no Windows
+desktop project, no Android device, and no `chromedriver` for the web path.
 
-## Gate result
-
-- [x] **`flutter analyze`** — PASS. `No issues found! (ran in 5.7s)`
-- [x] **`flutter test`** — PASS. `00:34 +161: All tests passed!`
-      (105 → 161: +54 T4, +2 D-37/D-38 net)
-- [x] **`check_tokens.sh` clean, with a negative test planted and removed** —
-      PASS.
-  ```
-  ### planted ###
-  _scratch_negative_test.dart:3: raw Color() constructor -> const Color badColor = Color(0xFFFF0000);
-  _scratch_negative_test.dart:3: bare hex literal used as a colour -> ...
-  _scratch_negative_test.dart:4: EdgeInsets built from a bare numeric literal -> const EdgeInsets badPad = EdgeInsets.all(13);
-  _scratch_negative_test.dart:5: SizedBox sized from a bare numeric literal -> const SizedBox badBox = SizedBox(height: 44);
-  check_tokens.sh: 4 violation(s) found.   exit=1
-
-  ### removed ###
-  check_tokens.sh: clean.   exit=0
-  ```
-- [x] **`flutter build web`** — PASS. `√ Built build\web`
-- [x] **All six in the gallery, both modes, goldens regenerated** — PASS.
-      10 goldens now (`states_light/dark` added).
-
-  **What the states golden shows:** the four skeleton variants as grey block
-  placeholders at the real components' dimensions; `EmptyState` twice — with
-  an action ("No students yet" + Import students) and without ("No
-  notifications", no button at all); `FilteredEmptyState` naming the filter
-  and offering Clear filter; `ErrorState` with the backend sentence verbatim
-  ("Attendance for this date is locked and cannot be edited.") and a Retry;
-  `OfflineState` and `UnlinkedProfileState` both in neutral/informational
-  tones with **no button**. Then all ten precedence rows in order — and rows
-  2 and 6 visibly keep the three student rows with an adornment above them
-  (a neutral "Offline — showing saved data" strip, and an amber "Could not
-  refresh" notice), which is D-30 made visible rather than asserted.
-
-- [x] **All ten precedence rows asserted** — PASS. Each row at the resolver,
-      plus a totality test over every combination of status × connection ×
-      hasData × hasFilter × isEmpty, plus the two ordering tests (7 before 8;
-      9 over 5/6).
-  ```
-  row 1..row 10  (ten tests)
-  row 7 is checked BEFORE row 8 (D-14)
-  row 9 wins over rows 5 and 6 — notLinked is never an error
-  exactly one outcome — the resolver is total
-  ```
-- [x] **No overflow at 360 / 768 / 1366px** — PASS. Every state plus the
-      banner, at all three widths.
-
-### The other named tests
+To run it:
 
 ```
-D-30  offline WITH cache renders rows, not OfflineState
-D-30  a FAILED REFRESH over existing data does not blank the list
-D-30  loading over existing data keeps the rows and shows no skeleton
-D-30  adornment is only attached when the outcome IS data
-skeleton  a skeleton list row is at least listRowMinHeight
-D-11  the SECOND consecutive failure renders differently from the first
-D-14  EmptyState vs FilteredEmptyState are DISTINCT TYPES
-D-19  FilteredEmptyState ALWAYS exposes a clear action
-style OfflineState / UnlinkedProfileState use no danger token (both modes)
-style ErrorState, by contrast, DOES use danger (both modes)
-motion shimmer is ABSENT when disableAnimations is set
-motion the shimmer animates opacity only, never layout (D-05)
+# Web — the target this product ships to. Port 3000 only (CORS).
+choco install chromedriver      # or match your Chrome build manually
+chromedriver --port=4444
+cd frontend && flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/app_smoke_test.dart \
+  -d chrome --browser-name=chrome
+
+# Android — no driver needed with a device or emulator attached
+flutter test integration_test/app_smoke_test.dart
 ```
 
-The not-an-error tests assert the *contrast* too: `ErrorState` must use
-`danger`, otherwise "Offline uses no danger" would pass trivially on a
-component that uses no colour at all.
+Until that runs, the "no terminal" claim still rests on repository-level
+proof plus a manual pass, exactly as it did for T13–T15.
 
-## Two real bugs found while building T4
+---
 
-1. **A production crash for reduced-motion users.** `_ShimmerState` held its
-   `AnimationController` in a `late final` initialiser. Under reduced motion
-   nothing ever touches it, so the **first** access is `dispose()` — which
-   constructs an `AnimationController` during unmount and performs a
-   `TickerMode` ancestor lookup on a deactivated element. That throws
-   "Looking up a deactivated widget's ancestor is unsafe", in production as
-   well as in tests, for exactly the users who asked for less motion. Now
-   created eagerly in `initState`.
-2. **A contrast failure caught by the suite added last round.** I used
-   `textMuted` for the state icons; it measures **2.39:1** on `surface`,
-   below the 3:1 non-text floor — the same value that failed for Overline in
-   RULING 2.1. Moved to `textSecondary`. The contrast suite caught it within
-   minutes of the component being written, which is the argument for it.
+# 1. Polish pass (2026-09-27)
 
-Also worth noting: my first reduced-motion test passed a `MediaQuery` *outside*
-`MaterialApp`, which does nothing — `MaterialApp` inserts its own from the
-view. Fixed via the `builder:` hook. A test that silently tests nothing is
-worse than no test.
+Consistency only — **no new data, no new endpoints, no placeholder became a
+working control.** Full detail in DECISIONS.md.
 
-## Decisions made
+- Sidebar and phone drawer **grouped** (Overview / School / Operations /
+  People), mirroring the hubs. Grouping is presentational and cannot shift
+  `selectedIndex`; the compact rail shows no headings.
+- **Admin dashboard**: subtitle added like the hubs, KPI row stacks below
+  600px, and the section heading now follows the data instead of claiming
+  attention is needed when none is.
+- **Empty-state copy**: eight dead ends ("Nothing could be loaded.") brought
+  into the voice the other thirty already used.
+- **Goldens regenerated: none.** An ungrouped list renders byte-identically,
+  which is the property the grouping was designed around; a test pins it.
+- 🔴 **`check_tokens.sh` had a hole** — multi-line `EdgeInsets` were
+  invisible to it. Found by planting a negative. Fixed, and it immediately
+  caught two real violations in T15/T16 code. `AppSpacing.none` added so the
+  rule needs no "except zero" exception.
 
-`DECISIONS.md` — D-37 and D-38 (rulings), and a T4 section D-T4-01..07.
-Headlines: the rule implemented once; `ScreenState` rather than `AsyncValue`
-because `hasValue` is easy to forget and forgetting it silently breaks D-30;
-row 9 evaluated first; `isEmpty` explicit rather than inferred; shimmer's
-exception to D-29; `ErrorState` owning its own attempt count; state icons on
-`textSecondary`.
+**Not done, deliberately:** no analytics, charts or owner dashboard. There
+is no analytics backend and no schema, so any chart would show invented
+numbers — which would undo exactly what the 27 placeholders protect.
 
-## Deviations from the prompt
+---
 
-1. **`ScreenState<T>` is a new type, not Riverpod's `AsyncValue`.** The spec
-   said "taking the async value"; I introduced a purpose-built type because
-   the rule turns on *prior data exists*, and `AsyncValue` hides that in
-   `hasValue` on a loading/error state. T6 will need a small adapter from
-   `AsyncValue` to `ScreenState` — flagging so it is not a surprise.
-2. **`isEmpty` must be supplied by the caller.** There is no general way to
-   ask an arbitrary `T` for its row count. A screen that forgets it gets rows
-   7/8 silently skipped — the one part of the rule a screen can still get
-   wrong. Considered requiring an `int Function(T)` instead; rejected as
-   heavier for every caller, but it is the safer alternative if you would
-   rather close that hole.
-3. **`OfflineBanner` is a seventh public widget**, but not a seventh *state* —
-   it is the row-2 adornment, and it sits with the builder rather than being
-   independently reachable. Flagging per the scope note.
-4. **`StateFrame` is exported rather than private.** All five states compose
-   it so they stay visually identical, and `iconColour` is a required
-   parameter specifically so a caller cannot give a not-an-error state a
-   danger tint by omission.
-5. **`AppSizing` gained `stateIconSize` (40) and `statCardSkeletonWidth`
-   (140).** Both are fixed sizes and the DoD forbids literals in components.
-6. **The states golden pumps 450ms before capturing** so the shimmer is at a
-   deterministic point in its cycle; otherwise the golden never matches twice.
+# 2. T16 Batch D — what shipped
 
-## Blocked / needs a human
+| Screen | Where | Notes |
+|---|---|---|
+| Raise a complaint | teacher, student | Anonymity states its cost before the choice |
+| My complaints | all roles | Unresolved first (D-15) |
+| Complaints worklist | admin | Overdue → unassigned → open → finished |
+| Complaint detail | all roles | Assign, resolve, internal notes for staff |
+| Notifications | all roles | Grouped by category, unread first |
+| Staff attendance | admin | Roll-call ergonomics, its own vocabulary |
+| Parent progress | parent | The fields T9 left unread |
+| CSV import | admin | File picker, paste still works |
+| Phone drawer | admin | D-27 amendment |
 
-1. *(carried)* **`flutter build apk --debug` fails** — no JDK, Android
-   `cmdline-tools` missing. **Due before T5.**
-2. *(carried)* **PostToolUse hook not live** — `check_tokens.sh` run manually
-   and passing. **Due before T5.**
-3. *(carried)* **Backend `gradlew` has CRLF line endings**, so the app image
-   cannot be rebuilt on Windows (`./gradlew: not found`, exit 127). Ali's fix.
-   The prebuilt image works; compose defines only `db`; the app needs the
-   `SPRING_FLYWAY_URL` overrides recorded in `BACKEND_CONTRACT.md`.
-4. *(carried)* **`BACKEND_CONTRACT.md` endpoint list pending seeding.** CORS is
-   verified; no endpoint is claimed. T7 auth is bearer-only —
-   `Access-Control-Allow-Credentials` is absent.
-5. *(carried)* **T8 needs a persistent DB** — the native seam is still
-   `NativeDatabase.memory()`.
-6. *(carried)* **riverpod_generator / drift_dev cannot co-resolve** — providers
-   stay hand-written. Relevant to T5, which needs `keepAlive` providers: they
-   will be hand-written `Provider`/`NotifierProvider` declarations.
+New tests: `complaints_test.dart` (25), `operations_test.dart` (23),
+7 added to `parent_test.dart`, plus `e2e_complaints_live_test.dart`.
 
-## Next task readiness
+## The backend got the privacy model RIGHT here
 
-T5 (Shell and navigation) depends on T4 and its dependencies are met. What T4
-hands it:
+Verified with real tokens per role, which is the only way to check it:
 
-- `ScreenStateBuilder` is what every tab's content will sit inside, and D-30 is
-  already enforced there — so **D-30's "returning never interrupts" is half
-  done**: skeletons cannot appear over data the user can already see, because
-  the rule forbids it. What T5 adds is the keep-alive half (`indexedStack`,
-  `AutomaticKeepAliveClientMixin`, per-tab scroll).
-- `UnlinkedProfileState` is the `/me` 404 path, which T5's shell will hit
-  first, before any tab renders.
+- a complainant **never receives** an `is_internal` comment — filtered
+  server-side;
+- a complainant sending `isInternal: true` has it **downgraded** by the
+  server;
+- an anonymous complaint stores **no** `raised_by_user_id`, including in the
+  admin's own detail view;
+- cross-user reads are 404, and a non-admin listing all is 403.
 
-Two seeded decisions are directly T5 material and worth reading before
-starting: **D-31** (destinations are an ordered priority list filtered by
-institution entitlement — *not* a fixed set of four; the shape must be right
-at T5 because retrofitting means touching every role) and **D-27** (exactly
-four bottom tabs, fourth is always More; tasks earn tab slots, hubs do not).
-**D-26** (app bar carries status only, never actions) constrains the shell
-chrome, and **D-30** the tab behaviour.
+So internal comments ship, and the UI **labels a guarantee rather than
+creating one**. Nothing is filtered on the device — that would hide a server
+regression, which is precisely what T15 showed to be unreliable.
 
-Blockers 1 and 2 are both due before T5 and are the only things I would want
-closed first — the APK build in particular, since T5 is the first task whose
-output is materially about mobile layout.
+The live test asserts the leak-proofing across two accounts:
+
+```
+flutter test test/e2e_complaints_live_test.dart --dart-define=LIVE=true
+```
+
+## 🔴 A parent cannot raise a complaint
+
+`POST /api/complaints` requires `campusId`, the server will not default it,
+and **no endpoint a parent may call carries one** — `/api/campuses` is 403,
+`/api/guardians/me` and `/api/institution/me` have none. Teacher and student
+resolve it from `/api/staff/me` and `/api/students/me`.
+
+`ComplaintsRepository.resolveCampusId()` returns null for a parent and the
+screen explains it instead of offering a form that cannot submit. Their
+existing complaints still list. Open item 39.
+
+## Staff attendance has its own vocabulary
+
+| Students | Staff |
+|---|---|
+| present, absent, late, leave, **excused** | present, absent, late, leave, **half_day** |
+
+Four of five shared, which is exactly why one enum would have compiled and
+then sent an invalid status. `AppStatus.halfDay` was added to the pill with
+letter `H` on a half-filled circle — D-21 requires the (shape + letter)
+PAIR to be unique, and Present/Leave already share a shape. Goldens
+regenerated; the distinguishability test now asserts against the number of
+statuses rather than a literal.
+
+---
+
+# 3. Standing rule — missing backend capability
+
+When a screen needs something the backend does not provide, **ship the
+screen with an inline placeholder naming the limitation**, in the user's
+terms. Never a disabled button, never a silent omission, never a fabricated
+affordance (D-19).
+
+**The narrow exception:** a placeholder is right when a feature is
+*missing*, and wrong when the backend silently returns *wrong data* —
+because then the screen looks fine and the note has nothing to attach to.
+Where that affects a **write**, block the action and explain it. Where it
+affects only a **read**, a placeholder naming the scope is enough.
+
+# 4. Placeholders shipped — THE LIST FOR ALI
+
+**This is the deliverable.** It goes to Ali as ONE message now that the
+feature work is closed. Each row is the copy on screen today, so he can see
+exactly what a school is being told.
+
+| # | Where | What the user is told | Backend gap |
+|---|---|---|---|
+| P1 | Setup → Academic years | "…cannot be changed in the app yet." | `current` is read-only; no set-current route (8) |
+| P2 | Setup hub | "The current year can only be changed by your system administrator." | same as P1 |
+| P3 | Setup → Who teaches what | "An assignment cannot be changed or removed yet, so check the teacher before saving." | create-only (9) |
+| P4 | Setup → Who teaches what | "This cannot be changed or removed afterwards." | same as P3 |
+| P5 | Setup → Timetable | "Periods apply to the whole school and cannot be edited…" | create-only, school-wide (9) |
+| P6 | Setup → Timetable | clash copy admits it cannot name the other class | 409 carries no conflicting-slot id (10) |
+| P7 | Admin → Accounts | "Logins that were never linked to a person cannot be listed." | no `GET /api/users` (7) |
+| P8 | Student → Timetable | "Your timetable cannot be shown in the app yet." | `/students/me` has no `sectionId` (1) |
+| P9 | Fees → Fee heads | "A fee head cannot be renamed or removed afterwards…" | no PUT/DELETE |
+| P10 | Fees → Fee plans | "A plan cannot be edited or removed afterwards…" | no PUT/DELETE |
+| P11 | Fees → Generate invoices | "There is no way to delete an invoice on this system." | no invoice delete (14) |
+| P12 | Fees → Record payment | "An earlier date cannot be entered." | date fields ignored (15) |
+| P13 | Fees → Record payment | "Cheque, card and online are not available." | `source` enum is 2 values (17) |
+| P14 | Fees → Record payment / Approvals | "There is no way to reverse or cancel an approved payment." | no void/reverse (14) |
+| P15 | Fees → Invoice detail | "This system has no way to list the individual payments." | no payment history (16) |
+| P16 | Fees → Receipt | "This receipt cannot be downloaded or printed yet." | no PDF (22) |
+| P17 | Fees → Collection report | "This report cannot be narrowed to a month or a year." | filters ignored (18) |
+| P18 | Academics → Grade scheme | "Grades are applied automatically… the bands cannot be viewed or changed from the app yet." | no grade-scheme endpoints at all (24) |
+| P19 | Academics → Subject resources | "…the system has nowhere to keep them, and no way to receive an uploaded file." | no resource or upload endpoints at all (25) |
+| P20 | Academics → Exam papers | "This system cannot list papers back, so once you go, a paper cannot be reopened." | papers unlistable, 409 hides the id (26, 27) |
+| P21 | Academics → Marks entry | "Marks already saved cannot be shown — this system has no way to read them back." | no marks GET (26) |
+| P22 | Academics → Marks / publish | "Once the exam is published, marks are locked for good." | no unpublish (28) |
+| P23 | Academics → Report card | "This report card cannot be downloaded or printed yet." | no file (§ 6.9) |
+| P24 | Academics → Remarks | "Other staff can always see it, and so can the student." | 🔴 student access defect (23) |
+| **P25** | **Notifications** | "These cannot be opened yet — a notification does not carry a link to the thing it is about." | **`data` is null on every row; no subject id** (34) |
+| **P26** | **Complaints → My complaints (parent)** | "Complaints cannot be raised from a parent account yet — the app has no way to tell the school which campus it belongs to." | **no endpoint a parent may call carries `campusId`** (39) |
+| **P27** | **Complaints → detail (anonymous)** | "There is no record of who raised it, so nobody can reply to them." | working as designed — stated so staff do not write into the void |
+
+**Not shipped at all, and why:** per-category notification preferences —
+there is no preferences endpoint (35), so there is no control to place.
+
+## Blocked actions — NOT placeholders
+
+| # | Where | What we do instead |
+|---|---|---|
+| B1 | Anything resolving "the current academic year" server-side | The year is **always passed explicitly**. The flag points at an EXPIRED year, so a server-resolved year would bill or record against the wrong one while looking plausible. Fee plans and exams both store the year they are given; every hub names it. |
+
+---
+
+# 5. End-to-end proof — and its honest limit
+
+Four live tests, each walking a batch through its real repositories:
+
+```
+flutter test test/e2e_setup_live_test.dart      --dart-define=LIVE=true
+flutter test test/e2e_finance_live_test.dart    --dart-define=LIVE=true
+flutter test test/e2e_academics_live_test.dart  --dart-define=LIVE=true
+flutter test test/e2e_complaints_live_test.dart --dart-define=LIVE=true
+```
+
+All pass. The academics one earned its keep immediately — it caught a
+required `clientUuid` the manual probe had hidden by happening to send one.
+
+🔴 **They drive the repositories, not the widgets**, because `flutter test`
+uses a fake clock. `integration_test/` now exists to close that gap but has
+not been run — see § 0b.
+
+---
+
+# 6. Waiting on Ali — the full list
+
+Items 1–33 are in `BACKEND_CONTRACT.md` (T11–T15). T16 adds:
+
+34. **Notifications carry no target** — `data` is null on every row and
+    there is no subject id, so a notification cannot be opened onto the
+    thing it is about. That is most of what a notifications centre is for.
+35. **No notification preferences endpoint.**
+36. **Three JSON conventions in one API** — notifications camelCase,
+    complaints and staff attendance snake_case, earlier modules mixed.
+37. **Staff and student attendance use different status vocabularies**
+    (`half_day` vs `excused`) for what is otherwise the same act.
+38. `?status=` on `/api/complaints` accepts an unknown value and answers
+    200 rather than 400, unlike the write paths.
+39. 🔴 **A parent cannot raise a complaint.** `campusId` is required and no
+    endpoint a parent may call exposes one.
+
+The highest-value four, in order: **23** (privacy), **39** (a whole role
+cannot use a feature), **34** (notifications are half-built without it),
+**26/27** (marks and papers cannot be read back, so entry cannot be
+resumed).
+
+# 7. Decisions still open
+
+1. Multi-campus picker — deferred, pilot is single-campus.
+2. Whether to keep `validateBands`, which is deliberately unwired because
+   no grade-scheme endpoint exists (item 24).
+3. Whether the remaining unbuilt surface — assignments (the API has 11
+   endpoints), student promotion — is in scope before pilot.
+
+# 8. For the acceptance pass (T17)
+
+- Offline state missing on T8–T10 screens (diary, setup, finance,
+  academics and the T16 screens set it).
+- Web DB seam is a silent no-op that discards writes.
+- PostToolUse hook not live — `check_tokens.sh` is run manually.
+- `integration_test` has never run (§ 0b).
+- **Purge `test-school` before pilot.** None of this can be deleted:
+  - `student1`; a period **"PROBE Break"**, a room **"PROBE Room 1"**; one
+    teaching assignment per setup-E2E run;
+  - fee heads **PROBE Head A/B/C**, **PROBE Plan 2** and its paid 2029-01
+    invoice; a PKR 1.00 approved payment against the seeded 2026-07 invoice
+    (now `partial`); one `E2E …` fee head, plan, invoice, payment and
+    receipt per finance-E2E run;
+  - exams **PROBE noterm** (published, marks locked), **PROBE term final**
+    and six **PROBE t …** exams; an exam paper on 5-A Mathematics with a
+    mark for Ali Khan; chapter **PROBE Chapter 1** with **PROBE Topic 1**
+    and three coverage logs; one `E2E …` exam, paper, mark, chapter, topic
+    and coverage log per academics-E2E run;
+  - **11 probe complaints** (`PROBE named`, `PROBE anon`,
+    `PROBE student-owned`, `PROBE cat …`, `PROBE pri …`) and their
+    comments; two `E2E …` complaints per complaints-E2E run; staff
+    attendance records for 2026-09-26/27.
+  - Probe remarks WERE deleted — remarks are the one thing that can be.
+
+---
+
+# 9. Running locally
+
+Start order matters — the backend exits if Postgres is down.
+
+```
+# Docker Desktop running first
+docker start backend-db-1          # docker ps → Up, 0.0.0.0:5432->5432
+cd backend && sh ./gradlew bootRun # progress bar stays ~80% — normal
+curl http://localhost:8080/health  # {"status":"ok",...}
+cd frontend && flutter run -d chrome --web-port=3000
+```
+
+- Leave `smart-ems-app` stopped (old image, competes for 8080).
+- JDK 21 required. Port 3000 only (CORS).
+- Railway back later: uncomment the URL in `ApiConfig.baseUrl`.
+- ⚠️ The backend has died mid-session before. If requests start failing,
+  check it is still running before assuming a code fault.
+
+**Stopping here — T17 is the acceptance pass and needs its own prompt.**
+

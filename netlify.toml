@@ -27,7 +27,12 @@
 
     flutter --version
     flutter pub get
-    flutter build web --release
+    # GALLERY=true boots the design-system gallery instead of the app.
+    # This deployment exists to show the design system, and the app itself
+    # is useless here anyway: signing in would need the Netlify origin added
+    # to the backend's CORS allowlist, which has not been done.
+    # Drop this flag to deploy the real app (and get the origin allowlisted).
+    flutter build web --release --dart-define=GALLERY=true
   """
 
 # SPA routing. Flutter web is a single page — without this, refreshing on or

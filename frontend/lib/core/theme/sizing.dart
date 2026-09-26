@@ -76,6 +76,13 @@ abstract final class AppSizing {
   /// and Student timetable so the two read as the same object.
   static const double periodTimeColumnWidth = 44;
 
+  /// Fixed width of the number field on a marks-entry row (T15).
+  ///
+  /// Fixed rather than flexible so a column of forty fields lines up — a
+  /// ragged edge makes it much harder to scan for the one that is blank.
+  /// Wide enough for "100.00" at a large text scale.
+  static const double marksFieldWidth = 88;
+
   /// Below this viewport width the data table collapses to stacked cards.
   /// It NEVER scrolls horizontally.
   static const double tableCollapseBreakpoint = 600;
@@ -90,4 +97,47 @@ abstract final class AppSizing {
   // --- Global states (T4) --------------------------------------------------
   /// The single static icon at the top of every state surface.
   static const double stateIconSize = 40;
+
+  // --- Shell and navigation (T5) --------------------------------------------
+  /// Below this viewport width: [BottomNav]. Same threshold [AppDataTable]
+  /// already collapses at, so the shell's own breakpoint and the composite
+  /// layer's breakpoint cannot drift apart into two different "mobile"
+  /// definitions.
+  static const double navBottomBreakpoint = tableCollapseBreakpoint;
+
+  /// From [navBottomBreakpoint] up to this width: the compact
+  /// [DesktopSidebar] (icon rail, no labels). At and above this width: the
+  /// full sidebar with labels.
+  static const double navRailBreakpoint = 1024;
+
+  /// Height of [BottomNav]. Comfortably above [touchTargetMin] since it packs
+  /// an indicator bar, icon and label into one column.
+  static const double bottomNavHeight = 64;
+
+  /// Width of the full (labelled) [DesktopSidebar].
+  static const double sidebarWidth = 240;
+
+  /// Width of the compact (icon-only) [DesktopSidebar], i.e. the nav rail.
+  static const double sidebarCompactWidth = 72;
+
+  /// Thickness of the sidebar's active-item indicator. A BORDER, never a
+  /// fill — a fill reads as a button, a border reads as position.
+  static const double sidebarActiveBorderWidth = 3;
+
+  // --- Auth (T7) -------------------------------------------------------------
+  /// Max width of the sign-in form. Unconstrained, the fields stretch to the
+  /// full desktop viewport, which reads as a broken layout rather than a
+  /// form.
+  static const double authFormMaxWidth = 400;
+
+  // --- Admin import (T10) ----------------------------------------------------
+  /// Min height of the CSV paste area. A one-line field invites a one-line
+  /// paste; a roster is tens of lines, and the box has to look like it
+  /// expects them.
+  static const double csvPasteMinHeight = 200;
+
+  // --- Diary (T11) -----------------------------------------------------------
+  /// Min height of a diary text area — room for a few lines of classwork or
+  /// homework without the box looking like a single-line field.
+  static const double diaryFieldMinHeight = 96;
 }

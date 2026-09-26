@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../theme/motion.dart';
 import '../../theme/scales.dart';
 import '../../theme/sizing.dart';
 import '../../theme/typography.dart';
 import '../app_button.dart';
+import '../motion_reveal.dart';
 
 /// Shared frame for every "nothing here" surface: centred icon, title, body,
 /// optional single action. Private — each state composes it so they stay
@@ -38,38 +40,45 @@ class StateFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.space8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Static icon. No animated illustration — D-29 bans them on asset
-          // weight, and this product ships to low-connectivity institutions.
-          Icon(icon, size: AppSizing.stateIconSize, color: iconColour),
-          const SizedBox(height: AppSpacing.space6),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: AppTypography.cardHeading.copyWith(color: t.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.space3),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyAdminMeta.copyWith(
-              color: t.textSecondary,
+    // D-29: empty state entrance, 250ms. Applied on the shared frame so
+    // every state arrives identically — a state that snapped in while its
+    // neighbours faded would read as a glitch. The ICON stays static: D-29
+    // bans animated illustrations on asset weight.
+    return MotionReveal(
+      duration: AppMotion.emptyStateEntrance,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.space8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Static icon. No animated illustration — D-29 bans them on asset
+            // weight, and this product ships to low-connectivity institutions.
+            Icon(icon, size: AppSizing.stateIconSize, color: iconColour),
+            const SizedBox(height: AppSpacing.space6),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: AppTypography.cardHeading.copyWith(color: t.textPrimary),
             ),
-          ),
-          if (secondary != null) ...[
-            const SizedBox(height: AppSpacing.space5),
-            secondary!,
+            const SizedBox(height: AppSpacing.space3),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
+            ),
+            if (secondary != null) ...[
+              const SizedBox(height: AppSpacing.space5),
+              secondary!,
+            ],
+            if (action != null) ...[
+              const SizedBox(height: AppSpacing.space7),
+              action!,
+            ],
           ],
-          if (action != null) ...[
-            const SizedBox(height: AppSpacing.space7),
-            action!,
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -90,10 +99,10 @@ class EmptyState extends StatelessWidget {
     this.onAction,
     super.key,
   }) : assert(
-          (actionLabel == null) == (onAction == null),
-          'An action needs both a label and a callback (D-19). A label with no '
-          'callback is a control that looks available and does nothing.',
-        );
+         (actionLabel == null) == (onAction == null),
+         'An action needs both a label and a callback (D-19). A label with no '
+         'callback is a control that looks available and does nothing.',
+       );
 
   final String title;
   final String message;
