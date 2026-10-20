@@ -59,7 +59,8 @@ class SectionsScreenState extends State<SectionsScreen> {
 
   Future<void> _load() async {
     setState(
-        () => _state = ScreenState<List<Section>>.loading(previous: _state.data));
+      () => _state = ScreenState<List<Section>>.loading(previous: _state.data),
+    );
     try {
       final sections = await widget.repository.loadSections();
       // The class-teacher picker needs staff; a failure there must not stop
@@ -78,12 +79,15 @@ class SectionsScreenState extends State<SectionsScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Section>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Section>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -128,7 +132,8 @@ class SectionsScreenState extends State<SectionsScreen> {
       title: 'Sections',
       note: InlineAlert(
         tone: InlineAlertTone.info,
-        message: 'Sections created here belong to ${widget.year.name}'
+        message:
+            'Sections created here belong to ${widget.year.name}'
             '${widget.year.current ? ' (the current year)' : ''}. A new '
             'year needs its own sections.',
       ),
@@ -166,8 +171,9 @@ class SectionsScreenState extends State<SectionsScreen> {
             if (!_capacityValid)
               Text(
                 'Capacity must be a whole number.',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
             if (teachers.isNotEmpty)
               Padding(
@@ -195,8 +201,9 @@ class SectionsScreenState extends State<SectionsScreen> {
                 'at least one.',
             emptyIcon: Icons.grid_view_outlined,
             data: (context, all) {
-              final mine =
-                  all.where((s) => s.academicYearId == widget.year.id).toList();
+              final mine = all
+                  .where((s) => s.academicYearId == widget.year.id)
+                  .toList();
               if (mine.isEmpty) {
                 return Center(
                   child: Padding(
@@ -205,10 +212,11 @@ class SectionsScreenState extends State<SectionsScreen> {
                       all.isEmpty
                           ? 'No sections yet.'
                           : 'No sections in ${widget.year.name} yet. '
-                              '${all.length} exist in other years.',
+                                '${all.length} exist in other years.',
                       textAlign: TextAlign.center,
-                      style: AppTypography.bodyAdminMeta
-                          .copyWith(color: t.textSecondary),
+                      style: AppTypography.bodyAdminMeta.copyWith(
+                        color: t.textSecondary,
+                      ),
                     ),
                   ),
                 );
@@ -228,8 +236,9 @@ class SectionsScreenState extends State<SectionsScreen> {
                         ),
                         child: Text(
                           c.name,
-                          style: AppTypography.overline
-                              .copyWith(color: t.textSecondary),
+                          style: AppTypography.overline.copyWith(
+                            color: t.textSecondary,
+                          ),
                         ),
                       ),
                       for (final s in byClass[c.id]!)
@@ -254,8 +263,9 @@ class SectionsScreenState extends State<SectionsScreen> {
                         ),
                         child: Text(
                           '${_classNameFor(entry.key)} (class no longer exists)',
-                          style: AppTypography.overline
-                              .copyWith(color: t.warningTextOnBg),
+                          style: AppTypography.overline.copyWith(
+                            color: t.warningTextOnBg,
+                          ),
                         ),
                       ),
                       for (final s in entry.value)
@@ -361,9 +371,7 @@ class PickerChip extends StatelessWidget {
             decoration: BoxDecoration(
               color: selected ? t.primarySubtle : t.surface,
               borderRadius: BorderRadius.circular(AppRadius.full),
-              border: Border.all(
-                color: selected ? t.primaryAccent : t.border,
-              ),
+              border: Border.all(color: selected ? t.primaryAccent : t.border),
             ),
             child: Text(
               label,

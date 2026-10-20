@@ -1,17 +1,11 @@
+import 'package:smartems/core/network/paged_get.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_config.dart';
 import '../../../core/network/api_error_mapper.dart';
 import '../domain/admin_models.dart';
 
-/// CSV import.
-///
-/// 🔴 **The import is SYNCHRONOUS.** `POST /api/import/students` returns the
-/// finished result — `{jobId, status, totalRows, successRows, errorRows}` —
-/// in the same response. There is no job to poll, despite the jobId
-/// (verified live 2026-09-18; the earlier note that `/api/import/{jobId}`
-/// implied async was misleading). A polling UI here would invent progress
-/// that does not exist.
+/// CSV upload returns a durable pending job (202); poll before showing final counts.
 class ImportRepository {
   const ImportRepository(this.dio);
 
@@ -42,29 +36,29 @@ class ImportRepository {
   /// the endpoint requires — posting JSON returns a 500, not a 400, so a
   /// wrong content type fails confusingly rather than cleanly.
   Future<ImportResult> importStudents(String csv) => _mapped(() async {
-        final form = FormData.fromMap({
-          'file': MultipartFile.fromString(
-            csv,
-            filename: 'students.csv',
-          ),
-        });
-        final res = await dio.post<Map<String, dynamic>>(
-          ApiConfig.importStudentsPath,
-          data: form,
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromString(csv, filename: 'students.csv'),
+    });
+    final res = await dio.post<Map<String, dynamic>>(
+      ApiConfig.importStudentsPath,
+      data: form,
+    );
+    return ImportResult.fromJson(res.data ?? const {});
+  });
+
+  Future<Map<String, dynamic>> loadStatus(String jobId, CancelToken token) =>
+      _mapped(() async {
+        final response = await dio.get<Map<String, dynamic>>(
+          '/api/import/$jobId',
+          cancelToken: token,
         );
-        return ImportResult.fromJson(res.data ?? const {});
+        return response.data!;
       });
 
   /// Per-row rejections, so the admin can fix and re-import. A count alone
   /// is not actionable — which row, and why, is the whole point.
   Future<List<ImportRowError>> loadErrors(String jobId) => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          ApiConfig.importErrorsPath(jobId),
-          queryParameters: const {'size': 200},
-        );
-        return (res.data?['content'] as List? ?? const [])
-            .cast<Map<String, dynamic>>()
-            .map(ImportRowError.fromJson)
-            .toList();
-      });
+    final rows = await dio.getAllPages(ApiConfig.importErrorsPath(jobId));
+    return rows.map(ImportRowError.fromJson).toList();
+  });
 }

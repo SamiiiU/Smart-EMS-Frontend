@@ -47,6 +47,13 @@ dependencies:
   uuid: ^4.6.0
   intl: ^0.20.3
   file_picker: ^13.1.0
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
+  flutter_secure_storage: ^11.2.0
+  # Direct only to re-assert its web implementation (P0 WEB-INTENT-1); same locked version.
+  flutter_secure_storage_web: 2.1.1
+  flutter_secure_storage_platform_interface: 2.1.1
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

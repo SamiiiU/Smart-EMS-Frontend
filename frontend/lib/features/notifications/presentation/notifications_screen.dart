@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -38,17 +40,39 @@ class NotificationsScreenState extends State<NotificationsScreen> {
       const ScreenState<List<AppNotification>>.loading();
 
   bool _busy = false;
+  bool _pushBusy = false;
+  StreamSubscription<void>? _pushMessages;
   String? _notice;
 
   @override
   void initState() {
     super.initState();
     load();
+    _pushMessages = widget.repository.pushMessages?.listen((_) => load());
+  }
+
+  @override
+  void dispose() {
+    unawaited(_pushMessages?.cancel());
+    super.dispose();
+  }
+
+  Future<void> _configurePush(Future<String> Function() action) async {
+    setState(() => _pushBusy = true);
+    final message = await action();
+    if (!mounted) return;
+    setState(() {
+      _pushBusy = false;
+      _notice = message;
+    });
   }
 
   Future<void> load() async {
-    setState(() => _state =
-        ScreenState<List<AppNotification>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<AppNotification>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final rows = await widget.repository.load();
       if (!mounted) return;
@@ -56,12 +80,15 @@ class NotificationsScreenState extends State<NotificationsScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<AppNotification>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<AppNotification>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -79,7 +106,7 @@ class NotificationsScreenState extends State<NotificationsScreen> {
         _notice = marked == 0
             ? 'Nothing was unread.'
             : '$marked ${marked == 1 ? 'notification' : 'notifications'} '
-                'marked as read.';
+                  'marked as read.';
       });
       await load();
     } on LoadFailure catch (f) {
@@ -109,6 +136,25 @@ class NotificationsScreenState extends State<NotificationsScreen> {
     return SetupScaffold(
       title: 'Notifications',
       children: [
+        if (widget.repository.enablePush != null) ...[
+          AppButton(
+            label: _pushBusy ? 'Please wait...' : 'Enable device notifications',
+            fullWidth: true,
+            onPressed: _pushBusy
+                ? null
+                : () => _configurePush(widget.repository.enablePush!),
+          ),
+          const SizedBox(height: AppSpacing.space3),
+          AppButton(
+            label: 'Disable device notifications',
+            variant: AppButtonVariant.ghost,
+            fullWidth: true,
+            onPressed: _pushBusy || widget.repository.disablePush == null
+                ? null
+                : () => _configurePush(widget.repository.disablePush!),
+          ),
+          const SizedBox(height: AppSpacing.space4),
+        ],
         if (_notice != null) ...[
           InlineAlert(tone: InlineAlertTone.info, message: _notice!),
           const SizedBox(height: AppSpacing.space4),
@@ -125,7 +171,8 @@ class NotificationsScreenState extends State<NotificationsScreen> {
         // Said once, at the top, rather than on every row.
         const InlineAlert(
           tone: InlineAlertTone.info,
-          message: 'These cannot be opened yet — a notification does not '
+          message:
+              'These cannot be opened yet — a notification does not '
               'carry a link to the thing it is about, so you will need to '
               'go to that screen yourself.',
         ),
@@ -136,7 +183,8 @@ class NotificationsScreenState extends State<NotificationsScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'Nothing here',
-            emptyMessage: 'Notifications about attendance, fees, exams and '
+            emptyMessage:
+                'Notifications about attendance, fees, exams and '
                 'complaints will appear here.',
             emptyIcon: Icons.notifications_none,
             data: (context, notifications) => ListView(
@@ -182,8 +230,9 @@ class _GroupHeading extends StatelessWidget {
           if (group.unreadCount > 0)
             Text(
               '${group.unreadCount} unread',
-              style: AppTypography.bodyAdminMeta
-                  .copyWith(color: t.primaryTextOnSurface),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.primaryTextOnSurface,
+              ),
             ),
         ],
       ),
@@ -235,16 +284,18 @@ class NotificationRow extends StatelessWidget {
             children: [
               Text(
                 notification.title,
-                style: (unread
-                        ? AppTypography.personName
-                        : AppTypography.bodyAdminMeta)
-                    .copyWith(color: t.textPrimary),
+                style:
+                    (unread
+                            ? AppTypography.personName
+                            : AppTypography.bodyAdminMeta)
+                        .copyWith(color: t.textPrimary),
               ),
               if (unread)
                 Text(
                   'Unread',
-                  style: AppTypography.overline
-                      .copyWith(color: t.primaryTextOnSurface),
+                  style: AppTypography.overline.copyWith(
+                    color: t.primaryTextOnSurface,
+                  ),
                 ),
             ],
           ),
@@ -259,8 +310,9 @@ class NotificationRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   notification.createdAt,
-                  style: AppTypography.timestamp
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.timestamp.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               ),
               if (unread)

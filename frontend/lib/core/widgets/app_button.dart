@@ -22,10 +22,10 @@ bool isTouchPlatform(BuildContext context) {
 
 extension AppButtonSizeHeight on AppButtonSize {
   double get baseHeight => switch (this) {
-        AppButtonSize.sm => AppSizing.buttonSm,
-        AppButtonSize.md => AppSizing.buttonMd,
-        AppButtonSize.lg => AppSizing.buttonLg,
-      };
+    AppButtonSize.sm => AppSizing.buttonSm,
+    AppButtonSize.md => AppSizing.buttonMd,
+    AppButtonSize.lg => AppSizing.buttonLg,
+  };
 
   /// The height actually rendered. On touch platforms this is raised to
   /// [AppSizing.touchTargetMin] so the Phase 0 NFR holds — which means [sm]
@@ -42,6 +42,9 @@ class AppButton extends StatefulWidget {
     this.size = AppButtonSize.md,
     this.icon,
     this.fullWidth = false,
+    this.semanticsLabel,
+    this.semanticsHint,
+    this.autofocus = false,
     super.key,
   });
 
@@ -52,12 +55,32 @@ class AppButton extends StatefulWidget {
   final IconData? icon;
   final bool fullWidth;
 
+  /// Optional fuller accessible name when [label] alone is ambiguous, e.g.
+  /// "Approve, Ayesha Khan" for a row action. Defaults to [label].
+  final String? semanticsLabel;
+
+  /// Optional accessible hint, e.g. why the button is disabled.
+  final String? semanticsHint;
+
+  /// Take keyboard focus when first shown (e.g. the safe choice in a
+  /// confirmation dialog, so focus moves into the dialog on web too).
+  final bool autofocus;
+
   @override
   State<AppButton> createState() => _AppButtonState();
 }
 
 class _AppButtonState extends State<AppButton> {
   bool _pressed = false;
+
+  /// True only while focus arrived by keyboard (Flutter's focus-highlight
+  /// mode), so a mouse click or a tap never leaves a ring behind.
+  bool _focusHighlight = false;
+
+  /// Mirrors keyboard focus into semantics (see build).
+  bool _hasFocus = false;
+
+  void _activate() => widget.onPressed?.call();
 
   @override
   Widget build(BuildContext context) {
@@ -76,8 +99,8 @@ class _AppButtonState extends State<AppButton> {
         fill = !enabled
             ? t.surfaceSunken
             : _pressed
-                ? t.primaryPressed
-                : t.primaryAction;
+            ? t.primaryPressed
+            : t.primaryAction;
         fg = t.onPrimary;
         borderColour = null;
       case AppButtonVariant.secondary:
@@ -145,35 +168,98 @@ class _AppButtonState extends State<AppButton> {
     );
 
     return Semantics(
+      // Release blocker (Academy B5 a11y, reports 07/09): without its own
+      // container this node MERGED into the nearest ancestor node — a table
+      // row or a card — so assistive technology got a row/card-sized "button"
+      // (unnamed in Chromium) and a click at its centre missed the control.
+      // A container keeps the name, flags and bounds on the button itself.
+      container: true,
       button: true,
       enabled: enabled,
-      label: widget.label,
-      child: GestureDetector(
-        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-        onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-        onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
-        onTap: widget.onPressed,
-        child: Container(
-          height: height,
-          width: widget.fullWidth ? double.infinity : null,
-          constraints: const BoxConstraints(
-            minWidth: AppSizing.touchTargetMin,
+      label: widget.semanticsLabel ?? widget.label,
+      hint: widget.semanticsHint,
+      // Excluding child semantics also drops the focus flags of the detector
+      // below, and Flutter Web only makes focusable nodes DOM tab stops: so
+      // they are declared here, or the browser skips every AppButton on Tab.
+      focusable: enabled ? true : null,
+      focused: enabled ? _hasFocus : null,
+      // F6: the visible text would otherwise merge in and read the name twice
+      // ("Sign in Sign in" in Chromium's accessibility tree).
+      excludeSemantics: true,
+      // Child semantics (including the gesture's tap action) are excluded, so
+      // the activation action is declared here explicitly.
+      onTap: widget.onPressed,
+      // Keyboard (M1 accessibility finding): the GestureDetector alone created
+      // no focus node, so no AppButton could be reached with Tab or run with
+      // Enter/Space. FocusableActionDetector is the standard Flutter primitive
+      // Material buttons use for this; disabled = not focusable. Both intents
+      // are handled because web maps Enter to ButtonActivateIntent.
+      child: FocusableActionDetector(
+        autofocus: widget.autofocus,
+        enabled: enabled,
+        onFocusChange: (v) => setState(() => _hasFocus = v),
+        onShowFocusHighlight: (v) => setState(() => _focusHighlight = v),
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              _activate();
+              return null;
+            },
           ),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space6),
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: borderColour == null
-                ? null
-                : Border.all(
-                    color: borderColour,
-                    width: AppSizing.borderThin,
-                  ),
+          ButtonActivateIntent: CallbackAction<ButtonActivateIntent>(
+            onInvoke: (_) {
+              _activate();
+              return null;
+            },
           ),
-          // No Center() here: Center expands to the incoming max width, which
-          // made every button full-width inside a Wrap. Container.alignment
-          // centres the child without forcing the box to grow.
-          child: content,
+        },
+        child: GestureDetector(
+          onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+          onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
+          onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+          onTap: widget.onPressed,
+          // Foreground ring: drawn over the button, so size, padding and layout
+          // are unchanged. primaryAccent meets the 3:1 non-text contrast floor
+          // in both themes (D-35).
+          child: DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: enabled && _focusHighlight
+                  ? Border.all(
+                      color: t.primaryAccent,
+                      width: 2,
+                      // Outside the edge: visible on the filled primary
+                      // variant too, and still no layout change.
+                      strokeAlign: BorderSide.strokeAlignOutside,
+                    )
+                  : null,
+            ),
+            child: Container(
+              height: height,
+              width: widget.fullWidth ? double.infinity : null,
+              constraints: const BoxConstraints(
+                minWidth: AppSizing.touchTargetMin,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.space6,
+              ),
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: borderColour == null
+                    ? null
+                    : Border.all(
+                        color: borderColour,
+                        width: AppSizing.borderThin,
+                      ),
+              ),
+              // No Center() here: Center expands to the incoming max width, which
+              // made every button full-width inside a Wrap. Container.alignment
+              // centres the child without forcing the box to grow.
+              child: content,
+            ),
+          ),
         ),
       ),
     );

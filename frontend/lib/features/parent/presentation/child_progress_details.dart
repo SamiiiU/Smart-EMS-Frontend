@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/business_date.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
@@ -31,7 +33,8 @@ class ChildProgressDetails extends StatelessWidget {
     final stats = today.attendanceStats;
     final result = today.latestResult;
 
-    final hasAnything = (stats?.hasData ?? false) ||
+    final hasAnything =
+        (stats?.hasData ?? false) ||
         result != null ||
         today.remarks.isNotEmpty ||
         today.diaryEntries.isNotEmpty;
@@ -87,9 +90,10 @@ class _Attendance extends StatelessWidget {
         if (stats.belowThreshold) ...[
           const SizedBox(height: AppSpacing.space3),
           Text(
-            'This is below the school’s expected attendance.',
-            style:
-                AppTypography.bodyParentStudent.copyWith(color: t.warningTextOnBg),
+            'This is below the institution’s expected attendance.',
+            style: AppTypography.bodyParentStudent.copyWith(
+              color: t.warningTextOnBg,
+            ),
           ),
         ],
       ],
@@ -122,20 +126,23 @@ class _Result extends StatelessWidget {
             // a double, which is how 90.00 becomes 89.99999.
             Text(
               '${result.percentage}%',
-              style: AppTypography.parentStatusHero
-                  .copyWith(color: t.textPrimary),
+              style: AppTypography.parentStatusHero.copyWith(
+                color: t.textPrimary,
+              ),
             ),
             if (result.grade.isNotEmpty)
               Text(
                 'Grade ${result.grade}',
-                style: AppTypography.bodyParentStudent
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyParentStudent.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
             if (result.position != null)
               Text(
                 'Position ${result.position}',
-                style: AppTypography.bodyParentStudent
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyParentStudent.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
           ],
         ),
@@ -160,12 +167,13 @@ class _Remark extends StatelessWidget {
         children: [
           Text(
             remark.body,
-            style:
-                AppTypography.bodyParentStudent.copyWith(color: t.textPrimary),
+            style: AppTypography.bodyParentStudent.copyWith(
+              color: t.textPrimary,
+            ),
           ),
           const SizedBox(height: AppSpacing.space1),
           Text(
-            '${remark.authorName} · ${remark.remarkDate}',
+            '${remark.authorName} · ${formatBusinessDate(context, remark.remarkDate)}',
             style: AppTypography.timestamp.copyWith(color: t.textSecondary),
           ),
         ],

@@ -44,26 +44,33 @@ class CollectionReportScreenState extends State<CollectionReportScreen> {
   }
 
   Future<void> load() async {
-    setState(() =>
-        _state = ScreenState<CollectionReport>.loading(previous: _state.data));
+    setState(
+      () =>
+          _state = ScreenState<CollectionReport>.loading(previous: _state.data),
+    );
     try {
       final report = await widget.repository.loadCollectionReport();
       if (!mounted) return;
-      setState(() => _state = ScreenState<CollectionReport>.data(
-            report,
-            // D-39: a report is one record. Emptiness is about whether any
-            // class has been invoiced, which is the class list below.
-            isEmpty: report.byClass.isEmpty,
-          ));
+      setState(
+        () => _state = ScreenState<CollectionReport>.data(
+          report,
+          // D-39: a report is one record. Emptiness is about whether any
+          // class has been invoiced, which is the class list below.
+          isEmpty: report.byClass.isEmpty,
+        ),
+      );
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<CollectionReport>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<CollectionReport>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -73,7 +80,8 @@ class CollectionReportScreenState extends State<CollectionReportScreen> {
       title: 'Collection report',
       note: const InlineAlert(
         tone: InlineAlertTone.info,
-        message: 'Everything invoiced and collected so far, across the whole '
+        message:
+            'Everything invoiced and collected so far, across the whole '
             'school. This report cannot be narrowed to a month or a year.',
       ),
       children: [
@@ -83,7 +91,8 @@ class CollectionReportScreenState extends State<CollectionReportScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'Nothing invoiced yet',
-            emptyMessage: 'Once invoices exist, what each class has been '
+            emptyMessage:
+                'Once invoices exist, what each class has been '
                 'charged and has paid appears here.',
             emptyIcon: Icons.insights_outlined,
             data: _body,
@@ -111,19 +120,22 @@ class CollectionReportScreenState extends State<CollectionReportScreen> {
             children: [
               Text(
                 report.totalCollected.format(),
-                style: AppTypography.parentStatusHero
-                    .copyWith(color: t.textPrimary),
+                style: AppTypography.parentStatusHero.copyWith(
+                  color: t.textPrimary,
+                ),
               ),
               Text(
                 'collected of ${report.totalInvoiced.format()} invoiced',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.space4),
               Text(
                 '${report.outstanding.format()} outstanding',
-                style:
-                    AppTypography.personName.copyWith(color: t.warningTextOnBg),
+                style: AppTypography.personName.copyWith(
+                  color: t.warningTextOnBg,
+                ),
               ),
             ],
           ),
@@ -148,8 +160,9 @@ class CollectionReportScreenState extends State<CollectionReportScreen> {
               children: [
                 Text(
                   row.className,
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space2),
                 Wrap(

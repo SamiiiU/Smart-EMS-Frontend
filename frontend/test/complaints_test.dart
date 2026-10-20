@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smartems/core/theme/app_theme.dart';
+import 'package:smartems/core/widgets/app_text_area.dart';
 import 'package:smartems/core/theme/typography.dart' show AppRole;
 import 'package:smartems/features/admin/data/admin_repository.dart';
 import 'package:smartems/features/complaints/data/complaints_repository.dart';
@@ -343,6 +344,33 @@ void main() {
         ['in_progress', 'resolved', 'closed'],
       );
       expect(ComplaintStatus.settable.contains(ComplaintStatus.open), isFalse);
+    });
+
+    testWidgets('DEF-28: multi-paragraph details are sent intact',
+        (tester) async {
+      final w = _wire();
+      await tester.pumpWidget(_host(RaiseComplaintScreen(
+        repository: w.repo,
+        campusId: 'campus-1',
+      )));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Write your complaint'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Projector broken');
+      final details = find.descendant(
+          of: find.byType(AppTextArea), matching: find.byType(TextField));
+      expect(details, findsOneWidget);
+      expect(tester.widget<TextField>(details).maxLines, isNull);
+      await tester.enterText(details, 'Room 7 since Monday.\nPlease repair it.');
+      await tester.pumpAndSettle();
+      final save = find.text('Save').last;
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      final body = w.server.lastBody! as Map;
+      expect(body['description'], 'Room 7 since Monday.\nPlease repair it.');
     });
 
     test('the wire body carries the anonymity flag as chosen', () async {

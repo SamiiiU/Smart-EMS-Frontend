@@ -33,16 +33,16 @@ class DiaryRepository {
   /// The section endpoint returns every subject's entry for the date; the
   /// match on `subjectId` (including null == null) picks this key's one.
   Future<DiaryEntry?> findExisting(DiaryKey key) => _mapped(() async {
-        final res = await dio.get<List<dynamic>>(
-          ApiConfig.diarySectionPath(key.sectionId),
-          queryParameters: {'date': key.dateParam},
-        );
-        for (final row in (res.data ?? const []).cast<Map<String, dynamic>>()) {
-          final entry = DiaryEntry.fromJson(row);
-          if (entry.subjectId == key.subjectId) return entry;
-        }
-        return null;
-      });
+    final res = await dio.get<List<dynamic>>(
+      ApiConfig.diarySectionPath(key.sectionId),
+      queryParameters: {'date': key.dateParam},
+    );
+    for (final row in (res.data ?? const []).cast<Map<String, dynamic>>()) {
+      final entry = DiaryEntry.fromJson(row);
+      if (entry.subjectId == key.subjectId) return entry;
+    }
+    return null;
+  });
 
   Future<DiaryEntry> create(DiaryKey key, DiaryDraft draft) =>
       _mapped(() async {
@@ -64,9 +64,9 @@ class DiaryRepository {
       });
 
   static Map<String, dynamic> _body(DiaryKey key, DiaryDraft draft) => {
-        'sectionId': key.sectionId,
-        'subjectId': key.subjectId,
-        'diaryDate': key.dateParam,
-        ...draft.toFields(),
-      };
+    'sectionId': key.sectionId,
+    'subjectId': key.subjectId,
+    'diaryDate': key.dateParam,
+    ...draft.toFields(),
+  };
 }

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/states/loading_skeleton.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../setup/domain/setup_models.dart';
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/finance_repository.dart';
@@ -61,8 +64,9 @@ class FeePlansScreenState extends State<FeePlansScreen> {
   }
 
   Future<void> _load() async {
-    setState(() =>
-        _state = ScreenState<List<FeePlan>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<FeePlan>>.loading(previous: _state.data),
+    );
     try {
       final plans = await widget.repository.loadPlans();
       if (!mounted) return;
@@ -70,12 +74,15 @@ class FeePlansScreenState extends State<FeePlansScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<FeePlan>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<FeePlan>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -149,7 +156,8 @@ class FeePlansScreenState extends State<FeePlansScreen> {
       title: 'Fee plans',
       note: InlineAlert(
         tone: InlineAlertTone.info,
-        message: 'New plans are created in “${widget.year.name}”. Invoices '
+        message:
+            'New plans are created in “${widget.year.name}”. Invoices '
             'are generated from a plan, so the year is fixed when the plan '
             'is created.',
       ),
@@ -158,7 +166,8 @@ class FeePlansScreenState extends State<FeePlansScreen> {
           addLabel: 'Add a fee plan',
           canSubmit: _canSubmit,
           onSubmit: _create,
-          confirmNote: 'A plan cannot be edited or removed afterwards, and '
+          confirmNote:
+              'A plan cannot be edited or removed afterwards, and '
               'invoices already generated from it are not affected by '
               'anything you do later.',
           fields: [
@@ -175,8 +184,9 @@ class FeePlansScreenState extends State<FeePlansScreen> {
                 children: [
                   Text(
                     'Class',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   Wrap(
@@ -213,8 +223,9 @@ class FeePlansScreenState extends State<FeePlansScreen> {
             Text(
               'Leave a head blank to keep it out of this plan. Up to two '
               'decimals — the server rounds anything finer.',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
             const SizedBox(height: AppSpacing.space4),
             for (final h in widget.heads)
@@ -230,8 +241,9 @@ class FeePlansScreenState extends State<FeePlansScreen> {
             Text(
               'The plan’s total is calculated by the server and shown once '
               'the plan is saved.',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
           ],
         ),
@@ -241,7 +253,8 @@ class FeePlansScreenState extends State<FeePlansScreen> {
             state: _state,
             onRetry: _load,
             emptyTitle: 'No fee plans yet',
-            emptyMessage: 'A plan assembles fee heads into what one class '
+            emptyMessage:
+                'A plan assembles fee heads into what one class '
                 'pays each period. Invoices are generated from it.',
             emptyIcon: Icons.description_outlined,
             data: (context, plans) => ListView(
@@ -264,11 +277,12 @@ class FeePlansScreenState extends State<FeePlansScreen> {
   /// A plan's items and its SERVER-CALCULATED total, which only the detail
   /// endpoint carries.
   void _showPlan(String id) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) => _PlanSheet(
-        future: widget.repository.loadPlan(id),
-      ),
+    // M1 shared sheet: titled, closable with a named button, scrollable.
+    showAppSheet<void>(
+      context,
+      title: 'Fee plan details',
+      builder: (sheetContext) =>
+          _PlanSheet(future: widget.repository.loadPlan(id)),
     );
   }
 }
@@ -291,13 +305,14 @@ class _PlanSheet extends StatelessWidget {
             if (snapshot.hasError) {
               return Text(
                 'This plan’s details could not be loaded.',
-                style:
-                    AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textPrimary,
+                ),
               );
             }
             final plan = snapshot.data;
             if (plan == null) {
-              return const Center(child: CircularProgressIndicator());
+              return const LoadingSkeleton.listRows(count: 4);
             }
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -305,8 +320,9 @@ class _PlanSheet extends StatelessWidget {
               children: [
                 Text(
                   plan.name,
-                  style: AppTypography.cardHeading
-                      .copyWith(color: t.textPrimary),
+                  style: AppTypography.cardHeading.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space4),
                 for (final item in plan.items)
@@ -318,14 +334,16 @@ class _PlanSheet extends StatelessWidget {
                         Expanded(
                           child: Text(
                             item.feeHeadName,
-                            style: AppTypography.bodyAdminMeta
-                                .copyWith(color: t.textSecondary),
+                            style: AppTypography.bodyAdminMeta.copyWith(
+                              color: t.textSecondary,
+                            ),
                           ),
                         ),
                         Text(
                           item.amount.format(),
-                          style: AppTypography.personName
-                              .copyWith(color: t.textPrimary),
+                          style: AppTypography.personName.copyWith(
+                            color: t.textPrimary,
+                          ),
                         ),
                       ],
                     ),
@@ -337,13 +355,15 @@ class _PlanSheet extends StatelessWidget {
                     children: [
                       Text(
                         'Total per period',
-                        style: AppTypography.personName
-                            .copyWith(color: t.textPrimary),
+                        style: AppTypography.personName.copyWith(
+                          color: t.textPrimary,
+                        ),
                       ),
                       Text(
                         plan.total!.format(),
-                        style: AppTypography.personName
-                            .copyWith(color: t.textPrimary),
+                        style: AppTypography.personName.copyWith(
+                          color: t.textPrimary,
+                        ),
                       ),
                     ],
                   ),

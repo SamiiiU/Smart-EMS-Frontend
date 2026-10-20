@@ -60,16 +60,21 @@ class AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
   }
 
   Future<void> load() async {
-    setState(() =>
-        _state = ScreenState<List<Complaint>>.loading(previous: _state.data));
+    setState(
+      () =>
+          _state = ScreenState<List<Complaint>>.loading(previous: _state.data),
+    );
     try {
       final rows = await widget.repository.loadAll(
         status: _status,
         category: _category,
       );
       if (!mounted) return;
-      setState(() =>
-          _state = ScreenState<List<Complaint>>.data(sortForAdmin(rows, _today)));
+      setState(
+        () => _state = ScreenState<List<Complaint>>.data(
+          sortForAdmin(rows, _today),
+        ),
+      );
 
       // Best effort: the list is usable without it, and assignment says so
       // if it is missing rather than offering an inert control.
@@ -82,12 +87,15 @@ class AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Complaint>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Complaint>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 

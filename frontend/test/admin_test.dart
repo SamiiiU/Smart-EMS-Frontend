@@ -138,7 +138,7 @@ void main() {
         ),
       )));
       await tester.pumpAndSettle();
-      expect(find.text('Set up your school'), findsOneWidget);
+      expect(find.text('Set up your institution'), findsOneWidget);
 
       await tester.pumpWidget(_host(AdminDashboardScreen(
         key: const ValueKey('b'),
@@ -151,7 +151,7 @@ void main() {
         ),
       )));
       await tester.pumpAndSettle();
-      expect(find.text('Set up your school'), findsNothing);
+      expect(find.text('Set up your institution'), findsNothing);
       expect(find.text('No students enrolled'), findsOneWidget);
     });
 
@@ -160,7 +160,7 @@ void main() {
       await tester
           .pumpWidget(_host(AdminDashboardScreen(repository: _FakeAdmin(fail: true))));
       await tester.pumpAndSettle();
-      expect(find.text('Set up your school'), findsNothing);
+      expect(find.text('Set up your institution'), findsNothing);
       expect(find.text('Retry'), findsOneWidget);
     });
   });
@@ -195,7 +195,49 @@ void main() {
       expect(out, isA<WizardSucceeded>());
       expect(a.requests.where((r) => r.path == ApiConfig.provisionPath),
           isEmpty);
-      expect((a.requests.single.data as Map)['userId'], 'u-1');
+      // D-23: staff record for u-1, then its campus-scoped teacher grant.
+      expect((a.requests.first.data as Map)['userId'], 'u-1');
+      expect(a.requests.last.path, '/api/users/u-1/campus-grants');
+      expect(a.requests, hasLength(2));
+    });
+
+    test('D-23: a teacher is provisioned for the chosen campus, then granted there',
+        () async {
+      final a = _Adapter((o) => o.path == ApiConfig.provisionPath
+          ? _json(201, {'userId': 'u-9', 'campusGrantPending': true})
+          : _json(201, {'id': 'x'}));
+      final out = await UserWizardRepository(_dio(a)).commit(draft());
+
+      expect(out, isA<WizardSucceeded>());
+      final provision = a.requests.first;
+      expect((provision.data as Map)['campusId'], isNotNull);
+      final grant = a.requests.last;
+      expect(grant.path, '/api/users/u-9/campus-grants');
+      expect((grant.data as Map)['campusId'], (provision.data as Map)['campusId']);
+      expect((grant.data as Map)['role'], 'teacher');
+    });
+
+    test('D-23: a failed campus grant is a partial failure carrying the userId',
+        () async {
+      final a = _Adapter((o) => o.path == ApiConfig.provisionPath
+          ? _json(201, {'userId': 'u-7'})
+          : o.path.endsWith('/campus-grants')
+              ? _json(403, {'message': 'Campus grant administration is not allowed'})
+              : _json(201, {'id': 'st'}));
+      final out = await UserWizardRepository(_dio(a)).commit(draft());
+      expect(out, isA<WizardPartiallyFailed>());
+      expect((out as WizardPartiallyFailed).userId, 'u-7');
+    });
+
+    test('D-23: resuming after the staff record exists (409) still grants the role',
+        () async {
+      final a = _Adapter((o) => o.path.endsWith('/campus-grants')
+          ? _json(200, {'grantId': 'g'})
+          : _json(409, {'message': 'exists'}));
+      final out = await UserWizardRepository(_dio(a))
+          .commit(draft(), existingUserId: 'u-1');
+      expect(out, isA<WizardSucceeded>());
+      expect(a.requests.last.path, '/api/users/u-1/campus-grants');
     });
 
     test('provision failure writes nothing and is a clean failure', () async {
@@ -407,7 +449,7 @@ void main() {
       )));
       await tester.pumpAndSettle();
 
-      expect(find.text('Where the school needs attention.'), findsOneWidget);
+      expect(find.text('Where the institution needs attention.'), findsOneWidget);
     });
 
     testWidgets('the KPI row stacks on a narrow viewport', (tester) async {

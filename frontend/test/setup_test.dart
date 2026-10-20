@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:smartems/core/widgets/app_button.dart';
 import 'package:smartems/core/theme/app_theme.dart';
 import 'package:smartems/core/theme/typography.dart' show AppRole;
 import 'package:smartems/features/admin/data/admin_repository.dart';
@@ -28,6 +31,9 @@ class _SetupServer implements HttpClientAdapter {
   final List<Map<String, dynamic>> sections = [];
   final List<Map<String, dynamic>> subjects = [];
   final List<Map<String, dynamic>> assignments = [];
+
+  /// D-25 fail-closed: make the section's assignment list fail to load.
+  bool assignmentsFail = false;
   final List<Map<String, dynamic>> periods = [];
   final List<Map<String, dynamic>> slots = [];
 
@@ -68,7 +74,9 @@ class _SetupServer implements HttpClientAdapter {
         '/api/timetable/periods' => _json(200, periods),
         '/api/timetable/rooms' => _json(200, const []),
         _ when path.startsWith('/api/teaching-assignments/section/') =>
-          _page(assignments),
+          assignmentsFail
+              ? _json(500, {'message': 'temporarily unavailable'})
+              : _page(assignments),
         _ when path.startsWith('/api/timetable/section/') => _json(200, slots),
         _ when path.startsWith('/api/guardians/student/') =>
           _json(200, const []),
@@ -118,7 +126,10 @@ class _SetupServer implements HttpClientAdapter {
           return _json(201, row);
         case '/api/teaching-assignments':
           if (assignmentConflict) {
-            return _json(409, {'message': 'Conflicts with existing data'});
+            // C10: what the real server answers for an overlapping live primary.
+            return _json(409, {
+              'message': 'Another primary teacher already covers this subject and section for these dates',
+            });
           }
           final row = {
             'id': _next('ta'),
@@ -349,8 +360,12 @@ void main() {
           year: _year,
         ));
 
-    testWidgets('warns before the action, and offers no edit or delete',
+    testWidgets('warns before the action, offers End but no edit or delete',
         (tester) async {
+      // The C10 type and date fields make this form taller than 800x600.
+      tester.view.physicalSize = const Size(900, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final s = _SetupServer()
         ..assignments.add({
           'id': 'ta-1',
@@ -362,35 +377,40 @@ void main() {
       await tester.pumpWidget(screen(s));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('cannot be changed or removed yet'),
-          findsOneWidget);
+      expect(find.textContaining('cannot be edited. End it'), findsOneWidget);
+      // C10: a live assignment can be ended (immediate revocation), never edited.
+      expect(find.text('End assignment'), findsOneWidget);
       expect(find.text('Edit'), findsNothing);
       expect(find.text('Remove'), findsNothing);
       expect(find.text('Delete'), findsNothing);
       // The existing row shows names, joined client-side from ids.
-      expect(find.text('Mathematics'), findsWidgets);
-      expect(find.text('Ayesha Khan'), findsWidgets);
+      expect(find.textContaining('Mathematics · Primary'), findsWidgets);
+      expect(find.textContaining('Ayesha Khan'), findsWidgets);
     });
 
-    testWidgets('a duplicate is explained in the admin’s words',
+    testWidgets('an overlapping primary is explained with the server’s reason',
         (tester) async {
+      // The C10 type and date fields make this form taller than 800x600.
+      tester.view.physicalSize = const Size(900, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final s = _SetupServer()..assignmentConflict = true;
       await tester.pumpWidget(screen(s));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Assign a teacher'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('cannot be changed or removed afterwards'),
+      expect(find.textContaining('cannot be edited afterwards; it can be ended'),
           findsOneWidget);
 
       await tester.tap(find.bySemanticsLabel('Mathematics').last);
+      await tester.pump(); // D-25: the teacher list follows the chosen subject
       await tester.tap(find.bySemanticsLabel('Ayesha Khan').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('already has a teacher'), findsOneWidget);
-      expect(find.textContaining('Conflicts with existing data'), findsNothing);
+      expect(find.textContaining('Another primary teacher already covers'), findsOneWidget);
     });
   });
 
@@ -413,7 +433,15 @@ void main() {
           'sortOrder': 2,
           'isBreak': true,
         },
-      ]);
+      ])
+      // D-25: the builder offers only assigned teachers, as a real section has.
+      ..assignments.add({
+        'id': 'ta-1',
+        'staffId': 'staff-1',
+        'sectionId': 'sec-1',
+        'subjectId': 'sub-1',
+        'academicYearId': 'year-1',
+      });
 
     Widget screen(_SetupServer s) => TimetableBuilderScreen(
           repository: SetupRepository(_dio(s)),
@@ -477,6 +505,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Mon Period 1, empty'));
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Mathematics').last);
+      await tester.pump(); // D-25: the teacher list follows the chosen subject
       await tester.tap(find.bySemanticsLabel('Ayesha Khan').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add to timetable'));
@@ -486,6 +515,116 @@ void main() {
           findsOneWidget);
       expect(find.textContaining('cannot yet show which class'),
           findsOneWidget);
+      // The clash is announced too, not only painted on the cell.
+      expect(
+          find.bySemanticsLabel(RegExp(
+              r'^Mon Period 1, empty\. This teacher already teaches')),
+          findsOneWidget);
+    });
+
+    testWidgets('D-25: only assigned teachers are offered; none assigned is explained',
+        (tester) async {
+      tester.view.physicalSize = const Size(1366, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final s = serverWithPeriods()..assignments.clear();
+      await tester.pumpWidget(_host(screen(s), size: const Size(1366, 900)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Mon Period 1, empty'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Mathematics').last);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Nobody is assigned to teach this subject'), findsOneWidget);
+      expect(find.bySemanticsLabel('Ayesha Khan'), findsNothing);
+    });
+
+    testWidgets('D-25 fail-closed: assignments that cannot load offer no teacher; Retry recovers',
+        (tester) async {
+      tester.view.physicalSize = const Size(1366, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final s = serverWithPeriods()..assignmentsFail = true;
+      await tester.pumpWidget(_host(screen(s), size: const Size(1366, 900)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Mon Period 1, empty'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Mathematics').last);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Could not check which teachers'), findsOneWidget);
+      expect(find.bySemanticsLabel('Ayesha Khan'), findsNothing, reason: 'no unverified teacher');
+      final add = tester.widget<AppButton>(find.widgetWithText(AppButton, 'Add to timetable'));
+      expect(add.onPressed, isNull, reason: 'nothing can be submitted');
+
+      s.assignmentsFail = false;
+      await tester.tap(find.byKey(const Key('slot-assignments-retry')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Could not check which teachers'), findsNothing);
+      expect(find.bySemanticsLabel('Ayesha Khan'), findsWidgets);
+    });
+
+    testWidgets('a cell is reached with Tab and opened with Enter',
+        (tester) async {
+      tester.view.physicalSize = const Size(1366, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(_host(screen(serverWithPeriods()),
+          size: const Size(1366, 900)));
+      await tester.pumpAndSettle();
+
+      var reached = false;
+      for (var i = 0; i < 40 && !reached; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        final focused = FocusManager.instance.primaryFocus?.context;
+        reached = focused != null &&
+            find
+                .ancestor(
+                    of: find.byWidget(focused.widget),
+                    matching: find.bySemanticsLabel('Mon Period 1, empty'))
+                .evaluate()
+                .isNotEmpty;
+      }
+      expect(reached, isTrue, reason: 'grid cells must be in the Tab order');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.text('Add to timetable'), findsOneWidget);
+    });
+
+    testWidgets('section chips name the class, not only the section',
+        (tester) async {
+      await tester.pumpWidget(_host(screen(serverWithPeriods()),
+          size: const Size(1366, 900)));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel(RegExp('Class 9 9-C')), findsWidgets);
+    });
+
+    testWidgets(
+        'the slot sheet is the shared sheet: heading, named Close, nothing sent',
+        (tester) async {
+      tester.view.physicalSize = const Size(1366, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final s = serverWithPeriods();
+      await tester.pumpWidget(
+          _host(screen(s), size: const Size(1366, 900)));
+      await tester.pumpAndSettle();
+      final before = s.requests.length;
+
+      await tester.tap(find.bySemanticsLabel('Mon Period 1, empty'));
+      await tester.pumpAndSettle();
+      final heading = tester.getSemantics(find.text('Mon · Period 1'));
+      expect(heading.hasFlag(SemanticsFlag.isHeader), isTrue);
+      expect(find.byKey(const Key('sheet-close')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('sheet-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('sheet-close')), findsNothing);
+      expect(s.requests.length, before);
     });
 
     testWidgets('a validation 409 is shown verbatim, not as a clash',
@@ -503,6 +642,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Mon Period 1, empty'));
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Mathematics').last);
+      await tester.pump(); // D-25: the teacher list follows the chosen subject
       await tester.tap(find.bySemanticsLabel('Ayesha Khan').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add to timetable'));

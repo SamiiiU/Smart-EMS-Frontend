@@ -47,7 +47,21 @@ class GuardianChild {
   final String? relationship;
 
   /// Best available label for the child's class.
-  String? get classLabel => sectionName ?? className;
+  ///
+  /// M1 consistency: guardians/me joins it as "{class}-{section}" ("Grade 6 A-6A-1")
+  /// while every other screen shows "Grade 6 A · 6A-1"; the join is normalised here.
+  /// Any other shape is shown as received.
+  String? get classLabel {
+    final section = sectionName;
+    final klass = className;
+    if (section != null &&
+        klass != null &&
+        section.startsWith('$klass-') &&
+        section.length > klass.length + 1) {
+      return '$klass · ${section.substring(klass.length + 1)}';
+    }
+    return section ?? klass;
+  }
 }
 
 /// The signed-in guardian and their children.
@@ -113,7 +127,11 @@ class ChildToday {
       sectionName: json['sectionName'] as String?,
       status: raw == null ? null : AttendanceStatus.fromWire(raw),
       diaryEntries: (json['diaryEntries'] as List? ?? const [])
-          .map((e) => e is Map ? (e['content'] ?? e['body'] ?? '').toString() : e.toString())
+          .map(
+            (e) => e is Map
+                ? (e['content'] ?? e['body'] ?? '').toString()
+                : e.toString(),
+          )
           .where((e) => e.isNotEmpty)
           .toList(),
       remarks: (json['remarks'] as List? ?? const [])
@@ -123,11 +141,13 @@ class ChildToday {
       attendanceStats: json['attendanceStats'] == null
           ? null
           : ChildAttendanceStats.fromJson(
-              (json['attendanceStats'] as Map).cast<String, dynamic>()),
+              (json['attendanceStats'] as Map).cast<String, dynamic>(),
+            ),
       latestResult: json['latestResult'] == null
           ? null
           : ChildLatestResult.fromJson(
-              (json['latestResult'] as Map).cast<String, dynamic>()),
+              (json['latestResult'] as Map).cast<String, dynamic>(),
+            ),
     );
   }
 
@@ -168,11 +188,11 @@ class ChildRemark {
   });
 
   factory ChildRemark.fromJson(Map<String, dynamic> json) => ChildRemark(
-        body: json['body'] as String? ?? '',
-        remarkType: json['remarkType'] as String? ?? '',
-        remarkDate: json['remarkDate'] as String? ?? '',
-        authorName: json['authorName'] as String? ?? '',
-      );
+    body: json['body'] as String? ?? '',
+    remarkType: json['remarkType'] as String? ?? '',
+    remarkDate: json['remarkDate'] as String? ?? '',
+    authorName: json['authorName'] as String? ?? '',
+  );
 
   final String body;
   final String remarkType;
@@ -246,10 +266,83 @@ class AttendanceDay {
   /// NOTE the snake_case keys: this endpoint returns raw DB columns, unlike
   /// the camelCase typed DTOs. Verified live 2026-08-11.
   factory AttendanceDay.fromJson(Map<String, dynamic> json) => AttendanceDay(
-        date: json['attendance_date'] as String? ?? '',
-        status: AttendanceStatus.fromWire(json['status'] as String),
-      );
+    date: json['attendance_date'] as String? ?? '',
+    status: AttendanceStatus.fromWire(json['status'] as String),
+  );
 
   final String date;
   final AttendanceStatus status;
+}
+
+/// One lesson in a section's week, as `GET /api/timetable/section/{id}`
+/// returns it (names included, so no further lookups are needed).
+class WeekLesson {
+  const WeekLesson({
+    required this.dayOfWeek,
+    required this.periodName,
+    required this.subjectName,
+    this.startTime,
+    this.endTime,
+    this.sortOrder = 0,
+    this.teacherName,
+    this.roomName,
+  });
+
+  factory WeekLesson.fromJson(Map<String, dynamic> json) => WeekLesson(
+    dayOfWeek: (json['dayOfWeek'] as num?)?.toInt() ?? 0,
+    periodName: json['periodName'] as String? ?? '',
+    subjectName: json['subjectName'] as String? ?? 'Lesson',
+    startTime: _hhmm(json['startTime']),
+    endTime: _hhmm(json['endTime']),
+    sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+    teacherName: (json['teacherName'] as String?)?.trim(),
+    roomName: json['roomName'] as String?,
+  );
+
+  /// 1 = Monday … 6 = Saturday (the builder's numbering).
+  final int dayOfWeek;
+  final String periodName;
+  final String subjectName;
+  final String? startTime;
+  final String? endTime;
+  final int sortOrder;
+  final String? teacherName;
+  final String? roomName;
+
+  /// "08:00:00" → "08:00"; anything else is shown as sent.
+  static String? _hhmm(Object? v) {
+    final s = v?.toString();
+    if (s == null || s.isEmpty) return null;
+    return s.length >= 5 ? s.substring(0, 5) : s;
+  }
+}
+
+/// D-19 (proposed contract): the student's own current class placement.
+class OwnEnrollment {
+  const OwnEnrollment({
+    required this.sectionId,
+    required this.academicYearId,
+    this.className,
+    this.sectionName,
+    this.academicYearName,
+  });
+
+  factory OwnEnrollment.fromJson(Map<String, dynamic> json) => OwnEnrollment(
+    sectionId: json['sectionId'] as String,
+    academicYearId: json['academicYearId'] as String,
+    className: json['className'] as String?,
+    sectionName: json['sectionName'] as String?,
+    academicYearName: json['academicYearName'] as String?,
+  );
+
+  final String sectionId;
+  final String academicYearId;
+  final String? className;
+  final String? sectionName;
+  final String? academicYearName;
+
+  String get label => [
+    className,
+    sectionName,
+  ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
 }

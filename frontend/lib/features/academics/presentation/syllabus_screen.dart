@@ -12,6 +12,8 @@ import '../../setup/domain/setup_models.dart';
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/academics_repository.dart';
+import 'curriculum_review_screen.dart';
+import '../../../core/widgets/app_button.dart';
 import '../domain/academic_models.dart';
 
 /// Screen 7: syllabus coverage.
@@ -94,8 +96,9 @@ class SyllabusScreenState extends State<SyllabusScreen> {
       return;
     }
 
-    setState(() =>
-        _state = ScreenState<List<Chapter>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<Chapter>>.loading(previous: _state.data),
+    );
     try {
       final chapters = await widget.repository.loadChapters(
         subjectId: subjectId,
@@ -116,12 +119,15 @@ class SyllabusScreenState extends State<SyllabusScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Chapter>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Chapter>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -151,8 +157,9 @@ class SyllabusScreenState extends State<SyllabusScreen> {
   Future<String?> _addTopic() async {
     final chapterId = _topicChapterId;
     if (chapterId == null) return 'Choose a chapter first.';
-    final chapter =
-        (_state.data ?? const <Chapter>[]).where((c) => c.id == chapterId);
+    final chapter = (_state.data ?? const <Chapter>[]).where(
+      (c) => c.id == chapterId,
+    );
     try {
       await widget.repository.createTopic(
         chapterId: chapterId,
@@ -192,7 +199,8 @@ class SyllabusScreenState extends State<SyllabusScreen> {
       title: 'Syllabus',
       note: InlineAlert(
         tone: InlineAlertTone.info,
-        message: 'Chapters belong to a subject and class in '
+        message:
+            'Chapters belong to a subject and class in '
             '“${widget.year.name}”. Coverage is recorded per section.',
       ),
       children: [
@@ -241,16 +249,18 @@ class SyllabusScreenState extends State<SyllabusScreen> {
                   // The server's percentage, rendered. Not covered ÷ total
                   // computed here — that would be a second source of truth.
                   '${progress.percentage.formatPercent()} covered',
-                  style: AppTypography.sectionHeading
-                      .copyWith(color: t.textPrimary),
+                  style: AppTypography.sectionHeading.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space2),
                 Text(
                   '${progress.coveredTopics} of ${progress.totalTopics} '
                   'topics · ${progress.coveredChapters} of '
                   '${progress.totalChapters} chapters',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space4),
                 // The only place a percentage becomes a double, and it is
@@ -258,9 +268,7 @@ class SyllabusScreenState extends State<SyllabusScreen> {
                 // the figure above is rendered from the exact value. A
                 // pixel of rounding in a bar is not a defect; a rounded
                 // percentage on a report is.
-                ProgressBar(
-                  percent: progress.percentage.hundredths / 100,
-                ),
+                ProgressBar(percent: progress.percentage.hundredths / 100),
               ],
             ),
           ),
@@ -318,7 +326,8 @@ class SyllabusScreenState extends State<SyllabusScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'No chapters yet',
-            emptyMessage: 'Add the chapters for this subject, then the '
+            emptyMessage:
+                'Add the chapters for this subject, then the '
                 'topics inside them. Teachers mark topics as they cover '
                 'them.',
             emptyIcon: Icons.menu_book_outlined,
@@ -329,6 +338,17 @@ class SyllabusScreenState extends State<SyllabusScreen> {
                     chapter: chapter,
                     progress: _progress,
                     onMark: _mark,
+                    onReview: () async {
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => CurriculumReviewScreen(
+                            repository: widget.repository,
+                            chapter: chapter,
+                          ),
+                        ),
+                      );
+                      if (mounted) await load();
+                    },
                   ),
               ],
             ),
@@ -375,8 +395,10 @@ class _ChapterBlock extends StatelessWidget {
     required this.chapter,
     required this.progress,
     required this.onMark,
+    required this.onReview,
   });
 
+  final VoidCallback onReview;
   final Chapter chapter;
   final SyllabusProgress? progress;
   final void Function(Topic, CoverageStatus) onMark;
@@ -412,12 +434,19 @@ class _ChapterBlock extends StatelessWidget {
                 chapter.name,
                 style: AppTypography.personName.copyWith(color: t.textPrimary),
               ),
+              AppButton(
+                label: 'Review and versions',
+                variant: AppButtonVariant.ghost,
+                size: AppButtonSize.sm,
+                onPressed: onReview,
+              ),
               if (chapterProgress != null)
                 Text(
                   '${chapterProgress.covered} of ${chapterProgress.topics} '
                   'covered',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
             ],
           ),
@@ -425,8 +454,9 @@ class _ChapterBlock extends StatelessWidget {
           if (chapter.topics.isEmpty)
             Text(
               'No topics in this chapter yet.',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             )
           else
             for (final topic in chapter.topics)
@@ -439,8 +469,9 @@ class _ChapterBlock extends StatelessWidget {
                   children: [
                     Text(
                       topic.name,
-                      style: AppTypography.bodyAdminMeta
-                          .copyWith(color: t.textPrimary),
+                      style: AppTypography.bodyAdminMeta.copyWith(
+                        color: t.textPrimary,
+                      ),
                     ),
                     for (final status in CoverageStatus.values)
                       PickerChip(

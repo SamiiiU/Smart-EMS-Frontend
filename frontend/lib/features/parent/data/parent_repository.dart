@@ -33,19 +33,70 @@ class ParentRepository {
   /// `UnlinkedProfileState` and offers no retry, since the parent cannot
   /// fix it themselves.
   Future<GuardianProfile> loadGuardian() => _mapped(() async {
-        final res =
-            await dio.get<Map<String, dynamic>>(ApiConfig.guardiansMePath);
-        return GuardianProfile.fromJson(res.data ?? const {});
-      });
+    final res = await dio.get<Map<String, dynamic>>(ApiConfig.guardiansMePath);
+    return GuardianProfile.fromJson(res.data ?? const {});
+  });
+
+  /// The signed-in STUDENT's own record (`GET /api/students/me`), shaped as a
+  /// [GuardianChild] so the student's Today reuses the parent's day card.
+  /// The backend lets a student read only their own progress (OwnershipService
+  /// "own" rule). It does not expose their section, so [GuardianChild.sectionId]
+  /// stays null: the student timetable remains blocked (D-19).
+  Future<GuardianChild> loadOwnStudent() => _mapped(() async {
+    final res = await dio.get<Map<String, dynamic>>(ApiConfig.studentMePath);
+    final json = res.data ?? const {};
+    final first = json['firstName'] as String? ?? '';
+    final last = json['lastName'] as String? ?? '';
+    return GuardianChild(
+      studentId: json['id'] as String,
+      fullName: '$first $last'.trim(),
+      sectionId: null,
+      admissionNumber: json['admissionNumber'] as String?,
+    );
+  });
+
+  /// D-19 (PROPOSED, not yet deployed): the signed-in student's current
+  /// School/College enrollment, `GET /api/students/me/enrollment`.
+  ///
+  /// Returns null when the server says the student has no class this year
+  /// (`{"enrollment": null}`). Any failure — including the endpoint not
+  /// existing yet — throws, and the caller shows the honest "not available"
+  /// state. Nothing is guessed from section names.
+  Future<OwnEnrollment?> loadOwnEnrollment() => _mapped(() async {
+    final res = await dio.get<Map<String, dynamic>>(
+      ApiConfig.studentOwnEnrollmentPath,
+    );
+    final e = res.data?['enrollment'];
+    if (e is! Map) return null;
+    return OwnEnrollment.fromJson(e.cast<String, dynamic>());
+  });
 
   /// Today's snapshot for one child — name, class and today's attendance in
   /// a single call, which is exactly the landing screen's question.
-  Future<ChildToday> loadToday(String studentId) => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '${ApiConfig.parentProgressPath}/$studentId',
-        );
-        return ChildToday.fromJson(res.data ?? const {});
-      });
+  ///
+  /// Null ONLY when the server says the child has no class enrollment
+  /// (404 with `details.code == NO_SCHOOL_ENROLLMENT`, e.g. an Academy-only
+  /// learner). The server sends that code only after confirming this parent
+  /// may read the child; every other 404 (not their child, other
+  /// institution) stays a [LoadFailure], never an empty success.
+  Future<ChildToday?> loadToday(String studentId) async {
+    try {
+      final res = await dio.get<Map<String, dynamic>>(
+        '${ApiConfig.parentProgressPath}/$studentId',
+      );
+      return ChildToday.fromJson(res.data ?? const {});
+    } on DioException catch (err) {
+      if (isNoSchoolEnrollment(err)) return null;
+      throw mapDioError(err);
+    }
+  }
+
+  static bool isNoSchoolEnrollment(DioException err) {
+    if (err.response?.statusCode != 404) return false;
+    final data = err.response?.data;
+    final details = data is Map ? data['details'] : null;
+    return details is Map && details['code'] == 'NO_SCHOOL_ENROLLMENT';
+  }
 
   /// Attendance across a date range. `from` is REQUIRED by the backend —
   /// there is no "everything" call, so the caller always picks a window.
@@ -53,24 +104,38 @@ class ParentRepository {
     required String studentId,
     required DateTime from,
     required DateTime to,
-  }) =>
-      _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '${ApiConfig.attendanceStudentPath}/$studentId',
-          queryParameters: {
-            'from': _iso(from),
-            'to': _iso(to),
-          },
-        );
-        final rows = (res.data?['content'] as List? ?? const [])
-            .cast<Map<String, dynamic>>()
-            .map(AttendanceDay.fromJson)
-            .toList();
-        // Most recent first: a parent checking in cares about the last few
-        // days, not the start of the window.
-        rows.sort((a, b) => b.date.compareTo(a.date));
-        return rows;
-      });
+  }) => _mapped(() async {
+    final res = await dio.get<Map<String, dynamic>>(
+      '${ApiConfig.attendanceStudentPath}/$studentId',
+      queryParameters: {'from': _iso(from), 'to': _iso(to)},
+    );
+    final rows = (res.data?['content'] as List? ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(AttendanceDay.fromJson)
+        .toList();
+    // Most recent first: a parent checking in cares about the last few
+    // days, not the start of the window.
+    rows.sort((a, b) => b.date.compareTo(a.date));
+    return rows;
+  });
+
+  /// A child's class week (GET /api/timetable/section/{sectionId}). The
+  /// server allows it only for a parent of a child enrolled in that section
+  /// (OwnershipService.assertCanReadSection); ids come from guardians/me.
+  Future<List<WeekLesson>> loadWeek({
+    required String sectionId,
+    required String academicYearId,
+  }) => _mapped(() async {
+    final res = await dio.get<List<dynamic>>(
+      '${ApiConfig.timetableSectionPath}/$sectionId',
+      queryParameters: {'academicYearId': academicYearId},
+    );
+    return (res.data ?? const [])
+        .whereType<Map>()
+        .map((m) => WeekLesson.fromJson(m.cast<String, dynamic>()))
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  });
 
   static String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
 }

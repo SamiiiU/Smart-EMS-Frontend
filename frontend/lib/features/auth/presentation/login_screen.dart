@@ -1,15 +1,20 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/auth_layout.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/keyboard_tap_target.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../data/auth_repository.dart';
+import '../data/remembered_institution.dart';
 
 /// The sign-in screen. Three fields, because the API requires three:
 /// `institutionCode`, `username`, `password` (confirmed against the live
@@ -27,8 +32,17 @@ class LoginScreen extends StatefulWidget {
     required this.repository,
     required this.onSignedIn,
     this.onForcePasswordChange,
+    this.rememberedInstitution,
+    this.launchUri,
     super.key,
   });
+
+  /// Remembers the last institution on this device (not a credential). Null in
+  /// tests that do not exercise it.
+  final RememberedInstitutionStore? rememberedInstitution;
+
+  /// Web launch URL; an `?institution=<code>` link pre-selects the institution.
+  final Uri? launchUri;
 
   final AuthRepository repository;
 
@@ -53,6 +67,10 @@ class LoginScreenState extends State<LoginScreen>
   String _password = '';
   bool _submitting = false;
   String? _errorMessage;
+
+  /// True when the institution came from this device or an institution link:
+  /// shown as a confirmed choice with a Change action instead of a blank field.
+  bool _institutionKnown = false;
 
   /// Password visibility. Starts hidden — revealing is the deliberate act.
   bool _passwordVisible = false;
@@ -133,6 +151,29 @@ class LoginScreenState extends State<LoginScreen>
         curve: Curves.easeInOutCubic,
       ),
     );
+    _loadInstitution();
+  }
+
+  Future<void> _loadInstitution() async {
+    String? code;
+    final uri = widget.launchUri ?? (kIsWeb ? Uri.base : null);
+    if (uri != null) code = institutionFromLink(uri);
+    try {
+      code ??= await widget.rememberedInstitution?.read();
+    } on Object {
+      code = null; // storage unavailable: fall back to typing it
+    }
+    if (!mounted || code == null || _institutionCode.trim().isNotEmpty) return;
+    setState(() {
+      _institutionCode = code!;
+      _institutionKnown = true;
+    });
+    _usernameFocus.requestFocus();
+  }
+
+  void _changeInstitution() {
+    setState(() => _institutionKnown = false);
+    _institutionFocus.requestFocus();
   }
 
   @override
@@ -205,6 +246,12 @@ class LoginScreenState extends State<LoginScreen>
     switch (outcome) {
       case LoginSucceeded(:final forcePasswordChange):
         setState(() => _submitting = false);
+        try {
+          await widget.rememberedInstitution?.write(_institutionCode.trim());
+        } on Object {
+          // Convenience only; never block a successful sign-in.
+        }
+        if (!mounted) return;
         final forced = widget.onForcePasswordChange;
         if (forcePasswordChange && forced != null) {
           forced();
@@ -237,20 +284,9 @@ class LoginScreenState extends State<LoginScreen>
             // The real form, laid out normally from the very first frame.
             // Nothing here animates layout, so the fields are focusable and
             // tappable throughout the intro.
-            Center(
-              // Scrollable so the form still reaches the submit button at
-              // large text scales and on short viewports with the keyboard
-              // open.
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.space8),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: AppSizing.authFormMaxWidth,
-                  ),
-                  child: _form(context),
-                ),
-              ),
-            ),
+            // M1: the shared sign-in frame (brand panel + card on wide screens,
+            // brand row + card on phones). The form itself is unchanged.
+            AuthLayout(child: _form(context)),
 
             // The flying wordmark. Drawn only while it is in transit, and
             // never hit-testable — it must not swallow a tap meant for the
@@ -259,18 +295,21 @@ class LoginScreenState extends State<LoginScreen>
             // AnimatedBuilder — a condition here would never be re-evaluated,
             // since this build does not listen to the controller.
             if (_headingRect != null)
-              IgnorePointer(child: _FlightOverlay(
-                intro: _intro,
-                flight: _flight,
-                welcomeIn: _welcomeIn,
-                welcomeOut: _welcomeOut,
-                wordmarkIn: _wordmarkIn,
-                headingRect: _headingRect!,
-                startScale: _startScale,
-                stackSize: (_stackKey.currentContext?.findRenderObject()
-                        as RenderBox?)
-                    ?.size,
-              )),
+              IgnorePointer(
+                child: _FlightOverlay(
+                  intro: _intro,
+                  flight: _flight,
+                  welcomeIn: _welcomeIn,
+                  welcomeOut: _welcomeOut,
+                  wordmarkIn: _wordmarkIn,
+                  headingRect: _headingRect!,
+                  startScale: _startScale,
+                  stackSize:
+                      (_stackKey.currentContext?.findRenderObject()
+                              as RenderBox?)
+                          ?.size,
+                ),
+              ),
           ],
         ),
       ),
@@ -310,9 +349,7 @@ class LoginScreenState extends State<LoginScreen>
           beginMs: _Timing.subtitleStart,
           child: Text(
             'Sign in to your institution',
-            style: AppTypography.bodyAdminMeta.copyWith(
-              color: t.textSecondary,
-            ),
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
           ),
         ),
         const SizedBox(height: AppSpacing.space8),
@@ -320,28 +357,33 @@ class LoginScreenState extends State<LoginScreen>
         // NOT wrapped in _Reveal: an error appears long after the intro and
         // must never be tied to it.
         if (_errorMessage != null) ...[
-          InlineAlert(
-            tone: InlineAlertTone.danger,
-            message: _errorMessage!,
-          ),
+          InlineAlert(tone: InlineAlertTone.danger, message: _errorMessage!),
           const SizedBox(height: AppSpacing.space6),
         ],
 
         _Reveal(
           intro: _intro,
           beginMs: _Timing.field1Start,
-          child: AppTextField(
-            label: 'Institution code',
-            value: _institutionCode,
-            placeholder: 'e.g. test-school',
-            state: _fieldState,
-            focusNode: _institutionFocus,
-            // Straight into typing — one less tap every morning.
-            autofocus: true,
-            textInputAction: TextInputAction.next,
-            onSubmitted: (_) => _usernameFocus.requestFocus(),
-            onChanged: (v) => setState(() => _institutionCode = v),
-          ),
+          child: _institutionKnown
+              ? _KnownInstitution(
+                  code: _institutionCode,
+                  enabled: !_submitting,
+                  onChange: _changeInstitution,
+                )
+              : AppTextField(
+                  label: 'Institution code',
+                  required: true,
+                  value: _institutionCode,
+                  // Institution-neutral example (Smart EMS is not school-only).
+                  placeholder: 'e.g. north-campus',
+                  state: _fieldState,
+                  focusNode: _institutionFocus,
+                  // Straight into typing — one less tap every morning.
+                  autofocus: true,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _usernameFocus.requestFocus(),
+                  onChanged: (v) => setState(() => _institutionCode = v),
+                ),
         ),
         const SizedBox(height: AppSpacing.space6),
 
@@ -350,6 +392,7 @@ class LoginScreenState extends State<LoginScreen>
           beginMs: _Timing.field2Start,
           child: AppTextField(
             label: 'Username',
+            required: true,
             value: _username,
             state: _fieldState,
             focusNode: _usernameFocus,
@@ -365,6 +408,7 @@ class LoginScreenState extends State<LoginScreen>
           beginMs: _Timing.field3Start,
           child: AppTextField(
             label: 'Password',
+            required: true,
             value: _password,
             obscure: !_passwordVisible,
             state: _fieldState,
@@ -374,12 +418,13 @@ class LoginScreenState extends State<LoginScreen>
             // leaving the user hunting for the button.
             onSubmitted: (_) => submit(),
             onChanged: (v) => setState(() => _password = v),
+            // 48 x 48 touch target (full field height) for the toggle.
+            trailingTouchTarget: true,
             trailing: _PasswordToggle(
               visible: _passwordVisible,
               enabled: !_submitting,
-              onToggle: () => setState(
-                () => _passwordVisible = !_passwordVisible,
-              ),
+              onToggle: () =>
+                  setState(() => _passwordVisible = !_passwordVisible),
             ),
           ),
         ),
@@ -506,8 +551,10 @@ class _FlightOverlay extends StatelessWidget {
         if (progress >= 1) return const SizedBox.shrink();
         final centre = Offset.lerp(startCentre, endCentre, progress)!;
         final scale = _lerp(startScale, 1, progress);
-        final welcomeOpacity =
-            (welcomeIn.value * (1 - welcomeOut.value)).clamp(0.0, 1.0);
+        final welcomeOpacity = (welcomeIn.value * (1 - welcomeOut.value)).clamp(
+          0.0,
+          1.0,
+        );
 
         return Stack(
           children: [
@@ -517,7 +564,8 @@ class _FlightOverlay extends StatelessWidget {
               Positioned(
                 left: 0,
                 right: 0,
-                top: startCentre.dy -
+                top:
+                    startCentre.dy -
                     headingRect.height * startScale -
                     AppSpacing.space6,
                 child: Opacity(
@@ -630,20 +678,84 @@ class _PasswordToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return Semantics(
-      button: true,
-      enabled: enabled,
+    // A11Y-3: keyboard-operable (Tab, Enter/Space, ring drawn outside the
+    // small icon). The label names the action, never the password.
+    return KeyboardTapTarget(
       label: visible ? 'Hide password' : 'Show password',
-      child: GestureDetector(
-        onTap: enabled ? onToggle : null,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(
-          child: Icon(
-            visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            size: AppSpacing.space7,
-            color: enabled ? t.textSecondary : t.textDisabled,
+      enabled: enabled,
+      onTap: onToggle,
+      // The hit area now fills the 48 px-wide, full-height slot, so the ring
+      // sits inside it, matching the field's corner radius.
+      borderRadius: AppRadius.md,
+      child: Icon(
+        visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+        size: AppSpacing.space7,
+        color: enabled ? t.textSecondary : t.textDisabled,
+      ),
+    );
+  }
+}
+
+/// Overhaul M2: the institution this device used last (or from an institution
+/// link), confirmed rather than retyped. Change reopens the field.
+class _KnownInstitution extends StatelessWidget {
+  const _KnownInstitution({
+    required this.code,
+    required this.enabled,
+    required this.onChange,
+  });
+
+  final String code;
+  final bool enabled;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.space5,
+        vertical: AppSpacing.space3,
+      ),
+      decoration: BoxDecoration(
+        color: t.surfaceSunken,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: t.border, width: AppSizing.borderThin),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.apartment_outlined, size: 20, color: t.textSecondary),
+          const SizedBox(width: AppSpacing.space4),
+          Expanded(
+            child: Semantics(
+              label: 'Institution: $code',
+              excludeSemantics: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Institution',
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    code,
+                    style: AppTypography.bodyTeacher.copyWith(
+                      color: t.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+          AppButton(
+            key: const Key('login-change-institution'),
+            label: 'Change',
+            variant: AppButtonVariant.ghost,
+            onPressed: enabled ? onChange : null,
+          ),
+        ],
       ),
     );
   }

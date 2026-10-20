@@ -89,11 +89,12 @@ class StaffAttendanceDay {
         unmarked: json['unmarked'] as int? ?? 0,
         present: json['present'] as int? ?? 0,
         absent: json['absent'] as int? ?? 0,
-        rows: (json['records'] as List? ?? const [])
-            .cast<Map<String, dynamic>>()
-            .map(StaffAttendanceRow.fromJson)
-            .toList()
-          ..sort((a, b) => a.fullName.compareTo(b.fullName)),
+        rows:
+            (json['records'] as List? ?? const [])
+                .cast<Map<String, dynamic>>()
+                .map(StaffAttendanceRow.fromJson)
+                .toList()
+              ..sort((a, b) => a.fullName.compareTo(b.fullName)),
       );
 
   final String date;

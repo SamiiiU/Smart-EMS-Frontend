@@ -98,7 +98,7 @@ void main() {
     );
     expect(exam.academicYearId, year.id,
         reason: 'the exam must store the year it was given');
-    expect(exam.status, ExamStatus.pending);
+    expect(exam.status, ExamStatus.draft);
     expect(exam.marksLocked, isFalse);
 
     final listed = await academics.loadExams(academicYearId: year.id);

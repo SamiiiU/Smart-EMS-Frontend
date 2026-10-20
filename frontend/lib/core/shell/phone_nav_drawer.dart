@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../theme/scales.dart';
 import '../theme/sizing.dart';
 import '../theme/typography.dart';
+import '../widgets/keyboard_tap_target.dart';
 import '../widgets/overline.dart';
 import 'desktop_sidebar.dart' show startsGroup;
 import 'nav_destination.dart';
@@ -113,53 +114,45 @@ class _DrawerItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return Semantics(
-      button: true,
-      selected: selected,
+    // A11Y-2: keyboard-operable, one named selectable node.
+    return KeyboardTapTarget(
       label: destination.label,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(
-          child: Container(
-            margin: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.space4,
-              vertical: AppSpacing.space1,
+      selected: selected,
+      onTap: onTap,
+      borderRadius: AppRadius.lg,
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.space4,
+          vertical: AppSpacing.space1,
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.space5,
+          vertical: AppSpacing.space4,
+        ),
+        constraints: const BoxConstraints(minHeight: AppSizing.touchTargetMin),
+        decoration: BoxDecoration(
+          color: selected ? t.primarySubtle : null,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              destination.icon,
+              color: selected ? t.primaryTextOnSurface : t.textSecondary,
             ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.space5,
-              vertical: AppSpacing.space4,
-            ),
-            constraints: const BoxConstraints(
-              minHeight: AppSizing.touchTargetMin,
-            ),
-            decoration: BoxDecoration(
-              color: selected ? t.primarySubtle : null,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  destination.icon,
-                  color: selected ? t.primaryTextOnSurface : t.textSecondary,
+            const SizedBox(width: AppSpacing.space5),
+            Expanded(
+              child: Text(
+                destination.label,
+                style: AppTypography.personName.copyWith(
+                  // Selection carries weight AND colour, so it does not
+                  // depend on colour alone.
+                  color: selected ? t.primaryTextOnSurface : t.textPrimary,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 ),
-                const SizedBox(width: AppSpacing.space5),
-                Expanded(
-                  child: Text(
-                    destination.label,
-                    style: AppTypography.personName.copyWith(
-                      // Selection carries weight AND colour, so it does not
-                      // depend on colour alone.
-                      color:
-                          selected ? t.primaryTextOnSurface : t.textPrimary,
-                      fontWeight:
-                          selected ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

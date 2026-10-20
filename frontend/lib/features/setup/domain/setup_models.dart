@@ -7,6 +7,36 @@ import 'package:flutter/foundation.dart';
 /// from the dates (a year covering today came back false while an expired
 /// year stayed true). The screen therefore explains the situation instead of
 /// offering a control that cannot work (D-19).
+/// C8 per-campus year state. A null status means the year predates V54 and is
+/// still waiting for a staff classification; it is never treated as archived.
+enum YearStatus {
+  draft('draft', 'Draft', 'Activate year'),
+  active('active', 'Active', 'Start closing'),
+  closing('closing', 'Closing', 'Archive year'),
+  archived('archived', 'Archived', null);
+
+  const YearStatus(this.wire, this.label, this.nextActionLabel);
+
+  final String wire;
+  final String label;
+  final String? nextActionLabel;
+
+  static YearStatus? parse(String? raw) {
+    for (final s in values) {
+      if (s.wire == raw) return s;
+    }
+    return null;
+  }
+
+  /// The only forward step the server accepts.
+  YearStatus? get next => switch (this) {
+    YearStatus.draft => YearStatus.active,
+    YearStatus.active => YearStatus.closing,
+    YearStatus.closing => YearStatus.archived,
+    YearStatus.archived => null,
+  };
+}
+
 @immutable
 class AcademicYear {
   const AcademicYear({
@@ -15,18 +45,33 @@ class AcademicYear {
     required this.startDate,
     required this.endDate,
     required this.current,
+    this.campusId,
+    this.status,
+    this.reviewRequired = false,
   });
 
   factory AcademicYear.fromJson(Map<String, dynamic> json) => AcademicYear(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        startDate: json['startDate'] as String? ?? '',
-        endDate: json['endDate'] as String? ?? '',
-        current: json['current'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    startDate: json['startDate'] as String? ?? '',
+    endDate: json['endDate'] as String? ?? '',
+    current: json['current'] as bool? ?? false,
+    campusId: json['campusId'] as String?,
+    status: YearStatus.parse(json['status'] as String?),
+    reviewRequired: json['lifecycleReviewRequired'] as bool? ?? false,
+  );
+
+  /// C8 state; null only while a legacy year awaits classification.
+  final YearStatus? status;
+
+  /// Created before V54 and not yet classified by staff.
+  final bool reviewRequired;
 
   final String id;
   final String name;
+
+  /// The campus this year belongs to (null if the API omits it).
+  final String? campusId;
 
   /// `YYYY-MM-DD`, as the API returns them.
   final String startDate;
@@ -43,16 +88,21 @@ class SchoolClass {
     required this.id,
     required this.name,
     this.levelOrder,
+    this.campusId,
   });
 
   factory SchoolClass.fromJson(Map<String, dynamic> json) => SchoolClass(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        levelOrder: (json['levelOrder'] as num?)?.toInt(),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    levelOrder: (json['levelOrder'] as num?)?.toInt(),
+    campusId: json['campusId'] as String?,
+  );
 
   final String id;
   final String name;
+
+  /// The class's campus (hard-QA BUG-QA-12: campus-scoped screens filter by it).
+  final String? campusId;
 
   /// Display order. Exposed in the UI because alphabetical sorting puts
   /// "Class 10" before "Class 2", which every school notices immediately.
@@ -86,13 +136,13 @@ class Section {
   });
 
   factory Section.fromJson(Map<String, dynamic> json) => Section(
-        id: json['id'] as String,
-        classId: json['classId'] as String? ?? '',
-        academicYearId: json['academicYearId'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        classTeacherId: json['classTeacherId'] as String?,
-        capacity: (json['capacity'] as num?)?.toInt(),
-      );
+    id: json['id'] as String,
+    classId: json['classId'] as String? ?? '',
+    academicYearId: json['academicYearId'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    classTeacherId: json['classTeacherId'] as String?,
+    capacity: (json['capacity'] as num?)?.toInt(),
+  );
 
   final String id;
   final String classId;
@@ -107,10 +157,10 @@ class Subject {
   const Subject({required this.id, required this.name, this.code});
 
   factory Subject.fromJson(Map<String, dynamic> json) => Subject(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        code: json['code'] as String?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    code: json['code'] as String?,
+  );
 
   final String id;
   final String name;
@@ -121,6 +171,24 @@ class Subject {
 ///
 /// The API returns **ids only**, so the screens join names from the staff and
 /// subject lists they already hold.
+/// C10 assignment types. These are assignment types, not roles.
+enum AssignmentType {
+  primary('primary', 'Primary'),
+  coTeacher('co_teacher', 'Co-teacher'),
+  substitute('substitute', 'Substitute');
+
+  const AssignmentType(this.wire, this.label);
+
+  final String wire;
+  final String label;
+
+  static AssignmentType parse(String? raw) => switch (raw) {
+    'co_teacher' => AssignmentType.coTeacher,
+    'substitute' => AssignmentType.substitute,
+    _ => AssignmentType.primary,
+  };
+}
+
 @immutable
 class TeachingAssignment {
   const TeachingAssignment({
@@ -129,6 +197,10 @@ class TeachingAssignment {
     required this.sectionId,
     required this.subjectId,
     required this.academicYearId,
+    this.type = AssignmentType.primary,
+    this.status = 'active',
+    this.startsOn,
+    this.endsOn,
   });
 
   factory TeachingAssignment.fromJson(Map<String, dynamic> json) =>
@@ -138,7 +210,25 @@ class TeachingAssignment {
         sectionId: json['sectionId'] as String? ?? '',
         subjectId: json['subjectId'] as String? ?? '',
         academicYearId: json['academicYearId'] as String? ?? '',
+        type: AssignmentType.parse(json['assignmentType'] as String?),
+        status: json['status'] as String? ?? 'active',
+        startsOn: json['startsOn']?.toString(),
+        endsOn: json['endsOn']?.toString(),
       );
+
+  final AssignmentType type;
+
+  /// draft | scheduled | active | ended | cancelled | suspended | replaced.
+  final String status;
+  final String? startsOn;
+  final String? endsOn;
+
+  /// Scheduled or active: the only states that can still be ended.
+  bool get isLive => status == 'scheduled' || status == 'active';
+
+  String get periodLabel => startsOn == null && endsOn == null
+      ? 'Open-ended'
+      : '${startsOn ?? '…'} → ${endsOn ?? 'open'}';
 
   final String id;
   final String staffId;
@@ -160,13 +250,13 @@ class SchoolPeriod {
   });
 
   factory SchoolPeriod.fromJson(Map<String, dynamic> json) => SchoolPeriod(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        startTime: json['startTime'] as String? ?? '',
-        endTime: json['endTime'] as String? ?? '',
-        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
-        isBreak: json['isBreak'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    startTime: json['startTime'] as String? ?? '',
+    endTime: json['endTime'] as String? ?? '',
+    sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+    isBreak: json['isBreak'] as bool? ?? false,
+  );
 
   final String id;
   final String name;
@@ -185,10 +275,10 @@ class Room {
   const Room({required this.id, required this.name, this.capacity});
 
   factory Room.fromJson(Map<String, dynamic> json) => Room(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        capacity: (json['capacity'] as num?)?.toInt(),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    capacity: (json['capacity'] as num?)?.toInt(),
+  );
 
   final String id;
   final String name;
@@ -208,16 +298,16 @@ class TimetableSlot {
   });
 
   factory TimetableSlot.fromJson(Map<String, dynamic> json) => TimetableSlot(
-        // The section week endpoint calls it `slotId`; the write endpoints
-        // call the same thing `id`. Both are accepted rather than picking
-        // one and having the other silently produce empty cells.
-        id: (json['slotId'] ?? json['id']) as String? ?? '',
-        dayOfWeek: (json['dayOfWeek'] as num?)?.toInt() ?? 0,
-        periodId: json['periodId'] as String? ?? '',
-        subjectId: json['subjectId'] as String? ?? '',
-        teacherStaffId: json['teacherStaffId'] as String? ?? '',
-        roomId: json['roomId'] as String?,
-      );
+    // The section week endpoint calls it `slotId`; the write endpoints
+    // call the same thing `id`. Both are accepted rather than picking
+    // one and having the other silently produce empty cells.
+    id: (json['slotId'] ?? json['id']) as String? ?? '',
+    dayOfWeek: (json['dayOfWeek'] as num?)?.toInt() ?? 0,
+    periodId: json['periodId'] as String? ?? '',
+    subjectId: json['subjectId'] as String? ?? '',
+    teacherStaffId: json['teacherStaffId'] as String? ?? '',
+    roomId: json['roomId'] as String?,
+  );
 
   final String id;
 

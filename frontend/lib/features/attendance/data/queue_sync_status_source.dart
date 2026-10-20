@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show Listenable;
+
 import '../../../core/shell/sync_status.dart';
 import 'attendance_queue.dart';
 
@@ -20,15 +22,22 @@ class QueueSyncStatusSource implements SyncStatusSource {
   QueueSyncStatusSource({
     required this.connectivity,
     required this.queue,
+    this.accountChanges,
   }) {
     _current = connectivity.current;
     _sub = connectivity.statusStream.listen((_) => refresh());
+    // F11: recount after every queue write/drain and whenever the signed-in
+    // account changes (the encrypted queue is account-scoped).
+    _queueSub = queue.changes.listen((_) => refresh());
+    accountChanges?.addListener(refresh);
     refresh();
   }
 
   final SyncStatusSource connectivity;
   final AttendanceQueue queue;
+  final Listenable? accountChanges;
   late StreamSubscription<SyncStatus> _sub;
+  late StreamSubscription<void> _queueSub;
   late SyncStatus _current;
   final _controller = StreamController<SyncStatus>.broadcast();
 
@@ -42,8 +51,8 @@ class QueueSyncStatusSource implements SyncStatusSource {
     final next = offline
         ? SyncStatus.offline(pendingCount: pending)
         : pending > 0
-            ? const SyncStatus.syncing()
-            : const SyncStatus.synced();
+        ? const SyncStatus.syncing()
+        : const SyncStatus.synced();
 
     if (next != _current) {
       _current = next;
@@ -59,6 +68,8 @@ class QueueSyncStatusSource implements SyncStatusSource {
 
   void dispose() {
     _sub.cancel();
+    _queueSub.cancel();
+    accountChanges?.removeListener(refresh);
     _controller.close();
   }
 }

@@ -1,3 +1,4 @@
+import 'package:smartems/core/network/paged_get.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_config.dart';
@@ -16,6 +17,24 @@ class SetupRepository {
 
   final Dio dio;
 
+  Future<Map<String, dynamic>> generateTimetable(
+    Map<String, dynamic> request,
+  ) => _mapped(() async {
+    final response = await dio.post<Map<String, dynamic>>(
+      '/api/timetable/generate',
+      data: request,
+    );
+    return response.data!;
+  });
+  Future<Map<String, dynamic>> loadWorkflow(String id, CancelToken token) =>
+      _mapped(() async {
+        final response = await dio.get<Map<String, dynamic>>(
+          '/api/workflow-jobs/$id',
+          cancelToken: token,
+        );
+        return response.data!;
+      });
+
   Future<T> _mapped<T>(Future<T> Function() call) async {
     try {
       return await call();
@@ -24,21 +43,15 @@ class SetupRepository {
     }
   }
 
-  static List<Map<String, dynamic>> _content(Map<String, dynamic>? body) =>
-      (body?['content'] as List? ?? const []).cast<Map<String, dynamic>>();
-
   static List<Map<String, dynamic>> _array(List<dynamic>? body) =>
       (body ?? const []).cast<Map<String, dynamic>>();
 
   // --- Academic years -------------------------------------------------------
 
   Future<List<AcademicYear>> loadYears() => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          ApiConfig.academicYearsPath,
-          queryParameters: const {'size': 100},
-        );
-        return _content(res.data).map(AcademicYear.fromJson).toList();
-      });
+    final rows = await dio.getAllPages(ApiConfig.academicYearsPath);
+    return rows.map(AcademicYear.fromJson).toList();
+  });
 
   /// `current` is deliberately NOT sent: the backend ignores it either way,
   /// and sending it would suggest this call can set it.
@@ -47,48 +60,59 @@ class SetupRepository {
     required String name,
     required String startDate,
     required String endDate,
-  }) =>
+  }) => _mapped(() async {
+    final res = await dio.post<Map<String, dynamic>>(
+      ApiConfig.academicYearsPath,
+      data: {
+        'campusId': campusId,
+        'name': name,
+        'startDate': startDate,
+        'endDate': endDate,
+      },
+    );
+    return AcademicYear.fromJson(res.data!);
+  });
+
+  /// C8: one forward step (draft → active → closing → archived). The server
+  /// refuses any other move with 409; its message is surfaced as-is.
+  Future<void> transitionYear(
+    String yearId,
+    YearStatus target, {
+    String? reason,
+  }) => _mapped(() async {
+    await dio.post<dynamic>(
+      '${ApiConfig.academicYearsPath}/$yearId/status',
+      data: {'status': target.wire, 'reason': ?reason},
+    );
+  });
+
+  /// C8: classify a legacy year V54 could not verify; a reason is required.
+  Future<void> classifyYear(String yearId, YearStatus target, String reason) =>
       _mapped(() async {
-        final res = await dio.post<Map<String, dynamic>>(
-          ApiConfig.academicYearsPath,
-          data: {
-            'campusId': campusId,
-            'name': name,
-            'startDate': startDate,
-            'endDate': endDate,
-          },
+        await dio.post<dynamic>(
+          '${ApiConfig.academicYearsPath}/$yearId/classification',
+          data: {'status': target.wire, 'reason': reason},
         );
-        return AcademicYear.fromJson(res.data!);
       });
 
   // --- Classes --------------------------------------------------------------
 
   Future<List<SchoolClass>> loadClasses() => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          ApiConfig.classesPath,
-          queryParameters: const {'size': 200},
-        );
-        return sortClasses(
-          _content(res.data).map(SchoolClass.fromJson).toList(),
-        );
-      });
+    final rows = await dio.getAllPages(ApiConfig.classesPath);
+    return sortClasses(rows.map(SchoolClass.fromJson).toList());
+  });
 
   Future<SchoolClass> createClass({
     required String campusId,
     required String name,
     int? levelOrder,
-  }) =>
-      _mapped(() async {
-        final res = await dio.post<Map<String, dynamic>>(
-          ApiConfig.classesPath,
-          data: {
-            'campusId': campusId,
-            'name': name,
-            'levelOrder': ?levelOrder,
-          },
-        );
-        return SchoolClass.fromJson(res.data!);
-      });
+  }) => _mapped(() async {
+    final res = await dio.post<Map<String, dynamic>>(
+      ApiConfig.classesPath,
+      data: {'campusId': campusId, 'name': name, 'levelOrder': ?levelOrder},
+    );
+    return SchoolClass.fromJson(res.data!);
+  });
 
   // --- Sections -------------------------------------------------------------
 
@@ -98,12 +122,9 @@ class SetupRepository {
   /// control), so grouping happens in the client. Sending it anyway would
   /// imply a filter that does not exist.
   Future<List<Section>> loadSections() => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          ApiConfig.sectionsPath,
-          queryParameters: const {'size': 500},
-        );
-        return _content(res.data).map(Section.fromJson).toList();
-      });
+    final rows = await dio.getAllPages(ApiConfig.sectionsPath);
+    return rows.map(Section.fromJson).toList();
+  });
 
   Future<Section> createSection({
     required String classId,
@@ -111,30 +132,26 @@ class SetupRepository {
     required String name,
     int? capacity,
     String? classTeacherId,
-  }) =>
-      _mapped(() async {
-        final res = await dio.post<Map<String, dynamic>>(
-          ApiConfig.sectionsPath,
-          data: {
-            'classId': classId,
-            'academicYearId': academicYearId,
-            'name': name,
-            'capacity': ?capacity,
-            'classTeacherId': ?classTeacherId,
-          },
-        );
-        return Section.fromJson(res.data!);
-      });
+  }) => _mapped(() async {
+    final res = await dio.post<Map<String, dynamic>>(
+      ApiConfig.sectionsPath,
+      data: {
+        'classId': classId,
+        'academicYearId': academicYearId,
+        'name': name,
+        'capacity': ?capacity,
+        'classTeacherId': ?classTeacherId,
+      },
+    );
+    return Section.fromJson(res.data!);
+  });
 
   // --- Subjects -------------------------------------------------------------
 
   Future<List<Subject>> loadSubjects() => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          ApiConfig.subjectsPath,
-          queryParameters: const {'size': 200},
-        );
-        return _content(res.data).map(Subject.fromJson).toList();
-      });
+    final rows = await dio.getAllPages(ApiConfig.subjectsPath);
+    return rows.map(Subject.fromJson).toList();
+  });
 
   Future<Subject> createSubject({required String name, String? code}) =>
       _mapped(() async {
@@ -149,29 +166,44 @@ class SetupRepository {
 
   Future<List<TeachingAssignment>> loadAssignments(String sectionId) =>
       _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
+        final rows = await dio.getAllPages(
           ApiConfig.teachingAssignmentsSectionPath(sectionId),
-          queryParameters: const {'size': 200},
         );
-        return _content(res.data).map(TeachingAssignment.fromJson).toList();
+        return rows.map(TeachingAssignment.fromJson).toList();
       });
 
-  /// Create-only by necessity — there is no update or delete route.
+  /// C10: type and optional effective dates (a substitute needs both). The
+  /// server checks campus, section/year/subject agreement, the staff member's
+  /// campus assignment and refuses an overlapping live primary with 409.
   Future<TeachingAssignment> createAssignment({
     required String staffId,
     required String sectionId,
     required String subjectId,
     required String academicYearId,
-  }) =>
+    AssignmentType type = AssignmentType.primary,
+    String? startsOn,
+    String? endsOn,
+  }) => _mapped(() async {
+    final res = await dio.post<Map<String, dynamic>>(
+      ApiConfig.teachingAssignmentsPath,
+      data: {
+        'staffId': staffId,
+        'sectionId': sectionId,
+        'subjectId': subjectId,
+        'academicYearId': academicYearId,
+        'assignmentType': type.wire,
+        'startsOn': ?startsOn,
+        'endsOn': ?endsOn,
+      },
+    );
+    return TeachingAssignment.fromJson(res.data!);
+  });
+
+  /// C10: ends an assignment now; it stops authorizing on the next request.
+  Future<TeachingAssignment> endAssignment(String assignmentId) =>
       _mapped(() async {
         final res = await dio.post<Map<String, dynamic>>(
-          ApiConfig.teachingAssignmentsPath,
-          data: {
-            'staffId': staffId,
-            'sectionId': sectionId,
-            'subjectId': subjectId,
-            'academicYearId': academicYearId,
-          },
+          '${ApiConfig.teachingAssignmentsPath}/$assignmentId/end',
         );
         return TeachingAssignment.fromJson(res.data!);
       });
@@ -179,13 +211,13 @@ class SetupRepository {
   // --- Timetable ------------------------------------------------------------
 
   Future<List<SchoolPeriod>> loadPeriods(String campusId) => _mapped(() async {
-        final res = await dio.get<List<dynamic>>(
-          ApiConfig.timetablePeriodsPath,
-          queryParameters: {'campusId': campusId},
-        );
-        return _array(res.data).map(SchoolPeriod.fromJson).toList()
-          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-      });
+    final res = await dio.get<List<dynamic>>(
+      ApiConfig.timetablePeriodsPath,
+      queryParameters: {'campusId': campusId},
+    );
+    return _array(res.data).map(SchoolPeriod.fromJson).toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  });
 
   Future<SchoolPeriod> createPeriod({
     required String campusId,
@@ -194,42 +226,40 @@ class SetupRepository {
     required String endTime,
     required int sortOrder,
     required bool isBreak,
-  }) =>
-      _mapped(() async {
-        final res = await dio.post<Map<String, dynamic>>(
-          ApiConfig.timetablePeriodsPath,
-          data: {
-            'campusId': campusId,
-            'name': name,
-            'startTime': startTime,
-            'endTime': endTime,
-            'sortOrder': sortOrder,
-            'isBreak': isBreak,
-          },
-        );
-        return SchoolPeriod.fromJson(res.data!);
-      });
+  }) => _mapped(() async {
+    final res = await dio.post<Map<String, dynamic>>(
+      ApiConfig.timetablePeriodsPath,
+      data: {
+        'campusId': campusId,
+        'name': name,
+        'startTime': startTime,
+        'endTime': endTime,
+        'sortOrder': sortOrder,
+        'isBreak': isBreak,
+      },
+    );
+    return SchoolPeriod.fromJson(res.data!);
+  });
 
   Future<List<Room>> loadRooms(String campusId) => _mapped(() async {
-        final res = await dio.get<List<dynamic>>(
-          ApiConfig.timetableRoomsPath,
-          queryParameters: {'campusId': campusId},
-        );
-        return _array(res.data).map(Room.fromJson).toList();
-      });
+    final res = await dio.get<List<dynamic>>(
+      ApiConfig.timetableRoomsPath,
+      queryParameters: {'campusId': campusId},
+    );
+    return _array(res.data).map(Room.fromJson).toList();
+  });
 
   /// A section's whole week. `academicYearId` is REQUIRED by the endpoint.
   Future<List<TimetableSlot>> loadWeek({
     required String sectionId,
     required String academicYearId,
-  }) =>
-      _mapped(() async {
-        final res = await dio.get<List<dynamic>>(
-          '${ApiConfig.timetableSectionPath}/$sectionId',
-          queryParameters: {'academicYearId': academicYearId},
-        );
-        return _array(res.data).map(TimetableSlot.fromJson).toList();
-      });
+  }) => _mapped(() async {
+    final res = await dio.get<List<dynamic>>(
+      '${ApiConfig.timetableSectionPath}/$sectionId',
+      queryParameters: {'academicYearId': academicYearId},
+    );
+    return _array(res.data).map(TimetableSlot.fromJson).toList();
+  });
 
   /// Fills one cell.
   ///
@@ -264,11 +294,51 @@ class SetupRepository {
     } on DioException catch (err) {
       final body = err.response?.data;
       final message = body is Map ? body['message'] as String? : null;
-      return (null, SlotFailure.fromMessage(message ?? mapDioError(err).message));
+      return (
+        null,
+        SlotFailure.fromMessage(message ?? mapDioError(err).message),
+      );
+    }
+  }
+
+  /// Changes one filled cell (PUT, same body and same clash handling as
+  /// [createSlot]). The server re-checks teacher and room clashes, excluding
+  /// this slot itself.
+  Future<(TimetableSlot?, SlotFailure?)> updateSlot({
+    required String slotId,
+    required String sectionId,
+    required String academicYearId,
+    required String periodId,
+    required int dayOfWeek,
+    required String subjectId,
+    required String teacherStaffId,
+    String? roomId,
+  }) async {
+    try {
+      final res = await dio.put<Map<String, dynamic>>(
+        ApiConfig.timetableSlotPath(slotId),
+        data: {
+          'sectionId': sectionId,
+          'academicYearId': academicYearId,
+          'periodId': periodId,
+          'dayOfWeek': dayOfWeek,
+          'subjectId': subjectId,
+          'teacherStaffId': teacherStaffId,
+          'roomId': ?roomId,
+        },
+      );
+      return (TimetableSlot.fromJson(res.data!), null);
+    } on DioException catch (err) {
+      final body = err.response?.data;
+      final message = body is Map ? body['message'] as String? : null;
+      return (
+        null,
+        SlotFailure.fromMessage(message ?? mapDioError(err).message),
+      );
     }
   }
 
   Future<void> deleteSlot(String slotId) => _mapped(() async {
-        await dio.delete<void>(ApiConfig.timetableSlotPath(slotId));
-      });
+    await dio.delete<void>(ApiConfig.timetableSlotPath(slotId));
+  });
 }

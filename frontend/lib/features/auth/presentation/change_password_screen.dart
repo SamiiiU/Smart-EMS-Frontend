@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/auth_layout.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
-import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -82,90 +83,127 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    // Opened from Settings (a pushed page) rather than forced after login:
+    // the user may change their mind.
+    final voluntary = Navigator.of(context).canPop();
 
     return Scaffold(
       backgroundColor: t.page,
+      // M1: the same sign-in frame as login.
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.space8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppSizing.authFormMaxWidth,
+        child: AuthLayout(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Set a new password',
+                style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Set a new password',
-                    style: AppTypography.screenTitle
-                        .copyWith(color: t.textPrimary),
-                  ),
-                  const SizedBox(height: AppSpacing.space3),
-                  Text(
-                    'Your account needs a new password before you can '
-                    'continue.',
-                    style: AppTypography.bodyAdminMeta
-                        .copyWith(color: t.textSecondary),
-                  ),
-                  const SizedBox(height: AppSpacing.space6),
-                  // Stated BEFORE the action, not after: being returned to
-                  // the login screen is expected here, not a failure.
-                  const InlineAlert(
-                    tone: InlineAlertTone.info,
-                    message: 'Changing your password signs you out '
-                        'everywhere. You will sign in again with the new one.',
-                  ),
-                  const SizedBox(height: AppSpacing.space6),
-                  if (_error != null) ...[
-                    InlineAlert(
-                      tone: InlineAlertTone.danger,
-                      message: _error!,
-                    ),
-                    const SizedBox(height: AppSpacing.space6),
-                  ],
-                  AppTextField(
-                    label: 'Current password',
-                    value: _current,
-                    obscure: true,
-                    state: _submitting
-                        ? AppTextFieldState.disabled
-                        : AppTextFieldState.normal,
-                    onChanged: (v) => setState(() => _current = v),
-                  ),
-                  const SizedBox(height: AppSpacing.space6),
-                  AppTextField(
-                    label: 'New password',
-                    value: _next,
-                    obscure: true,
-                    state: _submitting
-                        ? AppTextFieldState.disabled
-                        : AppTextFieldState.normal,
-                    onChanged: (v) => setState(() => _next = v),
-                  ),
-                  const SizedBox(height: AppSpacing.space6),
-                  AppTextField(
-                    label: 'Confirm new password',
-                    value: _confirm,
-                    obscure: true,
-                    state: _submitting
-                        ? AppTextFieldState.disabled
-                        : AppTextFieldState.normal,
-                    onChanged: (v) => setState(() => _confirm = v),
-                  ),
-                  const SizedBox(height: AppSpacing.space8),
-                  AppButton(
-                    label: _submitting ? 'Saving…' : 'Save',
-                    fullWidth: true,
-                    onPressed: _canSubmit ? submit : null,
-                  ),
-                ],
+              const SizedBox(height: AppSpacing.space3),
+              Text(
+                voluntary
+                    ? 'Choose a new password for your account.'
+                    : 'Your account needs a new password before you can '
+                          'continue.',
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.space6),
+              // Stated BEFORE the action, not after: being returned to
+              // the login screen is expected here, not a failure.
+              const InlineAlert(
+                tone: InlineAlertTone.info,
+                message:
+                    'Changing your password signs you out '
+                    'everywhere. You will sign in again with the new one.',
+              ),
+              const SizedBox(height: AppSpacing.space6),
+              if (_error != null) ...[
+                InlineAlert(tone: InlineAlertTone.danger, message: _error!),
+                const SizedBox(height: AppSpacing.space6),
+              ],
+              AppTextField(
+                label: 'Current password',
+                required: true,
+                value: _current,
+                obscure: true,
+                state: _submitting
+                    ? AppTextFieldState.disabled
+                    : AppTextFieldState.normal,
+                onChanged: (v) => setState(() => _current = v),
+              ),
+              const SizedBox(height: AppSpacing.space6),
+              AppTextField(
+                label: 'New password',
+                required: true,
+                value: _next,
+                obscure: true,
+                state: _submitting
+                    ? AppTextFieldState.disabled
+                    : AppTextFieldState.normal,
+                onChanged: (v) => setState(() => _next = v),
+              ),
+              const SizedBox(height: AppSpacing.space6),
+              AppTextField(
+                label: 'Confirm new password',
+                required: true,
+                value: _confirm,
+                obscure: true,
+                state: _submitting
+                    ? AppTextFieldState.disabled
+                    : AppTextFieldState.normal,
+                onChanged: (v) => setState(() => _confirm = v),
+              ),
+              const SizedBox(height: AppSpacing.space8),
+              AppButton(
+                label: _submitting ? 'Saving…' : 'Save',
+                fullWidth: true,
+                onPressed: _canSubmit ? submit : null,
+              ),
+              if (voluntary) ...[
+                const SizedBox(height: AppSpacing.space3),
+                AppButton(
+                  key: const Key('change-password-cancel'),
+                  label: 'Cancel',
+                  variant: AppButtonVariant.ghost,
+                  fullWidth: true,
+                  onPressed: _submitting
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                ),
+              ],
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Makes a user-initiated password change reachable from Settings without
+/// threading the auth repository through every role's destination builder
+/// (same pattern as `MfaScope`). The forced change after login still uses
+/// the `/change-password` route.
+class PasswordScope extends InheritedWidget {
+  const PasswordScope({
+    required this.repository,
+    required this.onChanged,
+    required super.child,
+    super.key,
+  });
+
+  final AuthRepository repository;
+
+  /// After a successful change every session is revoked server-side, so the
+  /// app drops its identity and the router returns to login.
+  final VoidCallback onChanged;
+
+  static PasswordScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<PasswordScope>();
+
+  @override
+  bool updateShouldNotify(PasswordScope oldWidget) =>
+      repository != oldWidget.repository || onChanged != oldWidget.onChanged;
 }

@@ -77,6 +77,10 @@ class ScreenStateBuilder<T> extends StatelessWidget {
       case ScreenOutcome.unlinkedProfileState:
         return const UnlinkedProfileState();
 
+      case ScreenOutcome.permissionDeniedState:
+        final reason = state.failure?.message;
+        return reason == null ? const PermissionDeniedState() : PermissionDeniedState(message: reason);
+
       case ScreenOutcome.offlineState:
         return const OfflineState();
 

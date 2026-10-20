@@ -61,10 +61,8 @@ class AdminStudent {
 class AdminClass {
   const AdminClass({required this.id, required this.name});
 
-  factory AdminClass.fromJson(Map<String, dynamic> json) => AdminClass(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-      );
+  factory AdminClass.fromJson(Map<String, dynamic> json) =>
+      AdminClass(id: json['id'] as String, name: json['name'] as String? ?? '');
 
   final String id;
   final String name;
@@ -124,11 +122,11 @@ class SectionCompleteness {
   /// What the row should tell the admin to do next. Null when complete —
   /// a "nothing to do" row must not invent an action (D-19).
   String? get nextAction => switch (completenessRank) {
-        0 => 'No students enrolled',
-        1 => 'No timetable set',
-        2 => 'No class teacher assigned',
-        _ => null,
-      };
+    0 => 'No students enrolled',
+    1 => 'No timetable set',
+    2 => 'No class teacher assigned',
+    _ => null,
+  };
 }
 
 /// Sorts least-complete first, then by label so the order is stable and
@@ -170,8 +168,7 @@ class AdminDashboard {
   bool get isBrandNewSchool => sections.isEmpty && studentCount == 0;
 }
 
-/// Result of a CSV import. Returned COMPLETE by the POST itself — the import
-/// is synchronous despite carrying a jobId (verified live 2026-09-18).
+/// Import snapshot. The POST queues it; status reads return saved progress and final counts.
 @immutable
 class ImportResult {
   const ImportResult({
@@ -183,12 +180,12 @@ class ImportResult {
   });
 
   factory ImportResult.fromJson(Map<String, dynamic> json) => ImportResult(
-        jobId: json['jobId'] as String? ?? '',
-        status: json['status'] as String? ?? '',
-        totalRows: (json['totalRows'] as num?)?.toInt() ?? 0,
-        successRows: (json['successRows'] as num?)?.toInt() ?? 0,
-        errorRows: (json['errorRows'] as num?)?.toInt() ?? 0,
-      );
+    jobId: json['jobId'] as String? ?? '',
+    status: json['status'] as String? ?? '',
+    totalRows: (json['totalRows'] as num?)?.toInt() ?? 0,
+    successRows: (json['successRows'] as num?)?.toInt() ?? 0,
+    errorRows: (json['errorRows'] as num?)?.toInt() ?? 0,
+  );
 
   final String jobId;
   final String status;
@@ -205,9 +202,9 @@ class ImportRowError {
   const ImportRowError({required this.rowNumber, required this.message});
 
   factory ImportRowError.fromJson(Map<String, dynamic> json) => ImportRowError(
-        rowNumber: (json['rowNumber'] as num?)?.toInt() ?? 0,
-        message: json['message'] as String? ?? '',
-      );
+    rowNumber: (json['rowNumber'] as num?)?.toInt() ?? 0,
+    message: json['message'] as String? ?? '',
+  );
 
   /// 1-indexed and INCLUDING the header row, so the first data row is 2.
   /// Surfaced verbatim rather than adjusted — the admin is looking at the

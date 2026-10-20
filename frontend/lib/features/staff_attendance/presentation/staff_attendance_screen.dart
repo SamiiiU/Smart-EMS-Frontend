@@ -46,7 +46,8 @@ class StaffAttendanceScreenState extends State<StaffAttendanceScreen> {
 
   late final DateTime _day = widget.today ?? DateTime.now();
 
-  String get _date => '${_day.year}-'
+  String get _date =>
+      '${_day.year}-'
       '${_day.month.toString().padLeft(2, '0')}-'
       '${_day.day.toString().padLeft(2, '0')}';
 
@@ -57,25 +58,33 @@ class StaffAttendanceScreenState extends State<StaffAttendanceScreen> {
   }
 
   Future<void> load() async {
-    setState(() => _state =
-        ScreenState<StaffAttendanceDay>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<StaffAttendanceDay>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final day = await widget.repository.loadDay(_date);
       if (!mounted) return;
-      setState(() => _state = ScreenState<StaffAttendanceDay>.data(
-            day,
-            // One record for the day, never a collection.
-            isEmpty: day.rows.isEmpty,
-          ));
+      setState(
+        () => _state = ScreenState<StaffAttendanceDay>.data(
+          day,
+          // One record for the day, never a collection.
+          isEmpty: day.rows.isEmpty,
+        ),
+      );
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<StaffAttendanceDay>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<StaffAttendanceDay>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -129,8 +138,9 @@ class StaffAttendanceScreenState extends State<StaffAttendanceScreen> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   _date,
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               ),
             ),
@@ -141,15 +151,18 @@ class StaffAttendanceScreenState extends State<StaffAttendanceScreen> {
                   horizontal: AppSpacing.space6,
                   vertical: AppSpacing.space3,
                 ),
-                child:
-                    InlineAlert(tone: InlineAlertTone.danger, message: _error!),
+                child: InlineAlert(
+                  tone: InlineAlertTone.danger,
+                  message: _error!,
+                ),
               ),
             Expanded(
               child: ScreenStateBuilder<StaffAttendanceDay>(
                 state: _state,
                 onRetry: load,
                 emptyTitle: 'No staff records',
-                emptyMessage: 'There is nobody to mark. Staff are created '
+                emptyMessage:
+                    'There is nobody to mark. Staff are created '
                     'under Add user.',
                 emptyIcon: Icons.badge_outlined,
                 data: (context, day) => ListView.builder(
@@ -217,8 +230,9 @@ class _Summary extends StatelessWidget {
           if (day.unmarked > 0)
             Text(
               '${day.unmarked} left',
-              style: AppTypography.bodyAdminMeta
-                  .copyWith(color: t.warningTextOnBg),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.warningTextOnBg,
+              ),
             ),
         ],
       ),
@@ -267,8 +281,9 @@ class StaffRow extends StatelessWidget {
               if (row.employeeCode.isNotEmpty)
                 Text(
                   row.employeeCode,
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               if (row.status != null)
                 StatusPill(status: row.status!.pill, size: StatusPillSize.sm)
@@ -277,8 +292,9 @@ class StaffRow extends StatelessWidget {
                   // Not a status — the absence of one. Said in words rather
                   // than shown as a sixth pill that cannot be posted.
                   'Not marked',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.warningTextOnBg),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.warningTextOnBg,
+                  ),
                 ),
             ],
           ),

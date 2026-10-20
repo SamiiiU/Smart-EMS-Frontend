@@ -1,3 +1,4 @@
+import 'package:smartems/core/network/paged_get.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_config.dart';
@@ -16,6 +17,56 @@ class AdminRepository {
 
   final Dio dio;
 
+  Future<List<Map<String, dynamic>>> loadGuardianLinks(String studentId) =>
+      _mapped(() async {
+        final response = await dio.get<List<dynamic>>(
+          '/api/guardians/links/student/$studentId',
+        );
+        return [
+          for (final row in response.data ?? const [])
+            Map<String, dynamic>.from(row as Map),
+        ];
+      });
+  Future<void> reviewGuardianLink(
+    String id, {
+    required String status,
+    required String reason,
+    Map<String, bool>? categories,
+  }) => _mapped(
+    () => dio.post<dynamic>(
+      '/api/guardians/links/$id/review',
+      data: {'status': status, 'reason': reason, 'categories': categories},
+    ),
+  );
+
+  // --- Campus roles (ADR-011 campus delegation) ---------------------------
+  /// The person's explicit campus roles the caller may administer.
+  Future<List<CampusRoleGrant>> loadCampusRoles(String userId) =>
+      _mapped(() async {
+        final res = await dio.get<List<dynamic>>(
+          '/api/users/$userId/campus-grants',
+        );
+        return [
+          for (final r in res.data ?? const [])
+            CampusRoleGrant.fromJson(r as Map),
+        ];
+      });
+
+  Future<void> grantCampusRole(
+    String userId, {
+    required String campusId,
+    required String role,
+  }) => _mapped(
+    () => dio.post<dynamic>(
+      '/api/users/$userId/campus-grants',
+      data: {'campusId': campusId, 'role': role},
+    ),
+  );
+
+  Future<void> revokeCampusRole(String userId, String grantId) => _mapped(
+    () => dio.delete<dynamic>('/api/users/$userId/campus-grants/$grantId'),
+  );
+
   Future<T> _mapped<T>(Future<T> Function() call) async {
     try {
       return await call();
@@ -24,9 +75,6 @@ class AdminRepository {
     }
   }
 
-  static List<Map<String, dynamic>> _content(Map<String, dynamic>? body) =>
-      (body?['content'] as List? ?? const []).cast<Map<String, dynamic>>();
-
   /// Loads every student, then joins enrolment in to get each one's section.
   ///
   /// B-02: there is no server-side search, so the whole set is loaded and
@@ -34,10 +82,9 @@ class AdminRepository {
   /// a page size — see the note on [loadStudents]'s caller.
   Future<List<AdminStudent>> loadStudents({String? sectionId}) =>
       _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
+        final rows = await dio.getAllPages(
           ApiConfig.studentsPath,
           queryParameters: {
-            'size': 500,
             // B-03: `sectionId` and `classId` ARE honoured by this build
             // (verified live 2026-09-18 — a bogus id returns 0 while an
             // unknown param is ignored, which is what makes that sound).
@@ -45,16 +92,13 @@ class AdminRepository {
             'sectionId': ?sectionId,
           },
         );
-        return _content(res.data).map(AdminStudent.fromJson).toList();
+        return rows.map(AdminStudent.fromJson).toList();
       });
 
   Future<List<AdminClass>> loadClasses() => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          ApiConfig.classesPath,
-          queryParameters: const {'size': 200},
-        );
-        return _content(res.data).map(AdminClass.fromJson).toList();
-      });
+    final rows = await dio.getAllPages(ApiConfig.classesPath);
+    return rows.map(AdminClass.fromJson).toList();
+  });
 
   /// The tenant's campuses.
   ///
@@ -69,20 +113,62 @@ class AdminRepository {
   /// array throws a TypeError, which surfaced as a generic load failure.
   /// Both shapes are accepted so the screen does not hinge on which one
   /// this build returns.
-  Future<List<String>> loadCampusIds() => _mapped(() async {
-        final res = await dio.get<dynamic>(
-          ApiConfig.campusesPath,
-          queryParameters: const {'size': 50},
-        );
+  Future<List<String>> loadCampusIds() async => [
+    for (final c in await _loadCampusRowsShared()) c.id,
+  ];
+
+  /// Campuses where THIS account holds [permission] (hard-QA BUG-QA-08).
+  ///
+  /// A Teacher@A + Finance@B account gets both campuses from `/mine`; a fee
+  /// screen must act only on B. Rows without a permission list (the plain
+  /// fallback endpoint, which only campus.manage holders can read) are kept,
+  /// because those callers are institution-wide.
+  Future<List<String>> loadCampusIdsWith(String permission) async => [
+    for (final c in await _loadCampusRowsShared())
+      if (c.permissions == null || c.permissions!.contains(permission)) c.id,
+  ];
+
+  Future<List<({String id, Set<String>? permissions})>>
+  _loadCampusRowsShared() => _campusRowsInFlight ??= _loadCampusRows()
+      .whenComplete(() => _campusRowsInFlight = null);
+
+  /// Shared while on the wire — every tab asks for this at startup.
+  static Future<List<({String id, Set<String>? permissions})>>?
+  _campusRowsInFlight;
+
+  // Overhaul (route crawl): `GET /api/campuses` needs campus.manage, so scoped
+  // roles such as finance staff were refused and their whole Fees screen failed.
+  // `/api/campuses/mine` returns exactly the campuses this account may use
+  // (every campus for institution-wide roles). The plain list is a fallback only.
+  Future<List<({String id, Set<String>? permissions})>> _loadCampusRows() =>
+      _mapped(() async {
+        Response<dynamic> res;
+        try {
+          res = await dio.get<dynamic>('${ApiConfig.campusesPath}/mine');
+        } on DioException catch (e) {
+          if (e.response?.statusCode != 404) rethrow;
+          res = await dio.get<dynamic>(
+            ApiConfig.campusesPath,
+            queryParameters: const {'size': 50},
+          );
+        }
         final body = res.data;
         final rows = body is List
             ? body
-            : (body is Map ? body['content'] as List? : null) ?? const [];
-        return rows
-            .whereType<Map<dynamic, dynamic>>()
-            .map((c) => c['id'] as String?)
-            .whereType<String>()
-            .toList();
+            : (body is Map
+                      ? (body['campuses'] ?? body['content']) as List?
+                      : null) ??
+                  const [];
+        return [
+          for (final c in rows.whereType<Map<dynamic, dynamic>>())
+            if (c['id'] is String)
+              (
+                id: c['id'] as String,
+                permissions: c['permissions'] is List
+                    ? (c['permissions'] as List).whereType<String>().toSet()
+                    : null,
+              ),
+        ];
       });
 
   /// Everyone with a record, and whether each has a login (2026-09-23).
@@ -90,79 +176,82 @@ class AdminRepository {
   /// Three sources, because there is no one endpoint for "accounts":
   ///   - `GET /api/staff` and `GET /api/students` — both pages, both
   ///     carrying `userId` (null when no login is linked);
-  ///   - guardians have **no list endpoint** (`GET /api/guardians` answers
-  ///     405, verified live), so parents are collected per student via
-  ///     `/api/guardians/student/{id}`. That is N+1 by necessity, not by
-  ///     choice, and it is why [PeopleDirectory.parentsPartial] exists.
+  ///   - `GET /api/guardians` — paged, each guardian with its linked
+  ///     students. [PeopleDirectory.parentsPartial] is set if it fails.
   ///
   /// A login that was never linked to any record cannot appear here at all —
   /// nothing lists logins. Recorded in BACKEND_CONTRACT.md as a request.
   Future<PeopleDirectory> loadPeople() => _mapped(() async {
-        final staffRes = await dio.get<Map<String, dynamic>>(
-          ApiConfig.staffPath,
-          queryParameters: const {'size': 200},
+    final staffRes = await dio.getAllPages(ApiConfig.staffPath);
+    final studentRes = await dio.getAllPages(ApiConfig.studentsPath);
+
+    final staff = staffRes
+        .map(
+          (s) => PersonAccount(
+            id: s['id'] as String,
+            fullName: _name(s),
+            group: PeopleGroup.staff,
+            identifier: s['employeeCode'] as String?,
+            detail: s['designation'] as String?,
+            userId: s['userId'] as String?,
+          ),
+        )
+        .toList();
+
+    final studentRows = studentRes;
+    final students = studentRows
+        .map(
+          (s) => PersonAccount(
+            id: s['id'] as String,
+            fullName: _name(s),
+            group: PeopleGroup.students,
+            identifier: s['admissionNumber'] as String?,
+            detail: s['status'] as String?,
+            userId: s['userId'] as String?,
+          ),
+        )
+        .toList();
+
+    // One paged call for the whole guardian directory (GET /api/guardians,
+    // each row carrying its linked students) — replaces the old
+    // per-student /api/guardians/student/{id} loop, which was N+1 and
+    // burned through the per-user rate limit on a large institution.
+    final parents = <PersonAccount>[];
+    var partial = false;
+    try {
+      final rows = await dio.getAllPages(ApiConfig.guardiansPath);
+      for (final g in rows) {
+        final kids = (g['students'] as List? ?? const [])
+            .cast<Map<String, dynamic>>();
+        parents.add(
+          PersonAccount(
+            id: g['id'] as String,
+            fullName: _name(g),
+            group: PeopleGroup.parents,
+            detail: kids.isEmpty
+                ? null
+                : kids
+                      .map(
+                        (k) =>
+                            '${k['relationship'] ?? 'guardian'} of '
+                            '${_name(k)}',
+                      )
+                      .join(', '),
+            userId: g['userId'] as String?,
+          ),
         );
-        final studentRes = await dio.get<Map<String, dynamic>>(
-          ApiConfig.studentsPath,
-          queryParameters: const {'size': 200},
-        );
+      }
+    } on DioException {
+      partial = true;
+    }
 
-        final staff = _content(staffRes.data)
-            .map((s) => PersonAccount(
-                  id: s['id'] as String,
-                  fullName: _name(s),
-                  group: PeopleGroup.staff,
-                  identifier: s['employeeCode'] as String?,
-                  detail: s['designation'] as String?,
-                  userId: s['userId'] as String?,
-                ))
-            .toList();
-
-        final studentRows = _content(studentRes.data);
-        final students = studentRows
-            .map((s) => PersonAccount(
-                  id: s['id'] as String,
-                  fullName: _name(s),
-                  group: PeopleGroup.students,
-                  identifier: s['admissionNumber'] as String?,
-                  detail: s['status'] as String?,
-                  userId: s['userId'] as String?,
-                ))
-            .toList();
-
-        final parents = <String, PersonAccount>{};
-        var partial = false;
-        for (final student in studentRows) {
-          try {
-            final res = await dio.get<List<dynamic>>(
-              ApiConfig.guardiansOfStudentPath(student['id'] as String),
-            );
-            for (final link in (res.data ?? const []).cast<Map<String, dynamic>>()) {
-              final g = link['guardian'] as Map<String, dynamic>?;
-              if (g == null) continue;
-              // Keyed by id: one guardian can be linked to several students
-              // and must appear once, not once per child.
-              parents[g['id'] as String] = PersonAccount(
-                id: g['id'] as String,
-                fullName: _name(g),
-                group: PeopleGroup.parents,
-                detail: '${link['relationship'] ?? 'guardian'} of '
-                    '${_name(student)}',
-                userId: g['userId'] as String?,
-              );
-            }
-          } on DioException {
-            partial = true;
-          }
-        }
-
-        return PeopleDirectory(
-          staff: staff,
-          students: students,
-          parents: parents.values.toList(),
-          parentsPartial: partial,
-        );
-      });
+    return PeopleDirectory(
+      staff: staff,
+      students: students,
+      parents: parents,
+      parentsPartial: partial,
+    );
+  });
 
   static String _name(Map<String, dynamic> json) =>
       '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim();
@@ -178,11 +267,10 @@ class AdminRepository {
   /// Student ids enrolled in a section. Carries no names — that is why the
   /// students list needs both calls joined.
   Future<List<String>> _enrolledStudentIds(String sectionId) async {
-    final res = await dio.get<Map<String, dynamic>>(
+    final rows = await dio.getAllPages(
       '${ApiConfig.enrollmentsSectionPath}/$sectionId',
-      queryParameters: const {'size': 500},
     );
-    return _content(res.data)
+    return rows
         .where((e) => e['status'] == 'enrolled')
         .map((e) => e['studentId'] as String)
         .toList();
@@ -211,49 +299,48 @@ class AdminRepository {
   /// school and is NOT fine for a large one; there is no aggregate endpoint
   /// to replace it. Flagged rather than silently paginated.
   Future<AdminDashboard> loadDashboard() => _mapped(() async {
-        final sectionsRes = await dio.get<Map<String, dynamic>>(
-          ApiConfig.sectionsPath,
-          queryParameters: const {'size': 200},
-        );
-        final sectionRows = _content(sectionsRes.data);
+    final sectionsRes = await dio.getAllPages(ApiConfig.sectionsPath);
+    final sectionRows = sectionsRes;
 
-        final classes = await loadClasses();
-        final classNameById = {for (final c in classes) c.id: c.name};
+    final classes = await loadClasses();
+    final classNameById = {for (final c in classes) c.id: c.name};
 
-        final studentsRes = await dio.get<Map<String, dynamic>>(
-          ApiConfig.studentsPath,
-          queryParameters: const {'size': 1},
-        );
-        final studentCount =
-            (studentsRes.data?['totalElements'] as num?)?.toInt() ?? 0;
+    final studentsRes = await dio.get<Map<String, dynamic>>(
+      ApiConfig.studentsPath,
+      queryParameters: const {'size': 1},
+    );
+    final studentCount =
+        (studentsRes.data?['totalElements'] as num?)?.toInt() ?? 0;
 
-        final staffCount = await _countStaff();
+    final staffCount = await _countStaff();
 
-        final sections = <SectionCompleteness>[];
-        for (final s in sectionRows) {
-          final sectionId = s['id'] as String;
-          final academicYearId = s['academicYearId'] as String?;
-          final enrolled = await _enrolledStudentIds(sectionId);
-          final hasTimetable = academicYearId == null
-              ? false
-              : await _hasTimetable(sectionId, academicYearId);
+    final sections = <SectionCompleteness>[];
+    for (final s in sectionRows) {
+      final sectionId = s['id'] as String;
+      final academicYearId = s['academicYearId'] as String?;
+      final enrolled = await _enrolledStudentIds(sectionId);
+      final hasTimetable = academicYearId == null
+          ? false
+          : await _hasTimetable(sectionId, academicYearId);
 
-          sections.add(SectionCompleteness(
-            sectionId: sectionId,
-            sectionName: s['name'] as String? ?? '',
-            className: classNameById[s['classId']] ?? '',
-            studentCount: enrolled.length,
-            hasTimetable: hasTimetable,
-            hasClassTeacher: s['classTeacherId'] != null,
-          ));
-        }
+      sections.add(
+        SectionCompleteness(
+          sectionId: sectionId,
+          sectionName: s['name'] as String? ?? '',
+          className: classNameById[s['classId']] ?? '',
+          studentCount: enrolled.length,
+          hasTimetable: hasTimetable,
+          hasClassTeacher: s['classTeacherId'] != null,
+        ),
+      );
+    }
 
-        return AdminDashboard(
-          studentCount: studentCount,
-          staffCount: staffCount,
-          sections: sortByCompleteness(sections),
-        );
-      });
+    return AdminDashboard(
+      studentCount: studentCount,
+      staffCount: staffCount,
+      sections: sortByCompleteness(sections),
+    );
+  });
 
   /// The students list, with each student's section resolved.
   ///
@@ -261,37 +348,61 @@ class AdminRepository {
   /// API only exposes it that way; the result is inverted into a
   /// studentId → section map.
   Future<List<AdminStudent>> loadStudentsWithPlacement() => _mapped(() async {
-        final students = await loadStudents();
+    final students = await loadStudents();
 
-        final sectionsRes = await dio.get<Map<String, dynamic>>(
-          ApiConfig.sectionsPath,
-          queryParameters: const {'size': 200},
-        );
-        final classes = await loadClasses();
-        final classNameById = {for (final c in classes) c.id: c.name};
+    final sectionsRes = await dio.getAllPages(ApiConfig.sectionsPath);
+    final classes = await loadClasses();
+    final classNameById = {for (final c in classes) c.id: c.name};
 
-        final placementByStudent = <String, ({String id, String label})>{};
-        for (final s in _content(sectionsRes.data)) {
-          final sectionId = s['id'] as String;
-          final label =
-              '${classNameById[s['classId']] ?? ''} · ${s['name'] ?? ''}';
-          for (final studentId in await _enrolledStudentIds(sectionId)) {
-            placementByStudent[studentId] = (id: sectionId, label: label);
-          }
-        }
+    final placementByStudent = <String, ({String id, String label})>{};
+    for (final s in sectionsRes) {
+      final sectionId = s['id'] as String;
+      final label = '${classNameById[s['classId']] ?? ''} · ${s['name'] ?? ''}';
+      for (final studentId in await _enrolledStudentIds(sectionId)) {
+        placementByStudent[studentId] = (id: sectionId, label: label);
+      }
+    }
 
-        return students.map((st) {
-          final placement = placementByStudent[st.id];
-          return st.withPlacement(
-            sectionId: placement?.id,
-            classLabel: placement?.label,
-          );
-        }).toList();
-      });
+    return students.map((st) {
+      final placement = placementByStudent[st.id];
+      return st.withPlacement(
+        sectionId: placement?.id,
+        classLabel: placement?.label,
+      );
+    }).toList();
+  });
 
   Future<AdminStudent> loadStudent(String id) => _mapped(() async {
-        final res =
-            await dio.get<Map<String, dynamic>>('${ApiConfig.studentsPath}/$id');
-        return AdminStudent.fromJson(res.data ?? const {});
-      });
+    final res = await dio.get<Map<String, dynamic>>(
+      '${ApiConfig.studentsPath}/$id',
+    );
+    return AdminStudent.fromJson(res.data ?? const {});
+  });
 }
+
+class CampusRoleGrant {
+  const CampusRoleGrant({
+    required this.grantId,
+    required this.campusId,
+    required this.campusName,
+    required this.role,
+  });
+  factory CampusRoleGrant.fromJson(Map json) => CampusRoleGrant(
+    grantId: json['grantId'] as String,
+    campusId: json['campusId'] as String,
+    campusName: json['campusName'] as String? ?? '',
+    role: json['role'] as String,
+  );
+  final String grantId;
+  final String campusId;
+  final String campusName;
+  final String role;
+}
+
+/// Ordinary campus roles that may be delegated (the server enforces who may grant which).
+const campusRoleLabels = <String, String>{
+  'teacher': 'Teacher',
+  'attendance_staff': 'Attendance staff',
+  'finance_staff': 'Finance staff',
+  'staff': 'Staff',
+};

@@ -41,7 +41,8 @@ class ReportCardScreen extends StatefulWidget {
 }
 
 class ReportCardScreenState extends State<ReportCardScreen> {
-  ScreenState<StudentResult> _state = const ScreenState<StudentResult>.loading();
+  ScreenState<StudentResult> _state =
+      const ScreenState<StudentResult>.loading();
 
   /// Null until the exam is published — the endpoint 404s before that,
   /// which is a normal "not ready" state rather than an error.
@@ -55,7 +56,8 @@ class ReportCardScreenState extends State<ReportCardScreen> {
 
   Future<void> load() async {
     setState(
-        () => _state = ScreenState<StudentResult>.loading(previous: _state.data));
+      () => _state = ScreenState<StudentResult>.loading(previous: _state.data),
+    );
     try {
       final result = await widget.repository.loadStudentResult(
         examId: widget.exam.id,
@@ -73,12 +75,15 @@ class ReportCardScreenState extends State<ReportCardScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<StudentResult>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<StudentResult>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -93,7 +98,8 @@ class ReportCardScreenState extends State<ReportCardScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'No result yet',
-            emptyMessage: 'This student has no result for this exam. One '
+            emptyMessage:
+                'This student has no result for this exam. One '
                 'appears as soon as marks are entered.',
             data: _body,
           ),
@@ -123,7 +129,8 @@ class ReportCardScreenState extends State<ReportCardScreen> {
         if (card == null)
           const InlineAlert(
             tone: InlineAlertTone.info,
-            message: 'The report card is prepared when the exam is '
+            message:
+                'The report card is prepared when the exam is '
                 'published. The marks below are the current position.',
           )
         else
@@ -153,14 +160,18 @@ class ReportCardScreenState extends State<ReportCardScreen> {
                     children: [
                       Text(
                         subject.subjectName,
-                        style: AppTypography.personName
-                            .copyWith(color: t.textPrimary),
+                        style: AppTypography.personName.copyWith(
+                          color: t.textPrimary,
+                        ),
                       ),
                       Text(
                         subject.isAbsent
                             ? 'Absent'
-                            : '${subject.marksObtained.format()}'
-                                ' / ${subject.maxMarks.format()}',
+                            // C9: a missing mark is "not entered", never zero.
+                            : subject.marksObtained == null
+                            ? 'Not entered / ${subject.maxMarks.format()}'
+                            : '${subject.marksObtained!.format()}'
+                                  ' / ${subject.maxMarks.format()}',
                         style: AppTypography.personName.copyWith(
                           color: subject.failed
                               ? t.dangerTextOnBg
@@ -170,14 +181,16 @@ class ReportCardScreenState extends State<ReportCardScreen> {
                       if (subject.grade.isNotEmpty)
                         Text(
                           subject.grade,
-                          style: AppTypography.bodyAdminMeta
-                              .copyWith(color: t.textSecondary),
+                          style: AppTypography.bodyAdminMeta.copyWith(
+                            color: t.textSecondary,
+                          ),
                         ),
                       if (subject.failed)
                         Text(
                           'Below ${subject.passingMarks.format()}',
-                          style: AppTypography.bodyAdminMeta
-                              .copyWith(color: t.dangerTextOnBg),
+                          style: AppTypography.bodyAdminMeta.copyWith(
+                            color: t.dangerTextOnBg,
+                          ),
                         ),
                     ],
                   ),
@@ -190,7 +203,8 @@ class ReportCardScreenState extends State<ReportCardScreen> {
                 children: [
                   _Figure(
                     label: 'Total',
-                    value: '${result.totalMarks.format()}'
+                    value:
+                        '${result.totalMarks.format()}'
                         ' / ${result.totalMax.format()}',
                   ),
                   _Figure(
@@ -219,7 +233,8 @@ class ReportCardScreenState extends State<ReportCardScreen> {
         // would only print the browser's chrome.
         const InlineAlert(
           tone: InlineAlertTone.info,
-          message: 'This report card cannot be downloaded or printed yet — '
+          message:
+              'This report card cannot be downloaded or printed yet — '
               'this system does not produce a file for it.',
         ),
       ],

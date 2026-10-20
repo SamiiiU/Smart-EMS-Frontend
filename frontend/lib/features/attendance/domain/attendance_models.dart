@@ -27,12 +27,12 @@ enum AttendanceStatus {
   }
 
   String get label => switch (this) {
-        AttendanceStatus.present => 'Present',
-        AttendanceStatus.absent => 'Absent',
-        AttendanceStatus.late => 'Late',
-        AttendanceStatus.leave => 'Leave',
-        AttendanceStatus.excused => 'Excused',
-      };
+    AttendanceStatus.present => 'Present',
+    AttendanceStatus.absent => 'Absent',
+    AttendanceStatus.late => 'Late',
+    AttendanceStatus.leave => 'Leave',
+    AttendanceStatus.excused => 'Excused',
+  };
 }
 
 /// One student on the roster being marked.

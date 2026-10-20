@@ -1,3 +1,4 @@
+import 'package:smartems/core/network/paged_get.dart';
 import 'dart:convert';
 import 'dart:math';
 
@@ -84,16 +85,20 @@ class AcademicsRepository {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _array(String path,
-      [Map<String, dynamic>? query]) async {
+  Future<List<Map<String, dynamic>>> _array(
+    String path, [
+    Map<String, dynamic>? query,
+  ]) async {
     final body = await _json(
       () => dio.get<dynamic>(path, queryParameters: query, options: _plain),
     );
     return (body as List? ?? const []).cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> _object(String path,
-      [Map<String, dynamic>? query]) async {
+  Future<Map<String, dynamic>> _object(
+    String path, [
+    Map<String, dynamic>? query,
+  ]) async {
     final body = await _json(
       () => dio.get<dynamic>(path, queryParameters: query, options: _plain),
     );
@@ -105,10 +110,64 @@ class AcademicsRepository {
   /// `academicYearId` is honoured (bogus-id control → empty), and is always
   /// passed: the backend's `current` flag points at an EXPIRED year, so a
   /// year-less list would quietly show last year's exams.
+  /// Teacher marks list: every exam in the campuses the server lets this user
+  /// see, without a year (a teacher has no year picker). The caller keeps only
+  /// exams whose marks are still editable; the server still enforces the
+  /// writable year and the teaching assignment on every mark.
+  Future<List<Exam>> loadExamsForMarking() async {
+    final rows = await _array('/api/exams');
+    return rows
+        .map(Exam.fromJson)
+        .where((e) => e.status.marksEditable)
+        .toList();
+  }
+
+  /// D-24: the saved marks of one paper, `GET /api/exams/subjects/{id}/marks`
+  /// (studentId → saved mark). Read-only. Returns null on ANY failure: an older
+  /// backend without the endpoint, or a caller who may not read it (404), so the
+  /// screen keeps its previous behaviour instead of guessing.
+  Future<Map<String, SavedMark>?> loadPaperMarks(String examSubjectId) async {
+    try {
+      final rows = await _array('/api/exams/subjects/$examSubjectId/marks');
+      return {
+        for (final r in rows)
+          r['studentId'] as String: SavedMark(
+            marks: r['marksObtained'] as String?,
+            isAbsent: r['isAbsent'] == true,
+          ),
+      };
+    } on Object {
+      return null;
+    }
+  }
+
+  /// D-13: an exam's papers, `GET /api/exams/{id}/subjects` (dev candidate
+  /// be3; owner approval pending). A teacher receives only papers they may
+  /// enter marks for. Throws on any failure, including an older backend that
+  /// answers 405, so callers fall back to their previous behaviour.
+  Future<List<ExamPaper>> loadPapers(String examId) async {
+    final rows = await _array('/api/exams/$examId/subjects');
+    return rows
+        .map(
+          (r) => ExamPaper(
+            id: r['id'] as String,
+            examId: r['examId'] as String? ?? examId,
+            sectionId: r['sectionId'] as String? ?? '',
+            subjectId: r['subjectId'] as String? ?? '',
+            maxMarks: Marks.fromJson(r['maxMarks']),
+            passingMarks: Marks.fromJson(r['passingMarks']),
+            subjectName: r['subjectName'] as String? ?? '',
+            sectionName: [
+              r['className'],
+              r['sectionName'],
+            ].whereType<String>().join(' · '),
+          ),
+        )
+        .toList();
+  }
+
   Future<List<Exam>> loadExams({required String academicYearId}) async {
-    final rows = await _array('/api/exams', {
-      'academicYearId': academicYearId,
-    });
+    final rows = await _array('/api/exams', {'academicYearId': academicYearId});
     return rows.map(Exam.fromJson).toList();
   }
 
@@ -191,32 +250,29 @@ class AcademicsRepository {
   /// write path into a feature that has none. The shared piece — the
   /// [RosterStudent] type — IS reused.
   Future<List<RosterStudent>> loadRoster(String sectionId) async {
-    final enrollments =
-        await _object('/api/enrollments/section/$sectionId');
+    final enrollments = await _object('/api/enrollments/section/$sectionId');
     final rows = (enrollments['content'] as List? ?? const [])
         .cast<Map<String, dynamic>>()
         .where((e) => e['status'] == 'enrolled')
         .toList();
     if (rows.isEmpty) return const [];
 
-    final students = await _object('/api/students', const {'size': 500});
-    final byId = {
-      for (final s in (students['content'] as List? ?? const [])
-          .cast<Map<String, dynamic>>())
-        s['id'] as String: s,
-    };
+    final students = await dio.getAllPages('/api/students');
+    final byId = {for (final s in students) s['id'] as String: s};
 
     final roster = <RosterStudent>[];
     for (final e in rows) {
       final id = e['studentId'] as String;
       final s = byId[id];
-      roster.add(RosterStudent(
-        studentId: id,
-        fullName: s == null
-            ? 'Unknown student'
-            : '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim(),
-        rollNumber: e['rollNumber'] as String?,
-      ));
+      roster.add(
+        RosterStudent(
+          studentId: id,
+          fullName: s == null
+              ? 'Unknown student'
+              : '${s['firstName'] ?? ''} ${s['lastName'] ?? ''}'.trim(),
+          rollNumber: e['rollNumber'] as String?,
+        ),
+      );
     }
     roster.sort((a, b) => a.fullName.compareTo(b.fullName));
     return roster;
@@ -254,8 +310,9 @@ class AcademicsRepository {
         data: rows,
         options: _plain,
       );
-      final body = jsonDecode(AcademicJson.quoteNumbers(res.data as String))
-          as Map<String, dynamic>;
+      final body =
+          jsonDecode(AcademicJson.quoteNumbers(res.data as String))
+              as Map<String, dynamic>;
       return (result: MarksSaveResult.fromJson(body), error: null);
     } on DioException catch (err) {
       return (result: null, error: _message(err));
@@ -280,8 +337,9 @@ class AcademicsRepository {
         },
         options: _plain,
       );
-      final body = jsonDecode(AcademicJson.quoteNumbers(res.data as String))
-          as Map<String, dynamic>;
+      final body =
+          jsonDecode(AcademicJson.quoteNumbers(res.data as String))
+              as Map<String, dynamic>;
       return (result: StudentResult.fromJson(body), error: null);
     } on DioException catch (err) {
       return (result: null, error: _message(err));
@@ -304,14 +362,97 @@ class AcademicsRepository {
   Future<StudentResult> loadStudentResult({
     required String examId,
     required String studentId,
-  }) async =>
-      StudentResult.fromJson(
-        await _object('/api/exams/$examId/results/student/$studentId'),
-      );
+  }) async => StudentResult.fromJson(
+    await _object('/api/exams/$examId/results/student/$studentId'),
+  );
 
-  /// 🔴 Permanent: publishing locks the marks and there is no unpublish.
+  /// C9: moves the exam one lifecycle step (`POST /api/exams/{id}/status`).
+  /// The server refuses any skipped or backward step with 409 and an
+  /// incomplete approval with 400; its message is returned verbatim.
+  Future<({ExamStatus? status, String? error})> transition(
+    String examId,
+    ExamStatus target, {
+    String? reason,
+  }) async {
+    try {
+      final res = await dio.post<dynamic>(
+        '/api/exams/$examId/status',
+        data: {'status': target.wire, 'reason': ?reason},
+        options: _plain,
+      );
+      final body = jsonDecode(res.data as String) as Map<String, dynamic>;
+      return (status: ExamStatus.parse(body['status'] as String?), error: null);
+    } on DioException catch (err) {
+      return (status: null, error: _message(err));
+    }
+  }
+
+  /// C9: hide one learner's result from the learner and guardians (reason
+  /// required), or release it again.
+  Future<String?> setWithheld({
+    required String examId,
+    required String studentId,
+    required bool withheld,
+    String? reason,
+  }) async {
+    try {
+      await dio.post<dynamic>(
+        '/api/exams/$examId/results/student/$studentId/withholding',
+        data: {'withheld': withheld, 'reason': ?reason},
+        options: _plain,
+      );
+      return null;
+    } on DioException catch (err) {
+      return _message(err);
+    }
+  }
+
+  /// C9: an official correction to a PUBLISHED result. It creates a new
+  /// superseding version; earlier versions stay in the record.
+  Future<({int? version, String? error})> correct({
+    required String examId,
+    required String examSubjectId,
+    required String studentId,
+    Marks? marksObtained,
+    bool isAbsent = false,
+    required String reason,
+  }) async {
+    try {
+      final res = await dio.post<dynamic>(
+        '/api/exams/$examId/corrections',
+        data: {
+          'examSubjectId': examSubjectId,
+          'studentId': studentId,
+          'isAbsent': isAbsent,
+          if (!isAbsent && marksObtained != null)
+            'marksObtained': marksObtained.toBackendString(),
+          'reason': reason,
+        },
+        options: _plain,
+      );
+      final body = jsonDecode(res.data as String) as Map<String, dynamic>;
+      return (version: body['version'] as int?, error: null);
+    } on DioException catch (err) {
+      return (version: null, error: _message(err));
+    }
+  }
+
+  /// C9: the official release history of one learner's result (staff only).
+  Future<List<ResultVersion>> loadVersions({
+    required String examId,
+    required String studentId,
+  }) async {
+    final rows = await _array(
+      '/api/exams/$examId/results/student/$studentId/versions',
+    );
+    return rows.map(ResultVersion.fromJson).toList();
+  }
+
+  /// Releases an APPROVED exam. The server refuses any other state with 409
+  /// (C9); there is no direct-publish path.
   Future<({PublishResult? result, String? error})> publish(
-      String examId) async {
+    String examId,
+  ) async {
     try {
       final res = await dio.post<dynamic>(
         '/api/exams/$examId/publish',
@@ -389,6 +530,64 @@ class AcademicsRepository {
     } on DioException catch (err) {
       throw mapDioError(decodeErrorBody(err));
     }
+  }
+
+  /// D-20 (approved for development; be3): the institution's default grade
+  /// scheme, `GET /api/grade-schemes/default`, read-only. Percentages and
+  /// grade points stay as the server's exact decimal strings (NUMERIC);
+  /// nothing is parsed to double.
+  ///
+  /// Each outcome is reported as itself, never folded into one fallback:
+  /// [GradeSchemeLoad.notConfigured] (404 GRADE_SCHEME_NOT_CONFIGURED),
+  /// [GradeSchemeLoad.notPermitted] (403), [GradeSchemeLoad.unsupported]
+  /// (an older backend: 404/405 with no code). Network and server failures
+  /// throw a [LoadFailure] so the screen offers Retry.
+  Future<GradeSchemeLoad> loadDefaultGradeScheme() async {
+    try {
+      final res = await dio.get<Map<String, dynamic>>(
+        '/api/grade-schemes/default',
+      );
+      return GradeSchemeLoad.loaded(
+        GradeSchemeView.fromJson(res.data ?? const {}),
+      );
+    } on DioException catch (err) {
+      final decoded = decodeErrorBody(err);
+      final status = decoded.response?.statusCode;
+      final body = decoded.response?.data;
+      final details = body is Map ? body['details'] : null;
+      final code = details is Map ? details['code'] : null;
+      if (status == 404 && code == 'GRADE_SCHEME_NOT_CONFIGURED') {
+        return const GradeSchemeLoad.notConfigured();
+      }
+      if (status == 403) return const GradeSchemeLoad.notPermitted();
+      if ((status == 404 || status == 405) && code == null) {
+        return const GradeSchemeLoad.unsupported();
+      }
+      throw mapDioError(decoded);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> curriculumVersions(String id) async =>
+      _array('/api/syllabus/chapters/$id/versions');
+
+  Future<void> curriculumAction(
+    String path, [
+    Map<String, dynamic>? body,
+  ]) async {
+    await _json(
+      () =>
+          dio.post<dynamic>('/api/syllabus/$path', data: body, options: _plain),
+    );
+  }
+
+  Future<void> renameCurriculumDraft(String id, String name) async {
+    await _json(
+      () => dio.put<dynamic>(
+        '/api/syllabus/chapters/$id',
+        data: {'name': name},
+        options: _plain,
+      ),
+    );
   }
 
   // --- Syllabus --------------------------------------------------------------
@@ -495,13 +694,14 @@ class AcademicsRepository {
     required String classId,
     required String sectionId,
     required String academicYearId,
-  }) async =>
-      SyllabusProgress.fromJson(await _object('/api/syllabus/progress', {
-        'subjectId': subjectId,
-        'classId': classId,
-        'sectionId': sectionId,
-        'academicYearId': academicYearId,
-      }));
+  }) async => SyllabusProgress.fromJson(
+    await _object('/api/syllabus/progress', {
+      'subjectId': subjectId,
+      'classId': classId,
+      'sectionId': sectionId,
+      'academicYearId': academicYearId,
+    }),
+  );
 
   // --- Errors ----------------------------------------------------------------
 

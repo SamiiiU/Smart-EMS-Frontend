@@ -157,6 +157,25 @@ void main() {
       );
     });
 
+    test('M1: 403 with nothing cached -> PermissionDenied, never an error', () {
+      expect(
+        resolveOutcome(const ScreenState<List<String>>.failed(
+          LoadFailure(kind: LoadFailureKind.forbidden),
+        )),
+        ScreenOutcome.permissionDeniedState,
+      );
+    });
+
+    test('M1: 403 with cached data keeps the data (D-30)', () {
+      expect(
+        resolveOutcome(const ScreenState.failed(
+          LoadFailure(kind: LoadFailureKind.forbidden),
+          cached: _rows,
+        )),
+        ScreenOutcome.data,
+      );
+    });
+
     test('row 10: otherwise -> data', () {
       expect(
         resolveOutcome(const ScreenState.data(_rows)),
@@ -463,6 +482,19 @@ void main() {
       );
       expect(find.byType(UnlinkedProfileState), findsOneWidget);
       expect(find.byType(ErrorState), findsNothing);
+    });
+
+    testWidgets('M1: PermissionDeniedState on a 403 offers no retry',
+        (tester) async {
+      await tester.pumpWidget(
+        host(subject(const ScreenState<List<String>>.failed(
+          LoadFailure(kind: LoadFailureKind.forbidden, message: 'Forbidden'),
+        ))),
+      );
+      expect(find.byType(PermissionDeniedState), findsOneWidget);
+      expect(find.byType(ErrorState), findsNothing);
+      expect(find.byType(AppButton), findsNothing,
+          reason: 'retrying cannot grant a permission');
     });
 
     testWidgets('EmptyState vs FilteredEmptyState are DISTINCT TYPES',

@@ -96,8 +96,8 @@ class Marks implements Comparable<Marks> {
     if (value is String) return parse(value);
     throw FormatException(
       'A mark arrived as ${value.runtimeType} rather than a string — its key '
-      'is missing from AcademicJson.numericKeys, so it was decoded as a '
-      'floating-point number.',
+          'is missing from AcademicJson.numericKeys, so it was decoded as a '
+          'floating-point number.',
       '$value',
     );
   }

@@ -6,6 +6,7 @@ import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/keyboard_tap_target.dart';
 import '../../../core/widgets/motion_reveal.dart';
 
 /// Shared chrome for the setup screens: a titled page with an optional
@@ -146,8 +147,9 @@ class CreatePanelState extends State<CreatePanel> {
             const SizedBox(height: AppSpacing.space5),
             Text(
               widget.confirmNote!,
-              style: AppTypography.bodyAdminMeta
-                  .copyWith(color: t.warningTextOnBg),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.warningTextOnBg,
+              ),
             ),
           ],
           if (_error != null) ...[
@@ -208,8 +210,7 @@ class SetupRow extends StatelessWidget {
     final row = Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -225,39 +226,39 @@ class SetupRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 if (detail != null)
                   Text(
                     detail!,
-                    style: AppTypography.bodyAdminMeta
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.bodyAdminMeta.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                 if (trailing != null)
                   Text(
                     trailing!,
-                    style: AppTypography.overline
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.overline.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
               ],
             ),
           ),
-          if (onTap != null)
-            Icon(Icons.chevron_right, color: t.textSecondary),
+          if (onTap != null) Icon(Icons.chevron_right, color: t.textSecondary),
         ],
       ),
     );
 
     if (onTap == null) return row;
-    return Semantics(
-      button: true,
+    // A11Y-4: keyboard-operable (Tab, Enter/Space, focus ring), one node.
+    return KeyboardTapTarget(
       label: title,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(child: row),
-      ),
+      onTap: onTap,
+      borderRadius: AppRadius.lg,
+      child: row,
     );
   }
 }
@@ -294,8 +295,7 @@ class StepRow extends StatelessWidget {
     final row = Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -331,14 +331,16 @@ class StepRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppTypography.personName
-                          .copyWith(color: t.textPrimary),
+                      style: AppTypography.personName.copyWith(
+                        color: t.textPrimary,
+                      ),
                     ),
                     if (count != null)
                       Text(
                         '$count',
-                        style: AppTypography.overline
-                            .copyWith(color: t.textSecondary),
+                        style: AppTypography.overline.copyWith(
+                          color: t.textSecondary,
+                        ),
                       ),
                   ],
                 ),
@@ -352,8 +354,7 @@ class StepRow extends StatelessWidget {
               ],
             ),
           ),
-          if (onTap != null)
-            Icon(Icons.chevron_right, color: t.textSecondary),
+          if (onTap != null) Icon(Icons.chevron_right, color: t.textSecondary),
         ],
       ),
     );
@@ -365,16 +366,14 @@ class StepRow extends StatelessWidget {
     // cannot forget to join the sequence.
     return MotionReveal.staggered(
       index: number - 1,
+      // A11Y-4: keyboard-operable (Tab, Enter/Space, focus ring), one node.
       child: onTap == null
           ? row
-          : Semantics(
-              button: true,
+          : KeyboardTapTarget(
               label: title,
-              child: GestureDetector(
-                onTap: onTap,
-                behavior: HitTestBehavior.opaque,
-                child: ExcludeSemantics(child: row),
-              ),
+              onTap: onTap,
+              borderRadius: AppRadius.lg,
+              child: row,
             ),
     );
   }
@@ -397,12 +396,12 @@ class SetupField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.space4),
-        child: AppTextField(
-          label: label,
-          value: value,
-          placeholder: placeholder,
-          onChanged: onChanged,
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: AppSpacing.space4),
+    child: AppTextField(
+      label: label,
+      value: value,
+      placeholder: placeholder,
+      onChanged: onChanged,
+    ),
+  );
 }

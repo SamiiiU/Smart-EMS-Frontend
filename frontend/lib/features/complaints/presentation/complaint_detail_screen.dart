@@ -5,7 +5,7 @@ import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/app_text_area.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
@@ -56,6 +56,7 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   List<ComplaintComment> _comments = const [];
 
   String _reply = '';
+  final TextEditingController _replyController = TextEditingController();
   bool _internal = false;
   bool _busy = false;
   String? _error;
@@ -68,13 +69,19 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     load();
   }
 
+  @override
+  void dispose() {
+    _replyController.dispose();
+    super.dispose();
+  }
+
   Future<void> load() async {
     setState(
-        () => _state = ScreenState<Complaint>.loading(previous: _state.data));
+      () => _state = ScreenState<Complaint>.loading(previous: _state.data),
+    );
     try {
       final complaint = await widget.repository.load(widget.complaintId);
-      final comments =
-          await widget.repository.loadComments(widget.complaintId);
+      final comments = await widget.repository.loadComments(widget.complaintId);
       if (!mounted) return;
       setState(() {
         _comments = comments;
@@ -83,12 +90,15 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<Complaint>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<Complaint>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -107,6 +117,7 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
       setState(() {
         _busy = false;
         _reply = '';
+        _replyController.clear();
         _internal = false;
       });
       await load();
@@ -144,8 +155,10 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
       _error = null;
     });
     try {
-      await widget.repository
-          .assign(id: widget.complaintId, staffId: person.id);
+      await widget.repository.assign(
+        id: widget.complaintId,
+        staffId: person.id,
+      );
       if (!mounted) return;
       setState(() => _busy = false);
       await load();
@@ -169,7 +182,8 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'This complaint could not be opened',
-            emptyMessage: 'It could not be read. Reopen this screen to try '
+            emptyMessage:
+                'It could not be read. Reopen this screen to try '
                 'again — if it keeps happening, tell your system '
                 'administrator.',
             data: _body,
@@ -202,14 +216,16 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
             ),
             Text(
               complaint.categoryLabel,
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
             if (complaint.isOverdue(_today))
               Text(
                 'Overdue',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.dangerTextOnBg),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.dangerTextOnBg,
+                ),
               ),
           ],
         ),
@@ -218,7 +234,8 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         if (complaint.isAnonymous)
           const InlineAlert(
             tone: InlineAlertTone.warning,
-            message: 'Sent anonymously. There is no record of who raised it, '
+            message:
+                'Sent anonymously. There is no record of who raised it, '
                 'so nobody can reply to them directly — anything written '
                 'here will not reach them.',
           ),
@@ -269,9 +286,18 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         ],
 
         if (!complaint.status.isFinished) ...[
-          AppTextField(
-            label: 'Write a reply',
-            value: _reply,
+          // Multi-line: a single-line field dropped text after Enter (DEF-28
+          // class). The reply keeps its paragraphs.
+          Text(
+            'Write a reply',
+            style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.space2),
+          AppTextArea(
+            controller: _replyController,
+            semanticsLabel: 'Write a reply',
+            minHeight: AppSizing.diaryFieldMinHeight,
+            enabled: !_busy,
             onChanged: (v) => setState(() => _reply = v),
           ),
           if (widget.staffControls) ...[
@@ -299,8 +325,9 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           if (widget.staff.isEmpty)
             Text(
               'No staff records to assign this to.',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             )
           else
             Wrap(
@@ -390,8 +417,9 @@ class CommentBubble extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Internal note — the complainant cannot see this',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.warningTextOnBg),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.warningTextOnBg,
+                    ),
                   ),
                 ),
               ],
@@ -446,8 +474,9 @@ class InternalToggle extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Internal note',
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
               ),
               Semantics(

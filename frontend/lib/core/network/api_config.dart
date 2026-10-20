@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart'
+    show kIsWeb, kReleaseMode, visibleForTesting;
+
 /// Single source for the backend base URL — nothing under `lib/` should
 /// hardcode `smart-ems-backend-production.up.railway.app` anywhere else.
 ///
@@ -7,16 +10,52 @@
 /// `BACKEND_CONTRACT.md` for the recorded evidence. This replaces T6's
 /// guessed paths — notably `mePath`, which was WRONG (`/me`; the real
 /// endpoint is `/auth/me`).
+
 abstract final class ApiConfig {
-  /// ⚠️ TEMPORARILY pointed at the local backend (2026-09-17): the Railway
-  /// deployment is down (`x-railway-fallback: true` — no app at that
-  /// hostname, not a route issue). Local backend re-verified to carry every
-  /// endpoint this app depends on (`institution/me`, `guardians/me`,
-  /// `forcePasswordChange`, etc.) — see BACKEND_CONTRACT.md.
-  /// Swap back to the Railway URL below once it's redeployed.
-  static const String baseUrl = 'http://localhost:8080';
-  // static const String baseUrl =
-  //     'https://smart-ems-backend-production.up.railway.app';
+  /// Explicit override at build time: `--dart-define=API_BASE_URL=https://…`.
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+
+  /// ADR-010: Flutter Web is served from the SAME HTTPS origin as the API, so a
+  /// Web build talks to the origin it was loaded from (the refresh cookie is
+  /// Path=/auth on that origin). Native/dev builds default to the local backend
+  /// unless API_BASE_URL is supplied (e.g. 10.0.2.2 for the Android emulator).
+  static String get baseUrl => resolveBaseUrl(
+    configured: _configuredBaseUrl,
+    isWeb: kIsWeb,
+    isRelease: kReleaseMode,
+    webOrigin: kIsWeb ? Uri.base.origin : '',
+  );
+
+  /// DEF-27: a native RELEASE build fails closed. It must be built with an
+  /// explicit `https://` API_BASE_URL. The localhost fallback is for debug and
+  /// profile builds only; a shipped app pointing at the phone's own localhost
+  /// (or at plain http) is a build mistake, so it stops at start-up rather
+  /// than silently failing every request.
+  @visibleForTesting
+  static String resolveBaseUrl({
+    required String configured,
+    required bool isWeb,
+    required bool isRelease,
+    required String webOrigin,
+  }) {
+    if (configured.isNotEmpty) {
+      if (isRelease && !isWeb && !configured.startsWith('https://')) {
+        throw StateError(
+          'API_BASE_URL must be an https:// URL in a release build',
+        );
+      }
+      return configured;
+    }
+    if (isWeb) return webOrigin;
+    if (isRelease) {
+      throw StateError(
+        'API_BASE_URL is required for a release build (--dart-define=API_BASE_URL=https://…)',
+      );
+    }
+    return 'http://localhost:8080';
+  }
 
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 15);
@@ -43,12 +82,26 @@ abstract final class ApiConfig {
   /// [personRecordPathFor].
   static const String mePath = '/auth/me';
 
+  /// Tenant two-factor authentication (ADR-010, backend V44). These stay
+  /// reachable while the session is restricted with 403 `MFA_REQUIRED`.
+  static const String mfaPath = '/auth/mfa';
+  static const String mfaEnrollmentPath = '/auth/mfa/enrollment';
+  static const String mfaEnrollmentConfirmPath = '/auth/mfa/enrollment/confirm';
+  static const String mfaVerifyPath = '/auth/mfa/verify';
+  static const String mfaStepUpPath = '/auth/mfa/step-up';
+
   /// CONFIRMED (live, 2026-08-03). The person-record endpoints, and the
   /// only ones that produce the D-17 orphan case. Verified by calling both
   /// with a valid admin token that has no person record:
   /// `404 {"message":"Staff record linked to this login not found: <uuid>"}`.
   static const String staffMePath = '/api/staff/me';
   static const String studentMePath = '/api/students/me';
+
+  /// D-19, PROPOSED: the student's own current enrollment (self only).
+  static const String studentOwnEnrollmentPath = '/api/students/me/enrollment';
+
+  /// D-20, PROPOSED: the institution's default grade scheme, read-only.
+  static const String defaultGradeSchemePath = '/api/grade-schemes/default';
 
   /// Which person-record endpoint (if any) a set of role claims requires.
   ///
@@ -147,6 +200,9 @@ abstract final class ApiConfig {
 
   /// `POST /api/guardians` — `{studentId, firstName, lastName, relationship}`,
   /// plus the optional `userId` that LINKS a provisioned login to the record.
+  /// Also `GET` — paged guardian directory (student.view). Each row:
+  /// `{id, firstName, lastName, userId, students:[{studentId, firstName,
+  /// lastName, relationship}]}`.
   static const String guardiansPath = '/api/guardians';
 
   static const String academicYearsPath = '/api/academic-years';
@@ -179,8 +235,6 @@ abstract final class ApiConfig {
   /// `GET /api/guardians/student/{id}` — a bare array of
   /// `{guardian:{id, firstName, lastName, userId}, relationship, isPrimary}`.
   ///
-  /// The ONLY way to reach guardians: `GET /api/guardians` is 405 (verified
-  /// live 2026-09-23), so there is no "all parents" call.
   static String guardiansOfStudentPath(String studentId) =>
       '/api/guardians/student/$studentId';
 
@@ -203,15 +257,8 @@ abstract final class ApiConfig {
   /// section have a timetable at all", for the D-15 completeness sort.
   static const String timetableSectionPath = '/api/timetable/section';
 
-  /// 🔴 **SYNCHRONOUS**, despite returning a `jobId`.
-  ///
-  /// `POST` multipart/form-data, field name `file`, and the response already
-  /// carries the FINAL result: `{jobId, status, totalRows, successRows,
-  /// errorRows}`. There is nothing to poll. Posting JSON instead of multipart
-  /// returns a 500, not a 400.
-  ///
-  /// ⚠️ CSV headers are **snake_case** (`first_name`, `last_name`,
-  /// `admission_number`). camelCase headers fail every row.
+  /// Multipart field file returns202 with a pending import job. Poll /api/import/{id}.
+  /// CSV headers stay snake_case: first_name,last_name,admission_number.
   static const String importStudentsPath = '/api/import/students';
   static const String importStaffPath = '/api/import/staff';
 

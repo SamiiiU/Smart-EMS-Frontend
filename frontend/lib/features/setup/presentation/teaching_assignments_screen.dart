@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/confirm_dialog.dart';
+import '../../../core/widgets/app_button.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
@@ -10,7 +12,7 @@ import '../../admin/data/admin_repository.dart';
 import '../../admin/domain/people_models.dart';
 import '../data/setup_repository.dart';
 import '../domain/setup_models.dart';
-import 'academic_years_screen.dart' show setupListHeight;
+import 'academic_years_screen.dart' show isIsoDate, setupListHeight;
 import 'sections_screen.dart' show PickerChip;
 import 'setup_scaffold.dart';
 
@@ -49,8 +51,7 @@ class TeachingAssignmentsScreen extends StatefulWidget {
       TeachingAssignmentsScreenState();
 }
 
-class TeachingAssignmentsScreenState
-    extends State<TeachingAssignmentsScreen> {
+class TeachingAssignmentsScreenState extends State<TeachingAssignmentsScreen> {
   ScreenState<List<TeachingAssignment>> _state =
       const ScreenState<List<TeachingAssignment>>.loading();
 
@@ -58,6 +59,22 @@ class TeachingAssignmentsScreenState
   late Section _section = _sectionsThisYear.first;
   String? _subjectId;
   String? _staffId;
+  AssignmentType _type = AssignmentType.primary;
+  String _startsOn = '';
+  String _endsOn = '';
+
+  /// C10: dates are optional, but a substitute is always dated, and an end
+  /// date cannot precede the start. The server re-checks everything.
+  bool get _datesValid {
+    final s = _startsOn.trim(), e = _endsOn.trim();
+    if (s.isNotEmpty && !isIsoDate(s)) return false;
+    if (e.isNotEmpty && !isIsoDate(e)) return false;
+    if (_type == AssignmentType.substitute && (s.isEmpty || e.isEmpty)) {
+      return false;
+    }
+    if (s.isNotEmpty && e.isNotEmpty && e.compareTo(s) < 0) return false;
+    return true;
+  }
 
   List<Section> get _sectionsThisYear {
     final mine = widget.sections
@@ -73,9 +90,11 @@ class TeachingAssignmentsScreenState
   }
 
   Future<void> _load() async {
-    setState(() => _state = ScreenState<List<TeachingAssignment>>.loading(
-          previous: _state.data,
-        ));
+    setState(
+      () => _state = ScreenState<List<TeachingAssignment>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final rows = await widget.repository.loadAssignments(_section.id);
       List<PersonAccount> staff = _staff;
@@ -94,12 +113,15 @@ class TeachingAssignmentsScreenState
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<TeachingAssignment>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<TeachingAssignment>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -131,33 +153,63 @@ class TeachingAssignmentsScreenState
   Future<String?> _create() async {
     final subjectId = _subjectId;
     final staffId = _staffId;
-    if (subjectId == null || staffId == null) return 'Pick a subject and a teacher.';
+    if (subjectId == null || staffId == null) {
+      return 'Pick a subject and a teacher.';
+    }
     try {
       await widget.repository.createAssignment(
         staffId: staffId,
         sectionId: _section.id,
         subjectId: subjectId,
         academicYearId: widget.year.id,
+        type: _type,
+        startsOn: _startsOn.trim().isEmpty ? null : _startsOn.trim(),
+        endsOn: _endsOn.trim().isEmpty ? null : _endsOn.trim(),
       );
       if (!mounted) return null;
       setState(() {
         _subjectId = null;
         _staffId = null;
+        _type = AssignmentType.primary;
+        _startsOn = '';
+        _endsOn = '';
       });
       await _load();
       return null;
     } on LoadFailure catch (f) {
-      // The one expected failure: this subject already has a teacher in this
-      // section for this year. Said in those words rather than "conflict".
+      // C10: the server explains overlaps (one live primary per subject and
+      // section), wrong campus, wrong year or archived years in its own words.
       final message = f.message ?? '';
-      if (message.contains('Conflicts with existing data')) {
-        return '${_subjectName(subjectId)} already has a teacher in '
-            '${_section.name} for ${widget.year.name}. It cannot be '
-            'changed yet.';
-      }
       return message.isEmpty ? 'The assignment could not be saved.' : message;
     }
   }
+
+  Future<void> _end(TeachingAssignment a) async {
+    final ok = await confirmAction(
+      context,
+      title: 'End this assignment?',
+      message:
+          '${_staffName(a.staffId)} stops teaching ${_subjectName(a.subjectId)} in '
+          '${_section.name} immediately, including attendance and marks for it.',
+      confirmLabel: 'End assignment',
+    );
+    if (!ok || !mounted) return;
+    try {
+      await widget.repository.endAssignment(a.id);
+      if (mounted) setState(() => _endError = null);
+    } on LoadFailure catch (f) {
+      if (!mounted) return;
+      // Inline, not a toast: the refusal stays readable (and is announced)
+      // until the next action.
+      setState(
+        () => _endError = f.message ?? 'The assignment could not be ended.',
+      );
+    }
+    if (mounted) await _load();
+  }
+
+  /// A refused "End assignment", shown above the list.
+  String? _endError;
 
   @override
   Widget build(BuildContext context) {
@@ -168,10 +220,15 @@ class TeachingAssignmentsScreenState
       title: 'Who teaches what',
       note: const InlineAlert(
         tone: InlineAlertTone.warning,
-        message: 'An assignment cannot be changed or removed yet, so check '
-            'the teacher before saving.',
+        message:
+            'An assignment cannot be edited. End it when it stops, and add '
+            'a new one; ending takes effect immediately.',
       ),
       children: [
+        if (_endError != null) ...[
+          InlineAlert(tone: InlineAlertTone.danger, message: _endError!),
+          const SizedBox(height: AppSpacing.space4),
+        ],
         Text(
           'Section',
           style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
@@ -195,8 +252,8 @@ class TeachingAssignmentsScreenState
         const SizedBox(height: AppSpacing.space6),
         CreatePanel(
           addLabel: 'Assign a teacher',
-          canSubmit: _subjectId != null && _staffId != null,
-          confirmNote: 'This cannot be changed or removed afterwards.',
+          canSubmit: _subjectId != null && _staffId != null && _datesValid,
+          confirmNote: 'It cannot be edited afterwards; it can be ended.',
           onSubmit: _create,
           fields: [
             Text(
@@ -218,6 +275,50 @@ class TeachingAssignmentsScreenState
             ),
             const SizedBox(height: AppSpacing.space5),
             Text(
+              'Type',
+              style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.space3),
+            Wrap(
+              spacing: AppSpacing.space3,
+              runSpacing: AppSpacing.space3,
+              children: [
+                for (final type in AssignmentType.values)
+                  PickerChip(
+                    label: type.label,
+                    selected: type == _type,
+                    onTap: () => setState(() => _type = type),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.space5),
+            SetupField(
+              label: _type == AssignmentType.substitute
+                  ? 'Starts (required)'
+                  : 'Starts (optional)',
+              value: _startsOn,
+              placeholder: 'YYYY-MM-DD',
+              onChanged: (v) => setState(() => _startsOn = v),
+            ),
+            SetupField(
+              label: _type == AssignmentType.substitute
+                  ? 'Ends (required)'
+                  : 'Ends (optional)',
+              value: _endsOn,
+              placeholder: 'YYYY-MM-DD',
+              onChanged: (v) => setState(() => _endsOn = v),
+            ),
+            if (!_datesValid)
+              Text(
+                _type == AssignmentType.substitute
+                    ? 'A substitute needs a start and an end date (YYYY-MM-DD), end on or after start.'
+                    : 'Dates must be YYYY-MM-DD, with the end on or after the start.',
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
+              ),
+            const SizedBox(height: AppSpacing.space5),
+            Text(
               'Teacher',
               style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
             ),
@@ -225,8 +326,9 @@ class TeachingAssignmentsScreenState
             if (_staff.isEmpty)
               Text(
                 'No staff could be loaded, so no teacher can be picked yet.',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               )
             else
               Wrap(
@@ -256,9 +358,27 @@ class TeachingAssignmentsScreenState
             data: (context, rows) => ListView(
               children: [
                 for (final a in rows)
-                  SetupRow(
-                    title: _subjectName(a.subjectId),
-                    detail: _staffName(a.staffId),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SetupRow(
+                        title: '${_subjectName(a.subjectId)} · ${a.type.label}',
+                        detail:
+                            '${_staffName(a.staffId)} · ${a.periodLabel} · ${a.status}',
+                      ),
+                      if (a.isLive)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: AppSpacing.space3,
+                          ),
+                          child: AppButton(
+                            key: Key('end-${a.id}'),
+                            label: 'End assignment',
+                            variant: AppButtonVariant.secondary,
+                            onPressed: () => _end(a),
+                          ),
+                        ),
+                    ],
                   ),
               ],
             ),

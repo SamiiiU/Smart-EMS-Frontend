@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:ui' show Tristate;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smartems/core/theme/app_theme.dart';
@@ -41,6 +43,12 @@ class _AcademicServer implements HttpClientAdapter {
   String sectionResultsJson = '[]';
   String studentResultJson = '{}';
   String chaptersJson = '[]';
+  String? papersJson;
+  String? sectionsJson;
+  String? marksReadJson;
+  int gradeSchemeStatus = 200;
+  String gradeSchemeBody = '{"name":"Default","bands":[{"grade":"A","minPercentage":"80.00","maxPercentage":"100.00","gradePoint":"4.00","sortOrder":1}]}';
+  bool chaptersFail = false;
   String progressJson = '{"percentage":0.00,"coveredTopics":0,'
       '"totalTopics":0,"coveredChapters":0,"totalChapters":0,"chapters":[]}';
   final List<String> remarks = [];
@@ -62,6 +70,15 @@ class _AcademicServer implements HttpClientAdapter {
 
     if (o.method == 'GET') {
       if (path == '/api/exams') return _raw(200, '[${exams.join(',')}]');
+      if (path == '/api/grade-schemes/default') {
+        return _raw(gradeSchemeStatus, gradeSchemeBody);
+      }
+      // D-13 read-back backend: set to list papers instead of answering 405.
+      if (papersJson != null &&
+          path.startsWith('/api/exams/') &&
+          path.endsWith('/subjects')) {
+        return _raw(200, papersJson!);
+      }
       if (path.contains('/results/section/')) {
         return _raw(200, sectionResultsJson);
       }
@@ -76,7 +93,9 @@ class _AcademicServer implements HttpClientAdapter {
       if (path.startsWith('/api/remarks/')) {
         return _raw(200, '[${remarks.join(',')}]');
       }
-      if (path == '/api/syllabus/chapters') return _raw(200, chaptersJson);
+      if (path == '/api/syllabus/chapters') {
+        return chaptersFail ? _raw(500, '{"message":"unavailable"}') : _raw(200, chaptersJson);
+      }
       if (path == '/api/syllabus/progress') return _raw(200, progressJson);
       // Shared setup reads the hub needs.
       if (path == '/api/campuses') {
@@ -94,6 +113,9 @@ class _AcademicServer implements HttpClientAdapter {
         return _raw(200,
             '{"content":[{"id":"class-1","name":"Grade 5","levelOrder":5}]}');
       }
+      if (path == '/api/sections' && sectionsJson != null) {
+        return _raw(200, sectionsJson!);
+      }
       if (path == '/api/sections') {
         return _raw(
           200,
@@ -104,6 +126,10 @@ class _AcademicServer implements HttpClientAdapter {
       if (path == '/api/subjects') {
         return _raw(200,
             '{"content":[{"id":"subject-1","name":"Mathematics"}]}');
+      }
+      // D-24: saved marks read-back (null = older backend without the endpoint).
+      if (marksReadJson != null && path == '/api/exams/subjects/paper-1/marks') {
+        return _raw(200, marksReadJson!);
       }
       if (path.startsWith('/api/enrollments/section/')) {
         return _raw(200, '{"content":[$rosterJson]}');
@@ -258,7 +284,7 @@ const _exam = Exam(
   id: 'exam-1',
   name: 'First Term',
   term: 'first_term',
-  status: ExamStatus.pending,
+  status: ExamStatus.marking,
   academicYearId: 'year-1',
 );
 
@@ -405,6 +431,30 @@ void main() {
       expect(find.text('0 of 40 entered'), findsOneWidget);
     });
 
+    testWidgets('D-24: saved marks and Absent are filled in when read-back exists',
+        (tester) async {
+      final w = _wire();
+      w.server.marksReadJson = '[{"studentId":"stu-0","marksObtained":"42.50","isAbsent":false},'
+          '{"studentId":"stu-1","marksObtained":null,"isAbsent":true},'
+          '{"studentId":"stu-2","marksObtained":null,"isAbsent":false}]';
+      await tester.pumpWidget(screen(w));
+      await tester.pumpAndSettle();
+
+      expect(find.text('42.50'), findsOneWidget);
+      expect(find.text('2 of 40 entered'), findsOneWidget, reason: 'one mark + one absent');
+      expect(find.textContaining('already saved are filled in'), findsOneWidget);
+      expect(find.textContaining('no way to read them back'), findsNothing);
+      expect(w.server.requests.where((r) => r.method != 'GET'), isEmpty, reason: 'reading writes nothing');
+    });
+
+    testWidgets('D-24: without read-back the screen says so truthfully', (tester) async {
+      final w = _wire();
+      await tester.pumpWidget(screen(w));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('no way to read them back'), findsOneWidget);
+      expect(find.text('0 of 40 entered'), findsOneWidget);
+    });
+
     testWidgets('the running summary is visible without scrolling',
         (tester) async {
       final w = _wire();
@@ -464,9 +514,11 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 
-      // A stray Enter halfway down a class must never save.
+      // A stray Enter halfway down a class must never save. (The D-24 read of
+      // saved marks is a GET and is not a save.)
       expect(
-        w.server.requests.where((r) => r.path.contains('marks')),
+        w.server.requests
+            .where((r) => r.method != 'GET' && r.path.contains('marks')),
         isEmpty,
       );
     });
@@ -588,9 +640,32 @@ void main() {
       expect(find.textContaining('cannot list papers back'), findsOneWidget);
     });
 
+    testWidgets('with D-13 read-back the papers are listed and no false warning',
+        (tester) async {
+      final w = _wire();
+      w.server.papersJson = '[{"id":"paper-9","examId":"exam-1",'
+          '"sectionId":"section-1","subjectId":"subject-1",'
+          '"maxMarks":"50.00","passingMarks":"20.00","subjectName":"Mathematics"}]';
+      await tester.pumpWidget(_host(ExamPapersScreen(
+        repository: w.repo,
+        exam: _exam,
+        sections: const [_section],
+        classes: const [_class],
+        subjects: const [_subject],
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('cannot list papers back'), findsNothing);
+      expect(find.textContaining('Mathematics'), findsWidgets);
+    });
+
     testWidgets('a duplicate paper explains that it cannot be reopened',
         (tester) async {
       final w = _wire();
+      // The C9 stage panel makes this screen taller than the default 800x600.
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(_host(ExamPapersScreen(
         repository: w.repo,
         exam: _exam,
@@ -601,8 +676,11 @@ void main() {
       await tester.pumpAndSettle();
 
       w.server.failStatus = 409;
+      // The C9 stage panel sits above the form; scroll to each control.
+      await tester.ensureVisible(find.text('Add a paper'));
       await tester.tap(find.text('Add a paper'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Save'));
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
@@ -610,7 +688,34 @@ void main() {
       expect(find.textContaining('no way to look a paper up'), findsOneWidget);
     });
 
-    testWidgets('publishing is confirmed and stated as irreversible',
+    testWidgets('DEF-25: adding the first paper to a draft exam shows it in marking (as the server does)',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      final w = _wire();
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const draft = Exam(id: 'exam-1', name: 'First Term', term: 'first_term', status: ExamStatus.draft, academicYearId: 'year-1');
+      await tester.pumpWidget(_host(ExamPapersScreen(
+        repository: w.repo,
+        exam: draft,
+        sections: const [_section],
+        classes: const [_class],
+        subjects: const [_subject],
+      )));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel(RegExp('Exam stage: ${ExamStatus.draft.label}')), findsOneWidget);
+      await tester.ensureVisible(find.text('Add a paper'));
+      await tester.tap(find.text('Add a paper'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Save'));
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel(RegExp('Exam stage: ${ExamStatus.marking.label}')), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('C9: no direct publish; without exam.manage no stage action is offered',
         (tester) async {
       final w = _wire();
       await tester.pumpWidget(_host(ExamPapersScreen(
@@ -622,15 +727,9 @@ void main() {
       )));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Publish results'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Publish this exam?'), findsOneWidget);
-      expect(find.textContaining('marks are locked permanently'),
-          findsOneWidget);
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+      expect(find.text('Publish results'), findsNothing);
+      expect(find.text('Stage: Marking'), findsOneWidget);
+      expect(find.textContaining('Only an exam manager'), findsOneWidget);
       expect(
         w.server.requests.where((r) => r.path.endsWith('/publish')),
         isEmpty,
@@ -809,6 +908,34 @@ void main() {
   });
 
   group('syllabus', () {
+    testWidgets('no chapters shows the empty state; a failed load shows an error with Retry',
+        (tester) async {
+      final w = _wire();
+      Widget screen() => _host(SyllabusScreen(
+            repository: w.repo,
+            year: _year,
+            classes: const [_class],
+            sections: const [_section],
+            subjects: const [_subject],
+          ));
+      await tester.pumpWidget(screen());
+      await tester.pumpAndSettle();
+      expect(find.text('No chapters yet'), findsOneWidget);
+
+      w.server.chaptersFail = true;
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(screen());
+      await tester.pumpAndSettle();
+      expect(find.text('No chapters yet'), findsNothing);
+      expect(find.textContaining('Retry'), findsWidgets);
+
+      w.server.chaptersFail = false;
+      w.server.chaptersJson = '[{"id":"c1","name":"Algebra","sort_order":1,"topics":[]}]';
+      await tester.tap(find.textContaining('Retry').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Algebra'), findsWidgets);
+    });
+
     testWidgets('progress is the server’s percentage, not covered ÷ total',
         (tester) async {
       final w = _wire();
@@ -889,15 +1016,47 @@ void main() {
       expect(find.byType(TextField), findsNothing);
     });
 
-    testWidgets('subject resources says what to do instead', (tester) async {
-      await tester.pumpWidget(_host(const SubjectResourcesScreen()));
-      await tester.pumpAndSettle();
+    // The Subject resources placeholder was replaced by D-21; the real screens
+    // are covered by subject_resources_staff_test / _learner_test.
+  });
 
-      expect(find.textContaining('no way to receive an uploaded file'),
-          findsOneWidget);
-      expect(find.textContaining('Share material through the diary'),
-          findsOneWidget);
-      expect(find.byType(TextField), findsNothing);
+  group('grade scheme states (D-20)', () {
+    Future<_Wired> open(WidgetTester tester, int status, String body) async {
+      final w = _wire()
+        ..server.gradeSchemeStatus = status
+        ..server.gradeSchemeBody = body;
+      await tester.pumpWidget(_host(GradeSchemesScreen(repository: w.repo)));
+      await tester.pumpAndSettle();
+      return w;
+    }
+
+    testWidgets('configured: bands are listed', (tester) async {
+      final w = _wire();
+      await tester.pumpWidget(_host(GradeSchemesScreen(repository: w.repo)));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel(RegExp(r'^Grade A: 80.00 to 100.00 percent')), findsOneWidget);
+    });
+
+    testWidgets('404 GRADE_SCHEME_NOT_CONFIGURED: says none is set up', (tester) async {
+      await open(tester, 404, '{"status":404,"message":"No default grade scheme is configured","details":{"code":"GRADE_SCHEME_NOT_CONFIGURED"}}');
+      expect(find.text('No grade scheme is set up'), findsOneWidget);
+    });
+
+    testWidgets('403: not available for this role, no bands', (tester) async {
+      await open(tester, 403, '{"status":403,"message":"Forbidden"}');
+      expect(find.text('Not available for your role'), findsOneWidget);
+      expect(find.textContaining('Grade A'), findsNothing);
+    });
+
+    testWidgets('500: failure with Try again, which reloads', (tester) async {
+      final w = await open(tester, 500, '{"status":500,"message":"Server error"}');
+      expect(find.text('Try again'), findsOneWidget);
+      w.server
+        ..gradeSchemeStatus = 200
+        ..gradeSchemeBody = '{"name":"Default","bands":[{"grade":"B","minPercentage":"60.00","maxPercentage":"79.99","gradePoint":"3.00","sortOrder":1}]}';
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel(RegExp(r'^Grade B: 60.00 to 79.99 percent')), findsOneWidget);
     });
   });
 
@@ -922,6 +1081,22 @@ void main() {
       expect(find.text('Grade scheme'), findsOneWidget);
       expect(find.text('Subject resources'), findsOneWidget);
       expect(find.textContaining('Could not load'), findsNothing);
+    });
+
+    testWidgets('Remarks asks which section when there are several', (tester) async {
+      final w = _wire();
+      w.server.sectionsJson = '{"content":[{"id":"section-1","classId":"class-1","name":"A","academicYearId":"year-1"},'
+          '{"id":"section-2","classId":"class-1","name":"B","academicYearId":"year-1"}]}';
+      await tester.pumpWidget(hub(w));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Remarks'));
+      await tester.pumpAndSettle();
+      expect(find.text('Remarks for which section?'), findsOneWidget);
+      await tester.tap(find.textContaining('B').last);
+      await tester.pumpAndSettle();
+      expect(w.server.requests.map((r) => r.uri.path), contains('/api/remarks/section/section-2'));
+      expect(w.server.requests.map((r) => r.uri.path), isNot(contains('/api/remarks/section/section-1')));
     });
   });
 
@@ -1007,6 +1182,30 @@ void main() {
       expect(find.bySemanticsLabel(RegExp('Student 1 absent')), findsOneWidget);
     });
 
+    testWidgets('DEF-24: Absent can be toggled with the keyboard (Tab + Space)', (tester) async {
+      final handle = tester.ensureSemantics();
+      final w = _wire();
+      await tester.pumpWidget(_host(MarksEntryScreen(
+        repository: w.repo,
+        paper: _paper,
+        examName: 'First Term',
+      )));
+      await tester.pumpAndSettle();
+      SemanticsData node() => tester.getSemantics(find.bySemanticsLabel(RegExp('^Student 1 absent'))).getSemanticsData();
+      var reached = false;
+      for (var i = 0; i < 40 && !reached; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        reached = node().flagsCollection.isFocused == Tristate.isTrue;
+      }
+      expect(reached, isTrue, reason: 'Tab must reach the Absent toggle');
+      expect(node().flagsCollection.isToggled, Tristate.isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(node().flagsCollection.isToggled, Tristate.isTrue);
+      handle.dispose();
+    });
+
     testWidgets('a result row carries its outcome in its label',
         (tester) async {
       final w = _wire();
@@ -1035,7 +1234,6 @@ Map<String, Widget> _allScreens(_Wired w) =>
         admin: AdminRepository(w.dio),
       ),
       'grades': const GradeSchemesScreen(),
-      'resources': const SubjectResourcesScreen(),
       'exams': ExamSetupScreen(
         repository: w.repo,
         year: _year,

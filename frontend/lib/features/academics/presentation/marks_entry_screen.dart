@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
+import '../../../core/widgets/keyboard_tap_target.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/motion_reveal.dart';
@@ -73,6 +74,9 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
   String? _error;
   MarksSaveResult? _saved;
 
+  /// D-24: true once saved marks were read back from the server.
+  bool _readBack = false;
+
   @override
   void initState() {
     super.initState();
@@ -91,11 +95,15 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _roster =
-        ScreenState<List<RosterStudent>>.loading(previous: _roster.data));
+    setState(
+      () => _roster = ScreenState<List<RosterStudent>>.loading(
+        previous: _roster.data,
+      ),
+    );
     try {
-      final students =
-          await widget.repository.loadRoster(widget.paper.sectionId);
+      final students = await widget.repository.loadRoster(
+        widget.paper.sectionId,
+      );
       if (!mounted) return;
       setState(() {
         for (final s in students) {
@@ -108,22 +116,46 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
         }
         _roster = ScreenState<List<RosterStudent>>.data(students);
       });
+      await _loadSaved();
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _roster = ScreenState<List<RosterStudent>>.failed(
-            f,
-            cached: _roster.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _roster = ScreenState<List<RosterStudent>>.failed(
+          f,
+          cached: _roster.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
+  }
+
+  /// D-24: fills in what is already saved, without overwriting anything the
+  /// teacher has typed since the screen opened.
+  Future<void> _loadSaved() async {
+    final saved = await widget.repository.loadPaperMarks(widget.paper.id);
+    if (saved == null || !mounted) return;
+    setState(() {
+      _readBack = true;
+      saved.forEach((studentId, mark) {
+        final entry = _entries[studentId];
+        if (entry == null || entry.text.isNotEmpty || entry.isAbsent) return;
+        _entries[studentId] = entry.copyWith(
+          text: mark.isAbsent ? '' : (mark.marks ?? ''),
+          isAbsent: mark.isAbsent,
+        );
+        if (!mark.isAbsent && mark.marks != null) {
+          _controllers[studentId]?.text = mark.marks!;
+        }
+      });
+    });
   }
 
   List<RosterStudent> get _students => _roster.data ?? const [];
 
-  int get _enteredCount =>
-      _entries.values.where((e) => e.isEntered).length;
+  int get _enteredCount => _entries.values.where((e) => e.isEntered).length;
 
   /// Rows that cannot be sent, so the count is honest about what "done"
   /// means.
@@ -132,7 +164,10 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
       .length;
 
   bool get _canSave =>
-      !_saving && !widget.marksLocked && _enteredCount > 0 && _problemCount == 0;
+      !_saving &&
+      !widget.marksLocked &&
+      _enteredCount > 0 &&
+      _problemCount == 0;
 
   void _update(String studentId, MarkEntry next) {
     setState(() {
@@ -141,8 +176,8 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
     });
   }
 
-  /// Moves to the next student's field. Bound to both Tab and Enter, so the
-  /// two keys a teacher reaches for do the same, safe thing.
+  /// Moves to the next student's field. Bound to Enter (Tab follows the normal
+  /// order so the Absent toggle stays reachable, DEF-24); never submits.
   void _focusNext(String studentId) {
     final order = _students;
     final i = order.indexWhere((s) => s.studentId == studentId);
@@ -199,23 +234,28 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
                 ),
                 child: InlineAlert(
                   tone: InlineAlertTone.warning,
-                  message: 'This exam has been published, so its marks are '
+                  message:
+                      'This exam has been published, so its marks are '
                       'locked and can no longer be changed.',
                 ),
               )
             else
-              const Padding(
-                padding: EdgeInsets.symmetric(
+              Padding(
+                padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.space6,
                   vertical: AppSpacing.space3,
                 ),
                 // Two facts a teacher needs BEFORE typing forty numbers.
                 child: InlineAlert(
                   tone: InlineAlertTone.info,
-                  message: 'Marks already saved cannot be shown — this system '
-                      'has no way to read them back. Saving again replaces '
-                      'whatever is stored. Once the exam is published, marks '
-                      'are locked for good.',
+                  message: _readBack
+                      ? 'Marks already saved are filled in below. Saving '
+                            'replaces what is stored. Once the exam is '
+                            'published, marks are locked for good.'
+                      : 'Marks already saved cannot be shown — this system '
+                            'has no way to read them back. Saving again replaces '
+                            'whatever is stored. Once the exam is published, marks '
+                            'are locked for good.',
                 ),
               ),
 
@@ -233,8 +273,10 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
                   horizontal: AppSpacing.space6,
                   vertical: AppSpacing.space3,
                 ),
-                child:
-                    InlineAlert(tone: InlineAlertTone.danger, message: _error!),
+                child: InlineAlert(
+                  tone: InlineAlertTone.danger,
+                  message: _error!,
+                ),
               ),
 
             // D-29: submit confirmation, 250ms then settle — the ONLY
@@ -244,22 +286,22 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
               MotionConfirm(
                 show: true,
                 child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.space6,
-                  vertical: AppSpacing.space3,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.space6,
+                    vertical: AppSpacing.space3,
+                  ),
+                  child: InlineAlert(
+                    tone: _saved!.allSaved
+                        ? InlineAlertTone.success
+                        : InlineAlertTone.warning,
+                    message: _saved!.allSaved
+                        ? '${_saved!.successCount} '
+                              '${_saved!.successCount == 1 ? 'mark' : 'marks'} saved.'
+                        : '${_saved!.successCount} saved, '
+                              '${_saved!.errorCount} could not be: '
+                              '${_saved!.errors.join('; ')}',
+                  ),
                 ),
-                child: InlineAlert(
-                  tone: _saved!.allSaved
-                      ? InlineAlertTone.success
-                      : InlineAlertTone.warning,
-                  message: _saved!.allSaved
-                      ? '${_saved!.successCount} '
-                          '${_saved!.successCount == 1 ? 'mark' : 'marks'} saved.'
-                      : '${_saved!.successCount} saved, '
-                          '${_saved!.errorCount} could not be: '
-                          '${_saved!.errors.join('; ')}',
-                ),
-              ),
               ),
 
             Expanded(
@@ -267,7 +309,8 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
                 state: _roster,
                 onRetry: _load,
                 emptyTitle: 'No students enrolled',
-                emptyMessage: 'This section has no enrolled students, so '
+                emptyMessage:
+                    'This section has no enrolled students, so '
                     'there is nothing to mark.',
                 emptyIcon: Icons.groups_outlined,
                 data: (context, students) => ListView.builder(
@@ -401,14 +444,16 @@ class _Summary extends StatelessWidget {
           if (remaining > 0)
             Text(
               '$remaining left',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
           if (problems > 0)
             Text(
               problems == 1 ? '1 needs fixing' : '$problems need fixing',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.dangerTextOnBg),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.dangerTextOnBg,
+              ),
             ),
         ],
       ),
@@ -473,41 +518,54 @@ class MarkRow extends StatelessWidget {
                 constraints: const BoxConstraints(minWidth: AppSizing.avatar56),
                 child: Text(
                   entry.studentName,
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
               ),
               SizedBox(
                 width: AppSizing.marksFieldWidth,
                 child: Focus(
-                  // Tab and Enter both move on, and neither submits. A
-                  // stray Enter halfway down a class must never save.
+                  // Enter moves to the next learner's marks and never
+                  // submits: a stray Enter halfway down a class must never
+                  // save. DEF-24: Tab is NOT intercepted any more — it used to
+                  // jump field-to-field too, so keyboard focus could never
+                  // reach a learner's Absent toggle. Tab now follows the
+                  // normal order (marks → Absent → next learner).
                   onKeyEvent: (node, event) {
                     if (event is! KeyDownEvent) return KeyEventResult.ignored;
                     if (event.logicalKey == LogicalKeyboardKey.enter ||
-                        event.logicalKey == LogicalKeyboardKey.numpadEnter ||
-                        event.logicalKey == LogicalKeyboardKey.tab) {
+                        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
                       onNext();
                       return KeyEventResult.handled;
                     }
                     return KeyEventResult.ignored;
                   },
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    enabled: enabled && !entry.isAbsent,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
-                    onChanged: onChanged,
-                    onSubmitted: (_) => onNext(),
-                    style: AppTypography.personName
-                        .copyWith(color: t.textPrimary),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: entry.isAbsent ? '—' : maxMarks.format(),
-                      hintStyle: AppTypography.bodyAdminMeta
-                          .copyWith(color: t.textSecondary),
+                  child: Semantics(
+                    label: 'Marks for ${entry.studentName}',
+                    hint: entry.isAbsent
+                        ? 'Marked absent'
+                        : 'Out of ${maxMarks.format()}',
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      enabled: enabled && !entry.isAbsent,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                      onChanged: onChanged,
+                      onSubmitted: (_) => onNext(),
+                      style: AppTypography.personName.copyWith(
+                        color: t.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: entry.isAbsent ? '—' : maxMarks.format(),
+                        hintStyle: AppTypography.bodyAdminMeta.copyWith(
+                          color: t.textSecondary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -525,8 +583,9 @@ class MarkRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: AppSpacing.space1),
               child: Text(
                 problem,
-                style:
-                    AppTypography.bodyAdminMeta.copyWith(color: t.dangerTextOnBg),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.dangerTextOnBg,
+                ),
               ),
             ),
         ],
@@ -553,33 +612,31 @@ class _AbsentToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return Semantics(
-      button: true,
-      toggled: absent,
+    // DEF-24 (same class as DEF-18): was a bare GestureDetector, so a
+    // keyboard-only teacher could not mark a learner absent.
+    return KeyboardTapTarget(
       label: '$studentName absent',
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.space4,
-              vertical: AppSpacing.space2,
-            ),
-            decoration: BoxDecoration(
-              color: absent ? t.warningBg : t.surfaceSunken,
-              borderRadius: BorderRadius.circular(AppRadius.full),
-              border: Border.all(
-                color: absent ? t.warning : t.border,
-                width: AppSizing.borderThin,
-              ),
-            ),
-            child: Text(
-              'Absent',
-              style: AppTypography.fieldLabel.copyWith(
-                color: absent ? t.warningTextOnBg : t.textSecondary,
-              ),
-            ),
+      toggled: absent,
+      enabled: enabled,
+      onTap: onTap,
+      borderRadius: AppRadius.full,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.space4,
+          vertical: AppSpacing.space2,
+        ),
+        decoration: BoxDecoration(
+          color: absent ? t.warningBg : t.surfaceSunken,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          border: Border.all(
+            color: absent ? t.warning : t.border,
+            width: AppSizing.borderThin,
+          ),
+        ),
+        child: Text(
+          'Absent',
+          style: AppTypography.fieldLabel.copyWith(
+            color: absent ? t.warningTextOnBg : t.textSecondary,
           ),
         ),
       ),

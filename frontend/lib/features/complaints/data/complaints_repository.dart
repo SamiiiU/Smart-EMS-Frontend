@@ -1,3 +1,4 @@
+import 'package:smartems/core/network/paged_get.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_error_mapper.dart';
@@ -20,9 +21,6 @@ class ComplaintsRepository {
       throw mapDioError(err);
     }
   }
-
-  static List<Map<String, dynamic>> _content(Map<String, dynamic>? body) =>
-      (body?['content'] as List? ?? const []).cast<Map<String, dynamic>>();
 
   // --- Campus ----------------------------------------------------------------
 
@@ -75,33 +73,29 @@ class ComplaintsRepository {
     ComplaintPriority priority = ComplaintPriority.medium,
     bool isAnonymous = false,
     String? aboutStudentId,
-  }) =>
-      _mapped(() async {
-        final res = await dio.post<Map<String, dynamic>>(
-          '/api/complaints',
-          data: {
-            'campusId': campusId,
-            'category': category.wire,
-            'subject': subject,
-            'description': description,
-            'priority': priority.wire,
-            'isAnonymous': isAnonymous,
-            'aboutStudentId': ?aboutStudentId,
-          },
-        );
-        return Complaint.fromJson(res.data!);
-      });
+  }) => _mapped(() async {
+    final res = await dio.post<Map<String, dynamic>>(
+      '/api/complaints',
+      data: {
+        'campusId': campusId,
+        'category': category.wire,
+        'subject': subject,
+        'description': description,
+        'priority': priority.wire,
+        'isAnonymous': isAnonymous,
+        'aboutStudentId': ?aboutStudentId,
+      },
+    );
+    return Complaint.fromJson(res.data!);
+  });
 
   // --- Reading ---------------------------------------------------------------
 
   /// The caller's OWN complaints. Available to every role.
   Future<List<Complaint>> loadMine() => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '/api/complaints/my',
-          queryParameters: const {'size': 100},
-        );
-        return _content(res.data).map(Complaint.fromJson).toList();
-      });
+    final rows = await dio.getAllPages('/api/complaints/my');
+    return rows.map(Complaint.fromJson).toList();
+  });
 
   /// Every complaint. **Admin only** — other roles get a 403, which is the
   /// correct answer and the reason this is not offered elsewhere.
@@ -111,38 +105,31 @@ class ComplaintsRepository {
   Future<List<Complaint>> loadAll({
     ComplaintStatus? status,
     ComplaintCategory? category,
-  }) =>
-      _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '/api/complaints',
-          queryParameters: {
-            'size': 200,
-            'status': ?status?.wire,
-            'category': ?category?.wire,
-          },
-        );
-        return _content(res.data).map(Complaint.fromJson).toList();
-      });
+  }) => _mapped(() async {
+    final rows = await dio.getAllPages(
+      '/api/complaints',
+      queryParameters: {'status': ?status?.wire, 'category': ?category?.wire},
+    );
+    return rows.map(Complaint.fromJson).toList();
+  });
 
   Future<Complaint> load(String id) => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>('/api/complaints/$id');
-        return Complaint.fromJson(res.data!);
-      });
+    final res = await dio.get<Map<String, dynamic>>('/api/complaints/$id');
+    return Complaint.fromJson(res.data!);
+  });
 
   /// The thread.
   ///
   /// What comes back depends on WHO asks — the backend filters
   /// `is_internal` comments out for a complainant. The app does not filter
   /// and must not: doing so would hide whether the guarantee still holds.
-  Future<List<ComplaintComment>> loadComments(String id) =>
-      _mapped(() async {
-        final res =
-            await dio.get<List<dynamic>>('/api/complaints/$id/comments');
-        return (res.data ?? const [])
-            .cast<Map<String, dynamic>>()
-            .map(ComplaintComment.fromJson)
-            .toList();
-      });
+  Future<List<ComplaintComment>> loadComments(String id) => _mapped(() async {
+    final res = await dio.get<List<dynamic>>('/api/complaints/$id/comments');
+    return (res.data ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(ComplaintComment.fromJson)
+        .toList();
+  });
 
   // --- Acting ----------------------------------------------------------------
 
@@ -150,13 +137,12 @@ class ComplaintsRepository {
     required String id,
     required String body,
     bool isInternal = false,
-  }) =>
-      _mapped(() async {
-        await dio.post<dynamic>(
-          '/api/complaints/$id/comments',
-          data: {'body': body, 'isInternal': isInternal},
-        );
-      });
+  }) => _mapped(() async {
+    await dio.post<dynamic>(
+      '/api/complaints/$id/comments',
+      data: {'body': body, 'isInternal': isInternal},
+    );
+  });
 
   Future<void> assign({required String id, required String staffId}) =>
       _mapped(() async {
@@ -172,14 +158,10 @@ class ComplaintsRepository {
     required String id,
     required ComplaintStatus status,
     String? resolutionNote,
-  }) =>
-      _mapped(() async {
-        await dio.put<dynamic>(
-          '/api/complaints/$id/status',
-          data: {
-            'status': status.wire,
-            'resolutionNote': ?resolutionNote,
-          },
-        );
-      });
+  }) => _mapped(() async {
+    await dio.put<dynamic>(
+      '/api/complaints/$id/status',
+      data: {'status': status.wire, 'resolutionNote': ?resolutionNote},
+    );
+  });
 }

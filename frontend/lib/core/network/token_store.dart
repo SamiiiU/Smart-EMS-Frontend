@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Where the session lives between app launches: the bearer (access) and
@@ -108,4 +109,70 @@ class InMemoryTokenStore implements TokenStore {
     refreshToken = null;
     institutionCode = null;
   }
+}
+
+/// Atomic within the single application isolate. Browser multi-tab coordination
+/// is separate and must be implemented with the cookie transport.
+abstract interface class ConditionalTokenStore implements TokenStore {
+  Future<bool> rotateIfCurrent(
+    String expectedRefresh,
+    String access,
+    String refresh,
+  );
+  Future<bool> clearIfCurrent(String? expectedRefresh);
+}
+
+class SerializedTokenStore implements ConditionalTokenStore {
+  SerializedTokenStore(this.delegate);
+  final TokenStore delegate;
+  Future<void> _tail = Future<void>.value();
+  Future<T> _run<T>(Future<T> Function() action) {
+    final result = Completer<T>();
+    _tail = _tail.then((_) async {
+      try {
+        result.complete(await action());
+      } catch (error, stack) {
+        result.completeError(error, stack);
+      }
+    });
+    return result.future;
+  }
+
+  @override
+  Future<String?> readAccessToken() => _run(delegate.readAccessToken);
+  @override
+  Future<String?> readRefreshToken() => _run(delegate.readRefreshToken);
+  @override
+  Future<String?> readInstitutionCode() => _run(delegate.readInstitutionCode);
+  @override
+  Future<void> writeTokens({
+    required String accessToken,
+    required String? refreshToken,
+  }) => _run(
+    () => delegate.writeTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    ),
+  );
+  @override
+  Future<void> writeInstitutionCode(String code) =>
+      _run(() => delegate.writeInstitutionCode(code));
+  @override
+  Future<void> clear() => _run(delegate.clear);
+  @override
+  Future<bool> rotateIfCurrent(
+    String expectedRefresh,
+    String access,
+    String refresh,
+  ) => _run(() async {
+    if (await delegate.readRefreshToken() != expectedRefresh) return false;
+    await delegate.writeTokens(accessToken: access, refreshToken: refresh);
+    return true;
+  });
+  @override
+  Future<bool> clearIfCurrent(String? expectedRefresh) => _run(() async {
+    if (await delegate.readRefreshToken() != expectedRefresh) return false;
+    await delegate.clear();
+    return true;
+  });
 }

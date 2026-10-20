@@ -21,3 +21,6 @@ frontend/test/failures/
 .claude/settings.local.json
 
 .DS_Store
+
+# Firebase Android config: supplied locally, never committed
+frontend/android/app/google-services.json

@@ -12,6 +12,9 @@ import '../../attendance/presentation/attendance_marking_screen.dart'
 import '../../parent/data/parent_repository.dart';
 import '../../parent/domain/parent_models.dart';
 import '../domain/admin_models.dart';
+import '../data/admin_repository.dart';
+import '../../../core/widgets/app_button.dart';
+import 'guardian_links_screen.dart';
 
 /// One student, as the admin sees them.
 ///
@@ -24,10 +27,16 @@ class StudentProfileScreen extends StatefulWidget {
     required this.student,
     required this.parentRepository,
     this.now,
+    this.onBack,
     super.key,
   });
 
   final AdminStudent student;
+
+  /// Returns to the students list. The profile replaces the list in place
+  /// (not a pushed route), so without this there is no on-screen way back
+  /// on Web/desktop; system back is handled by the caller's PopScope.
+  final VoidCallback? onBack;
 
   /// T9's repository, reused unchanged — the attendance history an admin
   /// needs is the same history a parent sees.
@@ -57,8 +66,11 @@ class StudentProfileScreenState extends State<StudentProfileScreen> {
   }
 
   Future<void> _loadAttendance() async {
-    setState(() => _attendance =
-        ScreenState<List<AttendanceDay>>.loading(previous: _attendance.data));
+    setState(
+      () => _attendance = ScreenState<List<AttendanceDay>>.loading(
+        previous: _attendance.data,
+      ),
+    );
     try {
       final to = _now;
       final days = await widget.parentRepository.loadAttendance(
@@ -69,14 +81,15 @@ class StudentProfileScreenState extends State<StudentProfileScreen> {
         to: to,
       );
       if (!mounted) return;
-      setState(
-          () => _attendance = ScreenState<List<AttendanceDay>>.data(days));
+      setState(() => _attendance = ScreenState<List<AttendanceDay>>.data(days));
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _attendance = ScreenState<List<AttendanceDay>>.failed(
-            e is LoadFailure ? e : const LoadFailure(),
-            cached: _attendance.data,
-          ));
+      setState(
+        () => _attendance = ScreenState<List<AttendanceDay>>.failed(
+          e is LoadFailure ? e : const LoadFailure(),
+          cached: _attendance.data,
+        ),
+      );
     }
   }
 
@@ -91,6 +104,9 @@ class StudentProfileScreenState extends State<StudentProfileScreen> {
         backgroundColor: t.surface,
         surfaceTintColor: t.surface,
         iconTheme: IconThemeData(color: t.textPrimary),
+        leading: widget.onBack == null
+            ? null
+            : BackButton(onPressed: widget.onBack),
         title: Text(
           student.fullName,
           style: AppTypography.cardHeading.copyWith(color: t.textPrimary),
@@ -110,8 +126,21 @@ class StudentProfileScreenState extends State<StudentProfileScreen> {
               ),
               child: Text(
                 'Attendance · last ${StudentProfileScreen.windowDays} days',
-                style:
-                    AppTypography.overline.copyWith(color: t.textSecondary),
+                style: AppTypography.overline.copyWith(color: t.textSecondary),
+              ),
+            ),
+            AppButton(
+              label: 'Guardian access',
+              icon: Icons.family_restroom_outlined,
+              variant: AppButtonVariant.ghost,
+              size: AppButtonSize.sm,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => GuardianLinksScreen(
+                    repository: AdminRepository(widget.parentRepository.dio),
+                    studentId: student.id,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.space3),
@@ -161,10 +190,7 @@ class _Details extends StatelessWidget {
         runSpacing: AppSpacing.space3,
         children: [
           _Field(label: 'Admission no.', value: student.admissionNumber),
-          _Field(
-            label: 'Class',
-            value: student.classLabel ?? 'Not enrolled',
-          ),
+          _Field(label: 'Class', value: student.classLabel ?? 'Not enrolled'),
           _Field(label: 'Status', value: student.status ?? '—'),
         ],
       ),
@@ -210,8 +236,7 @@ class _DayRow extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),

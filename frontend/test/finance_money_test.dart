@@ -276,9 +276,18 @@ void main() {
   });
 
   group('payment sources', () {
-    test('only the two the backend accepts exist', () {
+    test('exactly the manual sources the backend accepts (V8 CHECK; challan verified live 201)', () {
       expect(PaymentSource.values.map((s) => s.wire),
-          ['MANUAL_CASH', 'MANUAL_BANK']);
+          ['MANUAL_CASH', 'MANUAL_BANK', 'MANUAL_CHALLAN']);
+    });
+
+    test('staff never see a raw wire code', () {
+      for (final w in ['MANUAL_CASH', 'MANUAL_BANK', 'MANUAL_CHALLAN', 'JAZZCASH', 'EASYPAISA', 'CARD', 'STRIPE', 'SOMETHING_NEW']) {
+        final label = PaymentSource.labelForWire(w);
+        expect(label, isNot(w), reason: w);
+        expect(label.contains('_'), isFalse, reason: w);
+      }
+      expect(PaymentSource.labelForWire('MANUAL_CHALLAN'), 'Bank challan');
     });
   });
 }

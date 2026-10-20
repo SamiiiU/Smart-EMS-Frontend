@@ -14,6 +14,7 @@ import 'package:smartems/core/widgets/app_button.dart';
 import 'package:smartems/core/widgets/app_text_field.dart';
 import 'package:smartems/core/widgets/inline_alert.dart';
 import 'package:smartems/features/auth/data/auth_repository.dart';
+import 'package:smartems/features/auth/data/remembered_institution.dart';
 import 'package:smartems/features/auth/presentation/login_screen.dart';
 
 /// Scripts responses per request path, so a test can model the real
@@ -310,6 +311,21 @@ void main() {
 
       expect(result.kind, IdentityResultKind.error);
       expect(result.message, 'Access token missing or invalid');
+      expect(result.temporary, isFalse);
+    });
+
+    test('rate limiting (429) is temporary — a throttled restore keeps the session', () async {
+      final adapter = _ScriptedAdapter((o) {
+        throw DioException(
+          requestOptions: o,
+          response: Response(requestOptions: o, statusCode: 429, data: const {'message': 'Too many requests'}),
+        );
+      });
+
+      final result = await NetworkIdentityResolver(_dioWith(adapter)).resolveIdentity();
+
+      expect(result.kind, IdentityResultKind.error);
+      expect(result.temporary, isTrue);
     });
   });
 
@@ -317,6 +333,135 @@ void main() {
     AuthRepository repoReturning(LoginOutcome outcome, {Duration? delay}) {
       return _FakeRepository(outcome, delay: delay);
     }
+
+    // F6: every login input has an accessible name and a "Required" hint, and
+    // the visible label is not read a second time as separate text.
+    // Overhaul M2: returning users are not asked to recall the institution code.
+    group('remembered institution', () {
+      testWidgets('a remembered institution is confirmed, not retyped', (tester) async {
+        final remembered = InMemoryRememberedInstitution('north-rehearsal');
+        await tester.pumpWidget(host(LoginScreen(
+          repository: repoReturning(const LoginSucceeded()),
+          rememberedInstitution: remembered,
+          onSignedIn: () {},
+        )));
+        await tester.pumpAndSettle();
+        expect(find.text('north-rehearsal'), findsOneWidget);
+        expect(find.byType(EditableText), findsNWidgets(2), reason: 'only username + password to type');
+        await tester.enterText(find.byType(TextField).at(0), 'teacher');
+        await tester.enterText(find.byType(TextField).at(1), 'Secret123!');
+        await tester.pump();
+        expect(tester.widget<AppButton>(find.widgetWithText(AppButton, 'Sign in')).onPressed, isNotNull);
+      });
+
+      testWidgets('Change reopens the field with the code prefilled', (tester) async {
+        await tester.pumpWidget(host(LoginScreen(
+          repository: repoReturning(const LoginSucceeded()),
+          rememberedInstitution: InMemoryRememberedInstitution('north-rehearsal'),
+          onSignedIn: () {},
+        )));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('login-change-institution')));
+        await tester.pumpAndSettle();
+        expect(find.byType(EditableText), findsNWidgets(3));
+        expect(tester.widget<EditableText>(find.byType(EditableText).first).controller.text, 'north-rehearsal');
+      });
+
+      testWidgets('a successful sign-in remembers the institution; a failed one does not', (tester) async {
+        final store = InMemoryRememberedInstitution();
+        await tester.pumpWidget(host(LoginScreen(
+          repository: repoReturning(const LoginFailed(LoadFailure(message: 'Invalid credentials'))),
+          rememberedInstitution: store,
+          onSignedIn: () {},
+        )));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField).at(0), 'south-rehearsal');
+        await tester.enterText(find.byType(TextField).at(1), 'teacher');
+        await tester.enterText(find.byType(TextField).at(2), 'wrong');
+        await tester.pump();
+        await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
+        await tester.pumpAndSettle();
+        expect(store.code, isNull);
+
+        await tester.pumpWidget(host(LoginScreen(
+          key: const Key('second'),
+          repository: repoReturning(const LoginSucceeded()),
+          rememberedInstitution: store,
+          onSignedIn: () {},
+        )));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField).at(0), 'south-rehearsal');
+        await tester.enterText(find.byType(TextField).at(1), 'teacher');
+        await tester.enterText(find.byType(TextField).at(2), 'right');
+        await tester.pump();
+        await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
+        await tester.pumpAndSettle();
+        expect(store.code, 'south-rehearsal');
+      });
+
+      testWidgets('an institution link pre-selects the institution', (tester) async {
+        await tester.pumpWidget(host(LoginScreen(
+          repository: repoReturning(const LoginSucceeded()),
+          launchUri: Uri.parse('https://ems.example/?institution=North-Rehearsal'),
+          onSignedIn: () {},
+        )));
+        await tester.pumpAndSettle();
+        expect(find.text('north-rehearsal'), findsOneWidget);
+      });
+
+      test('institution links accept only slugs', () {
+        expect(institutionFromLink(Uri.parse('https://x/?institution=a-b-1')), 'a-b-1');
+        expect(institutionFromLink(Uri.parse('https://x/?institution=%3Cscript%3E')), isNull);
+        expect(institutionFromLink(Uri.parse('https://x/?institution=')), isNull);
+        expect(institutionFromLink(Uri.parse('https://x/')), isNull);
+      });
+    });
+
+    testWidgets('login inputs expose accessible names and required hints',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(host(LoginScreen(
+        repository: repoReturning(const LoginSucceeded()),
+        onSignedIn: () {},
+      )));
+      await tester.pumpAndSettle();
+      final fields = find.byType(EditableText);
+      expect(fields, findsNWidgets(3));
+      final names = <String>[];
+      for (var i = 0; i < 3; i++) {
+        final node = tester.getSemantics(fields.at(i));
+        // A placeholder (e.g. "e.g. test-school") follows the name on its own line.
+        names.add(node.label.split('\n').first);
+        expect(node.hint, 'Required', reason: node.label);
+      }
+      expect(names, ['Institution code', 'Username', 'Password']);
+      expect(find.bySemanticsLabel('Username'), findsOneWidget,
+          reason: 'the visual label must not create a duplicate node');
+      handle.dispose();
+    });
+
+    testWidgets('an outage message is announced and never blames credentials',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(host(LoginScreen(
+        repository: repoReturning(const LoginFailed(LoadFailure(
+            message:
+                'The service is temporarily unavailable. Please try again shortly.'))),
+        onSignedIn: () {},
+      )));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), 'north');
+      await tester.enterText(find.byType(TextField).at(1), 'teacher');
+      await tester.enterText(find.byType(TextField).at(2), 'Secret123!');
+      await tester.pump();
+      await tester.tap(find.byType(AppButton));
+      await tester.pumpAndSettle();
+      final alert = tester.getSemantics(find.byType(InlineAlert));
+      expect(alert, isSemantics(isLiveRegion: true));
+      expect(find.textContaining('temporarily unavailable'), findsOneWidget);
+      expect(find.textContaining('Invalid credentials'), findsNothing);
+      handle.dispose();
+    });
 
     testWidgets('submit is disabled until all three fields are filled',
         (tester) async {

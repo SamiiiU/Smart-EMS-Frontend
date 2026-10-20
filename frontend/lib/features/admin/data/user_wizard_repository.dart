@@ -50,10 +50,7 @@ class WizardSucceeded extends WizardOutcome {
 /// `UnlinkedProfileState` renders from the other side. Recoverable, and the
 /// [userId] is the thing that makes it recoverable.
 class WizardPartiallyFailed extends WizardOutcome {
-  const WizardPartiallyFailed({
-    required this.userId,
-    required this.failure,
-  });
+  const WizardPartiallyFailed({required this.userId, required this.failure});
 
   final String userId;
   final LoadFailure failure;
@@ -131,6 +128,9 @@ class UserWizardRepository {
             'role': draft.role.wire,
             if (draft.email != null && draft.email!.isNotEmpty)
               'email': draft.email,
+            // D-23: a teacher login is created FOR this campus; the server checks
+            // the admin may grant there before creating anything.
+            if (draft.role == WizardRole.teacher) 'campusId': draft.campusId,
           },
         );
         final created = res.data?['userId'] as String?;
@@ -149,13 +149,38 @@ class UserWizardRepository {
     // From here on the login EXISTS. Every failure below is partial, and
     // must hand the userId back rather than reporting a plain error.
     try {
-      await _createPersonRecord(draft, userId);
+      await _tolerateExisting(
+        () => _createPersonRecord(draft, userId),
+        resuming: existingUserId != null,
+      );
+      if (draft.role == WizardRole.teacher) {
+        // D-23: the effective, campus-scoped teacher role (existing campus-grant
+        // API; needs the staff record at that campus, created just above).
+        await _tolerateExisting(
+          () => dio.post<Map<String, dynamic>>(
+            '/api/users/$userId/campus-grants',
+            data: {'campusId': draft.campusId, 'role': draft.role.wire},
+          ),
+          resuming: true,
+        );
+      }
       return WizardSucceeded(userId: userId);
     } on DioException catch (err) {
-      return WizardPartiallyFailed(
-        userId: userId,
-        failure: mapDioError(err),
-      );
+      return WizardPartiallyFailed(userId: userId, failure: mapDioError(err));
+    }
+  }
+
+  /// On a resume, a step that already succeeded answers 409; that is done, not
+  /// a failure, so a retry never duplicates a record or a grant.
+  Future<void> _tolerateExisting(
+    Future<void> Function() step, {
+    required bool resuming,
+  }) async {
+    try {
+      await step();
+    } on DioException catch (err) {
+      if (resuming && err.response?.statusCode == 409) return;
+      rethrow;
     }
   }
 

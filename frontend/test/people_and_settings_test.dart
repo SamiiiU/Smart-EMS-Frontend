@@ -45,7 +45,7 @@ Map<String, dynamic> _page(List<Map<String, dynamic>> rows) => {
       'totalElements': rows.length,
     };
 
-/// Stands in for the three endpoints `loadPeople` joins.
+/// Stands in for the three list endpoints `loadPeople` reads.
 _Adapter _peopleServer({bool guardiansFail = false}) => _Adapter((o) {
       final path = o.uri.path;
       if (path == '/api/staff') {
@@ -83,19 +83,26 @@ _Adapter _peopleServer({bool guardiansFail = false}) => _Adapter((o) {
               },
             ]));
       }
-      if (path.startsWith('/api/guardians/student/')) {
+      if (path == '/api/guardians') {
         if (guardiansFail) return _json(500, {'message': 'boom'});
-        return _json(200, [
-          {
-            'guardian': {
-              'id': 'g1',
-              'firstName': 'Imran',
-              'lastName': 'Khan',
-              'userId': null,
-            },
-            'relationship': 'father',
-          },
-        ]);
+        return _json(
+            200,
+            _page([
+              {
+                'id': 'g1',
+                'firstName': 'Imran',
+                'lastName': 'Khan',
+                'userId': null,
+                'students': [
+                  {
+                    'studentId': 'st1',
+                    'firstName': 'Ali',
+                    'lastName': 'Khan',
+                    'relationship': 'father',
+                  },
+                ],
+              },
+            ]));
       }
       return _json(404, {'message': 'no route'});
     });
@@ -142,7 +149,7 @@ void main() {
           findsOneWidget);
     });
 
-    testWidgets('switching group shows parents built per student',
+    testWidgets('switching group shows parents with their children',
         (tester) async {
       await tester
           .pumpWidget(_host(PeopleScreen(repository: _repo(_peopleServer()))));

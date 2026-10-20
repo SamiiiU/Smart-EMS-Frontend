@@ -153,7 +153,7 @@ class UnlinkedProfileState extends StatelessWidget {
     this.title = 'Your profile is not set up yet',
     this.message =
         'Your login works, but it has not been linked to a staff or student '
-            'record yet. Please ask your school administrator to finish setting '
+            'record yet. Please ask your institution’s administrator to finish setting '
             'up your profile.',
     super.key,
   });
@@ -171,6 +171,37 @@ class UnlinkedProfileState extends StatelessWidget {
       title: title,
       message: message,
       // No action — the user cannot resolve this.
+    );
+  }
+}
+
+/// The server refused this account (403). Overhaul M1.
+///
+/// Not an error the user caused and not one a retry can fix, so — like
+/// [UnlinkedProfileState] — it explains and offers no action. Navigation
+/// already hides destinations the account cannot use; this is the backstop
+/// when a permission is revoked mid-session or a campus grant is narrower
+/// than the screen.
+class PermissionDeniedState extends StatelessWidget {
+  const PermissionDeniedState({
+    this.title = 'You don’t have access to this',
+    this.message =
+        'Your account isn’t allowed to open this for the selected campus. '
+            'If you need it for your work, ask your institution’s administrator.',
+    super.key,
+  });
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return StateFrame(
+      icon: Icons.lock_outline,
+      iconColour: t.textSecondary,
+      title: title,
+      message: message,
     );
   }
 }

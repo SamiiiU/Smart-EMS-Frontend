@@ -67,8 +67,9 @@ class ComplaintRow extends StatelessWidget {
               // spelled out rather than left to a colour.
               Text(
                 complaint.status.label,
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
             ],
           ),
@@ -80,39 +81,45 @@ class ComplaintRow extends StatelessWidget {
             children: [
               Text(
                 complaint.categoryLabel,
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
               Text(
                 age == 0 ? 'Today' : '$age ${age == 1 ? 'day' : 'days'} old',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
               if (complaint.priority == ComplaintPriority.high)
                 Text(
                   'High priority',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.warningTextOnBg),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.warningTextOnBg,
+                  ),
                 ),
               if (overdue)
                 Text(
                   'Overdue',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.dangerTextOnBg),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.dangerTextOnBg,
+                  ),
                 ),
               if (showRaiser)
                 Text(
                   // An anonymous complaint has no identity anywhere in the
                   // payload, so this states the fact rather than a blank.
                   complaint.isAnonymous ? 'Sent anonymously' : 'Named',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               if (showRaiser && !complaint.isAssigned)
                 Text(
                   'Unassigned',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.warningTextOnBg),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.warningTextOnBg,
+                  ),
                 ),
             ],
           ),
@@ -123,7 +130,8 @@ class ComplaintRow extends StatelessWidget {
     if (onTap == null) return row;
     return Semantics(
       button: true,
-      label: '${complaint.subject}, ${complaint.status.label}'
+      label:
+          '${complaint.subject}, ${complaint.status.label}'
           '${overdue ? ', overdue' : ''}',
       child: GestureDetector(
         onTap: onTap,

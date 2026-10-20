@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/adaptive_data_view.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
@@ -8,11 +10,13 @@ import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../setup/domain/setup_models.dart';
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/finance_repository.dart';
 import '../domain/finance_models.dart';
+import '../../../core/widgets/app_button.dart';
 import 'invoice_detail_screen.dart';
 
 /// Screen 4: the invoice list.
@@ -50,8 +54,9 @@ class InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   Future<void> load() async {
-    setState(() =>
-        _state = ScreenState<List<Invoice>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<Invoice>>.loading(previous: _state.data),
+    );
     try {
       final page = await widget.repository.loadInvoices(
         classId: _classId,
@@ -63,12 +68,15 @@ class InvoicesScreenState extends State<InvoicesScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Invoice>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Invoice>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -146,9 +154,11 @@ class InvoicesScreenState extends State<InvoicesScreen> {
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton(
+          child: AppButton(
+            label: 'Apply period',
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.sm,
             onPressed: load,
-            child: const Text('Apply period'),
           ),
         ),
         const SizedBox(height: AppSpacing.space4),
@@ -158,27 +168,77 @@ class InvoicesScreenState extends State<InvoicesScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'No invoices match',
-            emptyMessage: 'Nothing has been invoiced for this filter yet. '
+            emptyMessage:
+                'Nothing has been invoiced for this filter yet. '
                 'Invoices are created under “Generate invoices”.',
             emptyIcon: Icons.receipt_outlined,
-            data: (context, invoices) => ListView(
-              children: [
-                for (final invoice in invoices)
-                  InvoiceRow(
-                    invoice: invoice,
-                    today: today,
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => InvoiceDetailScreen(
-                            repository: widget.repository,
-                            invoiceId: invoice.id,
+            // M1 adaptive list: a finance table on desktop (money right-aligned),
+            // labelled cards on phones; same accessible row name as before.
+            data: (context, invoices) => AdaptiveDataView<Invoice>(
+              rows: invoices,
+              padding: EdgeInsets.zero,
+              semanticLabel: (invoice) => invoiceSemanticLabel(invoice),
+              onTap: (invoice) async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => InvoiceDetailScreen(
+                      repository: widget.repository,
+                      invoiceId: invoice.id,
+                    ),
+                  ),
+                );
+                await load();
+              },
+              columns: [
+                DataColumnSpec(
+                  label: 'Learner',
+                  value: (i) => i.studentName,
+                  flex: 3,
+                ),
+                DataColumnSpec(
+                  label: 'Period',
+                  value: (i) => i.period,
+                  flex: 2,
+                ),
+                DataColumnSpec(
+                  label: 'Total',
+                  value: (i) => i.totalAmount.format(),
+                  flex: 2,
+                  numeric: true,
+                ),
+                DataColumnSpec(
+                  label: 'Outstanding',
+                  value: (i) => i.outstanding.isZero
+                      ? 'Nothing due'
+                      : i.outstanding.format(),
+                  flex: 2,
+                  numeric: true,
+                ),
+                DataColumnSpec(
+                  label: 'Status',
+                  value: (i) => StatusPill.labelFor(i.status.pill),
+                  flex: 3,
+                  // The backend has no overdue STATUS, so lateness is said in
+                  // words next to the pill rather than pretended into one.
+                  cell: (i) => Wrap(
+                    spacing: AppSpacing.space3,
+                    runSpacing: AppSpacing.space1,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      StatusPill(
+                        status: i.status.pill,
+                        size: StatusPillSize.sm,
+                      ),
+                      if (i.isOverdue(today))
+                        Text(
+                          '${i.daysOverdue(today)} days late',
+                          style: AppTypography.bodyAdminMeta.copyWith(
+                            color: context.tokens.warningTextOnBg,
                           ),
                         ),
-                      );
-                      await load();
-                    },
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -213,8 +273,7 @@ class InvoiceRow extends StatelessWidget {
     final row = Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -236,8 +295,9 @@ class InvoiceRow extends StatelessWidget {
               ),
               Text(
                 invoice.period,
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
               StatusPill(status: invoice.status.pill, size: StatusPillSize.sm),
             ],
@@ -255,8 +315,9 @@ class InvoiceRow extends StatelessWidget {
               if (!invoice.outstanding.isZero)
                 Text(
                   '${invoice.outstanding.format()} outstanding',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               // The backend has no overdue STATUS, so this is said in words
               // next to the pill rather than pretended into one.
@@ -264,8 +325,9 @@ class InvoiceRow extends StatelessWidget {
                 Text(
                   'Due ${invoice.dueDate} · '
                   '${invoice.daysOverdue(today)} days late',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.warningTextOnBg),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.warningTextOnBg,
+                  ),
                 ),
             ],
           ),
@@ -276,9 +338,7 @@ class InvoiceRow extends StatelessWidget {
     if (onTap == null) return row;
     return Semantics(
       button: true,
-      label: '${invoice.studentName}, ${invoice.period}, '
-          '${invoice.totalAmount.format()}, '
-          '${StatusPill.labelFor(invoice.status.pill)}',
+      label: invoiceSemanticLabel(invoice),
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -287,3 +347,8 @@ class InvoiceRow extends StatelessWidget {
     );
   }
 }
+
+/// One spoken summary per invoice, shared by [InvoiceRow] and the adaptive list.
+String invoiceSemanticLabel(Invoice invoice) =>
+    '${invoice.studentName}, ${invoice.period}, ${invoice.totalAmount.format()}, '
+    '${StatusPill.labelFor(invoice.status.pill)}';

@@ -24,9 +24,23 @@ class IdentityResult {
     this.tenantId,
     this.staffId,
     this.staffName,
+    this.permissions = const [],
+    this.grants = const [],
+    this.permissionsKnown = false,
+    this.temporary = false,
+    this.serverBusy = false,
   });
 
   final IdentityResultKind kind;
+
+  /// For [IdentityResultKind.error]: the server was unreachable or temporarily
+  /// unavailable (no response, 502/503/504). The stored session is NOT known to
+  /// be dead, so it must not be treated as signed out (F12).
+  final bool temporary;
+
+  /// A [temporary] failure caused by rate limiting (HTTP 429): the server is
+  /// reachable but busy. Only changes the wording shown; handling is identical.
+  final bool serverBusy;
 
   /// Backend message, verbatim, when [kind] is [IdentityResultKind.error].
   final String? message;
@@ -61,6 +75,44 @@ class IdentityResult {
   /// to recognise the teacher's own entries, since diary entries carry only
   /// an author NAME.
   final String? staffName;
+
+  /// Current permissions from `/auth/me` (database-authoritative, ADR-011).
+  /// Navigation uses them only to hide what the server would refuse.
+  final List<String> permissions;
+
+  /// Each permission set stays bound to its own grant and campus; never
+  /// cross-combine one grant's permissions with another grant's campus.
+  final List<GrantScope> grants;
+
+  /// False for stand-ins that never asked the server (tests, gallery).
+  final bool permissionsKnown;
+
+  bool can(String permission) => permissions.contains(permission);
+
+  /// Campuses where [permission] is granted by the SAME grant. Null means
+  /// institution-wide (any campus).
+  Set<String>? campusesFor(String permission) {
+    final campuses = <String>{};
+    for (final g in grants.where((g) => g.permissions.contains(permission))) {
+      if (g.campusId == null) return null;
+      campuses.add(g.campusId!);
+    }
+    return campuses;
+  }
+}
+
+class GrantScope {
+  const GrantScope({required this.role, required this.campusId, required this.permissions});
+
+  factory GrantScope.fromJson(Map json) => GrantScope(
+    role: json['role'] as String? ?? '',
+    campusId: json['campusId'] as String?,
+    permissions: (json['permissions'] as List?)?.cast<String>() ?? const [],
+  );
+
+  final String role;
+  final String? campusId;
+  final List<String> permissions;
 }
 
 /// SEAM FOR T6. T6 owns the network layer and will supply the real `/me` (or

@@ -62,11 +62,9 @@ class TimetablePeriod {
   final String? subjectId;
   final String? subjectName;
 
-  String get timeLabel =>
-      '${_hhmm(startTime)}–${_hhmm(endTime)}';
+  String get timeLabel => '${_hhmm(startTime)}–${_hhmm(endTime)}';
 
-  static String _hhmm(String t) =>
-      t.length >= 5 ? t.substring(0, 5) : t;
+  static String _hhmm(String t) => t.length >= 5 ? t.substring(0, 5) : t;
 
   /// True when [now] falls inside this period.
   bool isCurrent(DateTime now) {

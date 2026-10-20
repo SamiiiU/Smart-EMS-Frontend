@@ -4,7 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
-import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/app_text_area.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
@@ -42,7 +42,14 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
   ComplaintPriority _priority = ComplaintPriority.medium;
   String _subject = '';
   String _description = '';
+  final TextEditingController _descriptionController = TextEditingController();
   bool _anonymous = false;
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
 
   bool _busy = false;
   String? _error;
@@ -90,8 +97,8 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
           InlineAlert(
             tone: InlineAlertTone.success,
             message: _anonymous
-                ? 'Sent anonymously. The school will see it, but they cannot '
-                    'reply to you and you will not get an update.'
+                ? 'Sent anonymously. The institution will see it, but they cannot '
+                      'reply to you and you will not get an update.'
                 : 'Sent. You can follow it under “My complaints”.',
           ),
         ],
@@ -116,8 +123,9 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
                 children: [
                   Text(
                     'What is it about',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   Wrap(
@@ -143,11 +151,27 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.space4),
-              child: AppTextField(
-                label: 'Details',
-                value: _description,
-                placeholder: 'What happened, when, and who was involved',
-                onChanged: (v) => setState(() => _description = v),
+              // DEF-28: complaint details are paragraphs. A single-line field
+              // dropped everything typed after Enter.
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Details',
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: context.tokens.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.space2),
+                  AppTextArea(
+                    controller: _descriptionController,
+                    semanticsLabel: 'Details',
+                    placeholder: 'What happened, when, and who was involved',
+                    minHeight: AppSizing.diaryFieldMinHeight,
+                    enabled: !_busy,
+                    onChanged: (v) => setState(() => _description = v),
+                  ),
+                ],
               ),
             ),
             Padding(
@@ -157,8 +181,9 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
                 children: [
                   Text(
                     'How urgent',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   Wrap(
@@ -223,17 +248,15 @@ class AnonymityControl extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Send without my name',
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
               ),
               Semantics(
                 label: 'Send this complaint without my name',
                 toggled: anonymous,
-                child: Switch.adaptive(
-                  value: anonymous,
-                  onChanged: onChanged,
-                ),
+                child: Switch.adaptive(value: anonymous, onChanged: onChanged),
               ),
             ],
           ),
@@ -241,11 +264,11 @@ class AnonymityControl extends StatelessWidget {
           Text(
             anonymous
                 // The cost, before the choice is made.
-                ? 'The school will not know who sent this — and because of '
-                    'that, nobody can reply to you. You will not see an '
-                    'update, and it will not appear in “My complaints”.'
-                : 'The school will see your name and can reply to you. You '
-                    'can follow this under “My complaints”.',
+                ? 'The institution will not know who sent this — and because of '
+                      'that, nobody can reply to you. You will not see an '
+                      'update, and it will not appear in “My complaints”.'
+                : 'The institution will see your name and can reply to you. You '
+                      'can follow this under “My complaints”.',
             style: AppTypography.bodyAdminMeta.copyWith(
               color: anonymous ? t.warningTextOnBg : t.textPrimary,
             ),
