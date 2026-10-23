@@ -9,9 +9,17 @@ import '../domain/notification_models.dart';
 /// next to it are snake_case. Three conventions now coexist in one API
 /// (open item 36).
 class NotificationsRepository {
-  const NotificationsRepository(this.dio);
+  const NotificationsRepository(
+    this.dio, {
+    this.enablePush,
+    this.disablePush,
+    this.pushMessages,
+  });
 
   final Dio dio;
+  final Future<String> Function()? enablePush;
+  final Future<String> Function()? disablePush;
+  final Stream<void>? pushMessages;
 
   Future<T> _mapped<T>(Future<T> Function() call) async {
     try {
@@ -34,24 +42,24 @@ class NotificationsRepository {
       });
 
   Future<int> unreadCount() => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '/api/notifications/unread-count',
-        );
-        return res.data?['unreadCount'] as int? ?? 0;
-      });
+    final res = await dio.get<Map<String, dynamic>>(
+      '/api/notifications/unread-count',
+    );
+    return res.data?['unreadCount'] as int? ?? 0;
+  });
 
   /// Read state persists server-side — `readAt` is stamped and survives a
   /// reload, so nothing is tracked locally.
   Future<void> markRead(String id) => _mapped(() async {
-        await dio.put<dynamic>('/api/notifications/$id/read');
-      });
+    await dio.put<dynamic>('/api/notifications/$id/read');
+  });
 
   /// Returns how many were actually marked, which is what the screen
   /// reports back rather than asserting a number of its own.
   Future<int> markAllRead() => _mapped(() async {
-        final res = await dio.put<Map<String, dynamic>>(
-          '/api/notifications/read-all',
-        );
-        return res.data?['marked'] as int? ?? 0;
-      });
+    final res = await dio.put<Map<String, dynamic>>(
+      '/api/notifications/read-all',
+    );
+    return res.data?['marked'] as int? ?? 0;
+  });
 }

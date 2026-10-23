@@ -7,6 +7,7 @@ import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../data/setup_repository.dart';
 import '../domain/setup_models.dart';
+import 'academic_year_lifecycle_row.dart';
 import 'setup_scaffold.dart';
 
 /// Step 1: academic years.
@@ -152,16 +153,16 @@ class AcademicYearsScreenState extends State<AcademicYearsScreen> {
             onRetry: _load,
             emptyTitle: 'No academic years yet',
             emptyMessage:
-                'Add the year the school is running. Sections, timetables '
+                'Add the academic year the institution is running. Sections, timetables '
                 'and enrolments all belong to one.',
             emptyIcon: Icons.event_note_outlined,
             data: (context, years) => ListView(
               children: [
                 for (final y in years)
-                  SetupRow(
-                    title: y.name,
-                    detail: y.rangeLabel,
-                    trailing: y.current ? 'Current' : null,
+                  AcademicYearLifecycleRow(
+                    year: y,
+                    repository: widget.repository,
+                    onChanged: _load,
                   ),
               ],
             ),

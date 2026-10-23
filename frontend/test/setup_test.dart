@@ -118,7 +118,10 @@ class _SetupServer implements HttpClientAdapter {
           return _json(201, row);
         case '/api/teaching-assignments':
           if (assignmentConflict) {
-            return _json(409, {'message': 'Conflicts with existing data'});
+            // C10: what the real server answers for an overlapping live primary.
+            return _json(409, {
+              'message': 'Another primary teacher already covers this subject and section for these dates',
+            });
           }
           final row = {
             'id': _next('ta'),
@@ -349,8 +352,12 @@ void main() {
           year: _year,
         ));
 
-    testWidgets('warns before the action, and offers no edit or delete',
+    testWidgets('warns before the action, offers End but no edit or delete',
         (tester) async {
+      // The C10 type and date fields make this form taller than 800x600.
+      tester.view.physicalSize = const Size(900, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final s = _SetupServer()
         ..assignments.add({
           'id': 'ta-1',
@@ -362,25 +369,30 @@ void main() {
       await tester.pumpWidget(screen(s));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('cannot be changed or removed yet'),
-          findsOneWidget);
+      expect(find.textContaining('cannot be edited. End it'), findsOneWidget);
+      // C10: a live assignment can be ended (immediate revocation), never edited.
+      expect(find.text('End assignment'), findsOneWidget);
       expect(find.text('Edit'), findsNothing);
       expect(find.text('Remove'), findsNothing);
       expect(find.text('Delete'), findsNothing);
       // The existing row shows names, joined client-side from ids.
-      expect(find.text('Mathematics'), findsWidgets);
-      expect(find.text('Ayesha Khan'), findsWidgets);
+      expect(find.textContaining('Mathematics · Primary'), findsWidgets);
+      expect(find.textContaining('Ayesha Khan'), findsWidgets);
     });
 
-    testWidgets('a duplicate is explained in the admin’s words',
+    testWidgets('an overlapping primary is explained with the server’s reason',
         (tester) async {
+      // The C10 type and date fields make this form taller than 800x600.
+      tester.view.physicalSize = const Size(900, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final s = _SetupServer()..assignmentConflict = true;
       await tester.pumpWidget(screen(s));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Assign a teacher'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('cannot be changed or removed afterwards'),
+      expect(find.textContaining('cannot be edited afterwards; it can be ended'),
           findsOneWidget);
 
       await tester.tap(find.bySemanticsLabel('Mathematics').last);
@@ -389,8 +401,7 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('already has a teacher'), findsOneWidget);
-      expect(find.textContaining('Conflicts with existing data'), findsNothing);
+      expect(find.textContaining('Another primary teacher already covers'), findsOneWidget);
     });
   });
 

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,12 +42,118 @@ class _ScriptedAdapter implements HttpClientAdapter {
 
 ResponseBody _jsonBody(int status, Map<String, dynamic> json) {
   final bytes = utf8.encode(jsonEncode(json));
-  return ResponseBody.fromBytes(bytes, status, headers: {
-    Headers.contentTypeHeader: [Headers.jsonContentType],
-  });
+  return ResponseBody.fromBytes(
+    bytes,
+    status,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
 }
 
 void main() {
+  test('actual refresher discards a response arriving after logout', () async {
+    final store = SerializedTokenStore(
+      InMemoryTokenStore(accessToken: 'old', refreshToken: 'r'),
+    );
+    final plain = Dio(BaseOptions(baseUrl: 'https://example.test'));
+    plain.httpClientAdapter = _ScriptedAdapter(
+      (options) =>
+          _jsonBody(200, {'accessToken': 'late', 'refreshToken': 'late-r'}),
+    );
+    plain.interceptors.add(
+      InterceptorsWrapper(
+        onResponse: (response, handler) async {
+          await store.clear();
+          handler.next(response);
+        },
+      ),
+    );
+    await expectLater(
+      DioTokenRefresher(plain, store).refresh('r'),
+      throwsA(isA<DioException>()),
+    );
+    expect(await store.readAccessToken(), isNull);
+  });
+  test(
+    'actual interceptor preserves new login after old refresh rejection',
+    () async {
+      final store = SerializedTokenStore(
+        InMemoryTokenStore(accessToken: 'old', refreshToken: 'r'),
+      );
+      final plain = Dio(BaseOptions(baseUrl: 'https://example.test'));
+      plain.httpClientAdapter = _ScriptedAdapter(
+        (options) => _jsonBody(401, {}),
+      );
+      plain.interceptors.add(
+        InterceptorsWrapper(
+          onError: (error, handler) async {
+            await store.writeTokens(
+              accessToken: 'new-user',
+              refreshToken: 'new-r',
+            );
+            handler.next(error);
+          },
+        ),
+      );
+      final client = Dio(BaseOptions(baseUrl: 'https://example.test'));
+      client.httpClientAdapter = _ScriptedAdapter(
+        (options) => _jsonBody(401, {}),
+      );
+      client.interceptors.add(
+        AuthInterceptor(
+          tokenStore: store,
+          refresher: DioTokenRefresher(plain, store),
+          retryDio: plain,
+        ),
+      );
+      await expectLater(
+        client.get<dynamic>('/protected'),
+        throwsA(isA<DioException>()),
+      );
+      expect(await store.readAccessToken(), 'new-user');
+    },
+  );
+  group('Refresh failure classification', () {
+    for (final status in [401, 429, 503, 200, 0]) {
+      test(
+        'refresh status $status preserves credentials unless revoked',
+        () async {
+          final store = InMemoryTokenStore(
+            accessToken: 'old',
+            refreshToken: 'refresh',
+          );
+          final plain = Dio(BaseOptions(baseUrl: 'https://example.test'));
+          plain.httpClientAdapter = _ScriptedAdapter((options) {
+            if (status == 0) {
+              throw DioException(
+                requestOptions: options,
+                type: DioExceptionType.connectionTimeout,
+              );
+            }
+            return _jsonBody(status, {});
+          });
+          final client = Dio(BaseOptions(baseUrl: 'https://example.test'));
+          client.httpClientAdapter = _ScriptedAdapter(
+            (options) => _jsonBody(401, {}),
+          );
+          client.interceptors.add(
+            AuthInterceptor(
+              tokenStore: store,
+              refresher: DioTokenRefresher(plain, store),
+              retryDio: plain,
+            ),
+          );
+          await expectLater(
+            client.get<dynamic>('/protected'),
+            throwsA(isA<DioException>()),
+          );
+          expect(store.refreshToken, status == 401 ? isNull : 'refresh');
+          expect(store.accessToken, status == 401 ? isNull : 'old');
+        },
+      );
+    }
+  });
   group('AuthInterceptor — single-flight refresh under concurrency', () {
     test('N concurrent 401s trigger exactly ONE refresh call', () async {
       final tokenStore = InMemoryTokenStore(
@@ -56,13 +162,15 @@ void main() {
       );
 
       var refreshCalls = 0;
-      final refresher = _FakeRefresher(onRefresh: () {
-        refreshCalls++;
-        return Future.delayed(
-          const Duration(milliseconds: 20),
-          () => 'fresh-access-token',
-        );
-      });
+      final refresher = _FakeRefresher(
+        onRefresh: () {
+          refreshCalls++;
+          return Future.delayed(
+            const Duration(milliseconds: 20),
+            () => 'fresh-access-token',
+          );
+        },
+      );
 
       final retryDio = Dio(BaseOptions(baseUrl: 'https://example.test'));
       retryDio.httpClientAdapter = _ScriptedAdapter(
@@ -90,11 +198,13 @@ void main() {
           ),
         );
       });
-      dio.interceptors.add(AuthInterceptor(
-        tokenStore: tokenStore,
-        refresher: refresher,
-        retryDio: retryDio,
-      ));
+      dio.interceptors.add(
+        AuthInterceptor(
+          tokenStore: tokenStore,
+          refresher: refresher,
+          retryDio: retryDio,
+        ),
+      );
 
       final results = await Future.wait([
         dio.get<dynamic>('/a'),
@@ -102,9 +212,13 @@ void main() {
         dio.get<dynamic>('/c'),
       ]);
 
-      expect(refreshCalls, 1,
-          reason: 'three concurrent 401s must share one refresh call, not '
-              'fire one each');
+      expect(
+        refreshCalls,
+        1,
+        reason:
+            'three concurrent 401s must share one refresh call, not '
+            'fire one each',
+      );
       for (final r in results) {
         expect(r.statusCode, 200);
       }
@@ -116,14 +230,17 @@ void main() {
         refreshToken: 'valid-refresh-token',
       );
       var refreshCalls = 0;
-      final refresher = _FakeRefresher(onRefresh: () {
-        refreshCalls++;
-        return Future.value('fresh-access-token-$refreshCalls');
-      });
+      final refresher = _FakeRefresher(
+        onRefresh: () {
+          refreshCalls++;
+          return Future.value('fresh-access-token-$refreshCalls');
+        },
+      );
 
       final retryDio = Dio(BaseOptions(baseUrl: 'https://example.test'));
-      retryDio.httpClientAdapter =
-          _ScriptedAdapter((options) => _jsonBody(200, {'ok': true}));
+      retryDio.httpClientAdapter = _ScriptedAdapter(
+        (options) => _jsonBody(200, {'ok': true}),
+      );
 
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'));
       dio.httpClientAdapter = _ScriptedAdapter((options) {
@@ -135,19 +252,25 @@ void main() {
           response: Response(requestOptions: options, statusCode: 401),
         );
       });
-      dio.interceptors.add(AuthInterceptor(
-        tokenStore: tokenStore,
-        refresher: refresher,
-        retryDio: retryDio,
-      ));
+      dio.interceptors.add(
+        AuthInterceptor(
+          tokenStore: tokenStore,
+          refresher: refresher,
+          retryDio: retryDio,
+        ),
+      );
 
       await dio.get<dynamic>('/first');
       expect(refreshCalls, 1);
 
       await dio.get<dynamic>('/second');
-      expect(refreshCalls, 2,
-          reason: 'a fresh 401 after the first refresh settled must start '
-              'its own refresh, not reuse the completed one');
+      expect(
+        refreshCalls,
+        2,
+        reason:
+            'a fresh 401 after the first refresh settled must start '
+            'its own refresh, not reuse the completed one',
+      );
     });
   });
 
@@ -181,41 +304,109 @@ void main() {
       expect(
         await tokenStore.readRefreshToken(),
         'new-refresh',
-        reason: 'the rotated refresh token must replace the old one, or the '
+        reason:
+            'the rotated refresh token must replace the old one, or the '
             'next refresh will present a spent token and fail permanently',
       );
     });
   });
 
   group('mapDioError — LoadFailureKind classification', () {
-    test('a PERSON-RECORD 404 maps to notLinked, message preserved verbatim',
-        () {
-      // Keyed off /api/staff/me, not /auth/me. T6 had this wrong twice over:
-      // it guessed the path as `/me`, and it attached orphan semantics to
-      // the account endpoint. Verified live 2026-08-03 that /auth/me returns
-      // 200 for any valid token and only the person endpoints can 404.
-      final options = RequestOptions(path: ApiConfig.staffMePath);
+    // F8: an authentication outage must read as "try again", never as bad credentials.
+    for (final status in [502, 503, 504]) {
+      test('login $status with a proxy HTML body is a transient outage', () {
+        final options = RequestOptions(path: ApiConfig.loginPath);
+        final failure = mapDioError(
+          DioException(
+            requestOptions: options,
+            response: Response(
+              requestOptions: options,
+              statusCode: status,
+              data: '<html><body>$status Bad Gateway</body></html>',
+            ),
+            type: DioExceptionType.badResponse,
+          ),
+        );
+        expect(failure.kind, LoadFailureKind.transient);
+        expect(failure.message, contains('temporarily unavailable'));
+        expect(failure.message!.toLowerCase(), isNot(contains('credential')));
+      });
+    }
+    test('login 503 from the API keeps the server\'s generic outage message', () {
+      final options = RequestOptions(path: ApiConfig.loginPath);
+      final failure = mapDioError(
+        DioException(
+          requestOptions: options,
+          response: Response(
+            requestOptions: options,
+            statusCode: 503,
+            headers: Headers.fromMap({'retry-after': ['5']}),
+            data: {
+              'status': 503,
+              'error': 'Service Unavailable',
+              'message': 'The service is temporarily unavailable. Please try again shortly.',
+              'path': ApiConfig.loginPath,
+            },
+          ),
+          type: DioExceptionType.badResponse,
+        ),
+      );
+      expect(failure.kind, LoadFailureKind.transient);
+      expect(failure.message, contains('temporarily unavailable'));
+    });
+    test(
+      'a PERSON-RECORD 404 maps to notLinked, message preserved verbatim',
+      () {
+        // Keyed off /api/staff/me, not /auth/me. T6 had this wrong twice over:
+        // it guessed the path as `/me`, and it attached orphan semantics to
+        // the account endpoint. Verified live 2026-08-03 that /auth/me returns
+        // 200 for any valid token and only the person endpoints can 404.
+        final options = RequestOptions(path: ApiConfig.staffMePath);
+        final err = DioException(
+          requestOptions: options,
+          response: Response(
+            requestOptions: options,
+            statusCode: 404,
+            data: {
+              'status': 404,
+              'error': 'Not Found',
+              'message': 'Staff record linked to this login not found: u-1',
+              'path': ApiConfig.staffMePath,
+            },
+          ),
+        );
+
+        final failure = mapDioError(err);
+        expect(failure.kind, LoadFailureKind.notLinked);
+        expect(failure.isNotLinked, isTrue);
+        expect(
+          failure.message,
+          'Staff record linked to this login not found: u-1',
+        );
+      },
+    );
+
+    test('BUG-QA-13: internal ids are stripped from server messages, the rest kept', () {
+      expect(withoutInternalIds('Campus not found: 23d08841-4963-473a-a96b-5d7269b2cc85'), 'Campus not found');
+      expect(withoutInternalIds('Attendance for this date is locked.'), 'Attendance for this date is locked.');
+      expect(withoutInternalIds(null), isNull);
+      expect(withoutInternalIds('23d08841-4963-473a-a96b-5d7269b2cc85'), isNull, reason: 'nothing left: fall back to the generic message');
+    });
+
+    test('M1: a 403 is forbidden (no retry), keeping the server message', () {
+      final options = RequestOptions(path: '/api/fee/plans');
       final err = DioException(
         requestOptions: options,
         response: Response(
           requestOptions: options,
-          statusCode: 404,
-          data: {
-            'status': 404,
-            'error': 'Not Found',
-            'message': 'Staff record linked to this login not found: u-1',
-            'path': ApiConfig.staffMePath,
-          },
+          statusCode: 403,
+          data: {'status': 403, 'message': 'Access denied'},
         ),
       );
-
       final failure = mapDioError(err);
-      expect(failure.kind, LoadFailureKind.notLinked);
-      expect(failure.isNotLinked, isTrue);
-      expect(
-        failure.message,
-        'Staff record linked to this login not found: u-1',
-      );
+      expect(failure.kind, LoadFailureKind.forbidden);
+      expect(failure.message, 'Access denied');
+      expect(failure.unreachable, isFalse);
     });
 
     test('a 404 from the ACCOUNT endpoint is NOT notLinked — /auth/me cannot '
@@ -306,37 +497,40 @@ void main() {
   group('NetworkIdentityResolver', () {
     test('200 on /me resolves linked', () async {
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'));
-      dio.httpClientAdapter =
-          _ScriptedAdapter((options) => _jsonBody(200, {'id': 1}));
+      dio.httpClientAdapter = _ScriptedAdapter(
+        (options) => _jsonBody(200, {'id': 1}),
+      );
       final resolver = NetworkIdentityResolver(dio);
 
       final result = await resolver.resolveIdentity();
       expect(result.kind, IdentityResultKind.linked);
     });
 
-    test('404 from the ACCOUNT endpoint resolves error, not notLinked',
-        () async {
-      // The orphan (notLinked) path is driven by the person-record call and
-      // is covered thoroughly, per role, in `auth_test.dart`. What matters
-      // here is the boundary: a failure of /auth/me itself must never be
-      // dressed up as an orphaned profile, because that would tell a user
-      // with a broken session to go contact their administrator.
-      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'));
-      dio.httpClientAdapter = _ScriptedAdapter((options) {
-        throw DioException(
-          requestOptions: options,
-          response: Response(
+    test(
+      '404 from the ACCOUNT endpoint resolves error, not notLinked',
+      () async {
+        // The orphan (notLinked) path is driven by the person-record call and
+        // is covered thoroughly, per role, in `auth_test.dart`. What matters
+        // here is the boundary: a failure of /auth/me itself must never be
+        // dressed up as an orphaned profile, because that would tell a user
+        // with a broken session to go contact their administrator.
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'));
+        dio.httpClientAdapter = _ScriptedAdapter((options) {
+          throw DioException(
             requestOptions: options,
-            statusCode: 404,
-            data: {'status': 404, 'message': 'Not Found'},
-          ),
-        );
-      });
-      final resolver = NetworkIdentityResolver(dio);
+            response: Response(
+              requestOptions: options,
+              statusCode: 404,
+              data: {'status': 404, 'message': 'Not Found'},
+            ),
+          );
+        });
+        final resolver = NetworkIdentityResolver(dio);
 
-      final result = await resolver.resolveIdentity();
-      expect(result.kind, IdentityResultKind.error);
-    });
+        final result = await resolver.resolveIdentity();
+        expect(result.kind, IdentityResultKind.error);
+      },
+    );
 
     test('5xx on /me resolves error, with the backend message carried '
         'through for ErrorState\'s retry UI', () async {
@@ -388,19 +582,16 @@ void main() {
         'D-30 — existing data is never replaced by a failure)', () async {
       final options = RequestOptions(path: '/x');
       final previous = const ScreenState<String>.data('cached value');
-      final state = await loadIntoScreenState<String>(
-        () async {
-          throw DioException(
+      final state = await loadIntoScreenState<String>(() async {
+        throw DioException(
+          requestOptions: options,
+          response: Response(
             requestOptions: options,
-            response: Response(
-              requestOptions: options,
-              statusCode: 500,
-              data: {'message': 'boom'},
-            ),
-          );
-        },
-        previous: previous,
-      );
+            statusCode: 500,
+            data: {'message': 'boom'},
+          ),
+        );
+      }, previous: previous);
       expect(state.status, ScreenStatus.error);
       expect(state.data, 'cached value');
     });
@@ -449,28 +640,34 @@ void main() {
         seen.add(options);
         return responder(options);
       });
-      dio.interceptors.add(AuthInterceptor(
-        tokenStore: store,
-        refresher:
-            _FakeRefresher(onRefresh: onRefresh ?? () async => null),
-        retryDio: Dio(BaseOptions(baseUrl: 'https://example.test')),
-      ));
+      dio.interceptors.add(
+        AuthInterceptor(
+          tokenStore: store,
+          refresher: _FakeRefresher(onRefresh: onRefresh ?? () async => null),
+          retryDio: Dio(BaseOptions(baseUrl: 'https://example.test')),
+        ),
+      );
       return (dio: dio, store: store, seen: seen);
     }
 
-    test('sign-in carries NO Authorization header, even with a token stored',
-        () async {
-      final w = wire(responder: (_) => _jsonBody(200, {'accessToken': 'new'}));
+    test(
+      'sign-in carries NO Authorization header, even with a token stored',
+      () async {
+        final w = wire(
+          responder: (_) => _jsonBody(200, {'accessToken': 'new'}),
+        );
 
-      await w.dio.post<dynamic>(ApiConfig.loginPath, data: const {});
+        await w.dio.post<dynamic>(ApiConfig.loginPath, data: const {});
 
-      expect(
-        w.seen.single.headers.containsKey('Authorization'),
-        isFalse,
-        reason: 'a stale token here is rejected at the gate and the login '
-            'is never attempted',
-      );
-    });
+        expect(
+          w.seen.single.headers.containsKey('Authorization'),
+          isFalse,
+          reason:
+              'a stale token here is rejected at the gate and the login '
+              'is never attempted',
+        );
+      },
+    );
 
     test('a header set by the caller is stripped from sign-in too', () async {
       final w = wire(responder: (_) => _jsonBody(200, {'accessToken': 'new'}));
@@ -500,17 +697,18 @@ void main() {
       expect(w.seen.single.headers['Authorization'], 'Bearer stale-token');
     });
 
-    test('signing out still authenticates — it ends the session it holds',
-        () async {
-      final w = wire(responder: (_) => _jsonBody(200, {'ok': true}));
+    test(
+      'signing out still authenticates — it ends the session it holds',
+      () async {
+        final w = wire(responder: (_) => _jsonBody(200, {'ok': true}));
 
-      await w.dio.post<dynamic>(ApiConfig.logoutPath, data: const {});
+        await w.dio.post<dynamic>(ApiConfig.logoutPath, data: const {});
 
-      expect(w.seen.single.headers['Authorization'], 'Bearer stale-token');
-    });
+        expect(w.seen.single.headers['Authorization'], 'Bearer stale-token');
+      },
+    );
 
-    test('a 401 with nothing to refresh with CLEARS the dead token',
-        () async {
+    test('a 401 with nothing to refresh with CLEARS the dead token', () async {
       final w = wire(
         responder: (options) => throw DioException(
           requestOptions: options,
@@ -562,8 +760,9 @@ void main() {
         refreshToken: 'good-refresh',
       );
       final retryDio = Dio(BaseOptions(baseUrl: 'https://example.test'))
-        ..httpClientAdapter =
-            _ScriptedAdapter((_) => _jsonBody(200, {'ok': true}));
+        ..httpClientAdapter = _ScriptedAdapter(
+          (_) => _jsonBody(200, {'ok': true}),
+        );
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'));
       dio.httpClientAdapter = _ScriptedAdapter((options) {
         if (options.extra['_retried'] == true) {
@@ -578,11 +777,13 @@ void main() {
           ),
         );
       });
-      dio.interceptors.add(AuthInterceptor(
-        tokenStore: store,
-        refresher: _FakeRefresher(onRefresh: () async => 'fresh'),
-        retryDio: retryDio,
-      ));
+      dio.interceptors.add(
+        AuthInterceptor(
+          tokenStore: store,
+          refresher: _FakeRefresher(onRefresh: () async => 'fresh'),
+          retryDio: retryDio,
+        ),
+      );
 
       await dio.get<dynamic>('/api/students');
 

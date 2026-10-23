@@ -90,7 +90,7 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
           InlineAlert(
             tone: InlineAlertTone.success,
             message: _anonymous
-                ? 'Sent anonymously. The school will see it, but they cannot '
+                ? 'Sent anonymously. The institution will see it, but they cannot '
                     'reply to you and you will not get an update.'
                 : 'Sent. You can follow it under “My complaints”.',
           ),
@@ -241,10 +241,10 @@ class AnonymityControl extends StatelessWidget {
           Text(
             anonymous
                 // The cost, before the choice is made.
-                ? 'The school will not know who sent this — and because of '
+                ? 'The institution will not know who sent this — and because of '
                     'that, nobody can reply to you. You will not see an '
                     'update, and it will not appear in “My complaints”.'
-                : 'The school will see your name and can reply to you. You '
+                : 'The institution will see your name and can reply to you. You '
                     'can follow this under “My complaints”.',
             style: AppTypography.bodyAdminMeta.copyWith(
               color: anonymous ? t.warningTextOnBg : t.textPrimary,

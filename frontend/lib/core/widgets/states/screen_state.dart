@@ -15,6 +15,10 @@ enum LoadFailureKind {
   /// never linked to a person record — the D-17 orphan case. NOT an error, and
   /// retrying cannot fix it.
   notLinked,
+
+  /// 403: the server refused this account. Retrying cannot change that, so
+  /// it is never offered a retry or an escalation counter (overhaul M1).
+  forbidden,
 }
 
 /// A load failure, carrying the backend's own message where there is one.
@@ -45,6 +49,7 @@ class LoadFailure {
   final LoadFailureKind kind;
 
   bool get isNotLinked => kind == LoadFailureKind.notLinked;
+  bool get isForbidden => kind == LoadFailureKind.forbidden;
 }
 
 /// What a screen currently knows. Deliberately not `AsyncValue` from Riverpod:
@@ -191,6 +196,9 @@ enum ScreenOutcome {
   emptyState,
   unlinkedProfileState,
 
+  /// 403 with nothing cached: explain, never offer a retry.
+  permissionDeniedState,
+
   /// The data itself — possibly with an offline indicator (row 2) or a
   /// non-blocking failure notice (row 6).
   data,
@@ -229,6 +237,11 @@ ScreenOutcome resolveOutcome<T>(ScreenState<T> s) {
   // 9 (within the failure branch): not an error, and retry cannot help.
   if (s.failure?.isNotLinked ?? false) {
     return ScreenOutcome.unlinkedProfileState;
+  }
+
+  // Overhaul M1: a refusal is not an outage. Cached data still wins (D-30).
+  if ((s.failure?.isForbidden ?? false) && !s.hasData) {
+    return ScreenOutcome.permissionDeniedState;
   }
 
   // 1 & 2 — offline.

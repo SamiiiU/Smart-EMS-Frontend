@@ -203,7 +203,7 @@ class _ExamRow extends StatelessWidget {
     return Semantics(
       button: true,
       label: '${exam.name}, '
-          '${exam.status == ExamStatus.published ? 'published' : 'not published'}',
+          '${exam.status.label}',
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,

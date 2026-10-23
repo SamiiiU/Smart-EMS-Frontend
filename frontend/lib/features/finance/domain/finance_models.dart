@@ -25,13 +25,13 @@ class FeeHead {
   });
 
   factory FeeHead.fromJson(Map<String, dynamic> json) => FeeHead(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        isRecurring: json['is_recurring'] as bool? ?? false,
-        // A RATE, not an amount — kept as the exact text the backend sent
-        // rather than turned into a number, for the same reason as money.
-        taxRate: json['tax_rate'] as String? ?? '0.00',
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    isRecurring: json['is_recurring'] as bool? ?? false,
+    // A RATE, not an amount — kept as the exact text the backend sent
+    // rather than turned into a number, for the same reason as money.
+    taxRate: json['tax_rate'] as String? ?? '0.00',
+  );
 
   final String id;
   final String name;
@@ -52,10 +52,10 @@ class FeePlanItem {
   });
 
   factory FeePlanItem.fromJson(Map<String, dynamic> json) => FeePlanItem(
-        feeHeadId: json['fee_head_id'] as String? ?? '',
-        feeHeadName: json['fee_head_name'] as String? ?? '',
-        amount: Money.fromJson(json['amount']),
-      );
+    feeHeadId: json['fee_head_id'] as String? ?? '',
+    feeHeadName: json['fee_head_name'] as String? ?? '',
+    amount: Money.fromJson(json['amount']),
+  );
 
   final String feeHeadId;
   final String feeHeadName;
@@ -117,6 +117,8 @@ class GenerationResult {
     required this.total,
     required this.generated,
     required this.skipped,
+    this.jobId,
+    this.status = 'completed',
   });
 
   /// ⚠️ `total` here is a COUNT of invoices, not an amount — the backend
@@ -130,17 +132,22 @@ class GenerationResult {
         total: _count(json['total']),
         generated: _count(json['generated']),
         skipped: _count(json['skipped']),
+        jobId: json['jobId'] as String?,
+        status: json['status'] as String? ?? 'completed',
       );
 
   static int _count(Object? value) => switch (value) {
-        final int i => i,
-        final String s => int.tryParse(s) ?? 0,
-        _ => 0,
-      };
+    final int i => i,
+    final String s => int.tryParse(s) ?? 0,
+    _ => 0,
+  };
 
   final int total;
   final int generated;
   final int skipped;
+  final String? jobId;
+  final String status;
+  bool get pending => status == 'pending' || status == 'processing';
 }
 
 // --- Invoices ----------------------------------------------------------------
@@ -153,25 +160,25 @@ enum InvoiceStatus {
   paid;
 
   static InvoiceStatus parse(String? raw) => switch (raw) {
-        'paid' => InvoiceStatus.paid,
-        'partial' => InvoiceStatus.partial,
-        _ => InvoiceStatus.unpaid,
-      };
+    'paid' => InvoiceStatus.paid,
+    'partial' => InvoiceStatus.partial,
+    _ => InvoiceStatus.unpaid,
+  };
 
   AppStatus get pill => switch (this) {
-        InvoiceStatus.unpaid => AppStatus.unpaid,
-        InvoiceStatus.partial => AppStatus.partial,
-        InvoiceStatus.paid => AppStatus.paid,
-      };
+    InvoiceStatus.unpaid => AppStatus.unpaid,
+    InvoiceStatus.partial => AppStatus.partial,
+    InvoiceStatus.paid => AppStatus.paid,
+  };
 }
 
 class InvoiceLine {
   const InvoiceLine({required this.description, required this.total});
 
   factory InvoiceLine.fromJson(Map<String, dynamic> json) => InvoiceLine(
-        description: json['description'] as String? ?? '',
-        total: Money.fromJson(json['total']),
-      );
+    description: json['description'] as String? ?? '',
+    total: Money.fromJson(json['total']),
+  );
 
   final String description;
   final Money total;
@@ -256,12 +263,17 @@ class InvoicePage {
 
 // --- Payments ----------------------------------------------------------------
 
-/// The only two payment sources this backend accepts. Anything else is a
-/// 400, so the form offers exactly these — no cheque, card or online, however
-/// normal those are in a Pakistani school (open item 17).
+/// The MANUAL sources an office can record. Verified 2026-10-14: the payment
+/// CHECK constraint (V8) allows MANUAL_CASH, MANUAL_BANK and MANUAL_CHALLAN,
+/// and a live MANUAL_CHALLAN payment returned 201. (The earlier "only two"
+/// note was wrong, which hid the bank challan, the most common way fees are
+/// paid in Pakistani institutions.) Gateway sources (JazzCash, EasyPaisa,
+/// card, Stripe) are written by integrations, never typed in by staff, so
+/// the form does not offer them; they are only ever DISPLAYED.
 enum PaymentSource {
   cash('MANUAL_CASH', 'Cash'),
-  bank('MANUAL_BANK', 'Bank transfer');
+  bank('MANUAL_BANK', 'Bank transfer'),
+  challan('MANUAL_CHALLAN', 'Bank challan');
 
   const PaymentSource(this.wire, this.label);
 
@@ -269,10 +281,16 @@ enum PaymentSource {
   final String label;
 
   static String labelForWire(String? wire) => switch (wire) {
-        'MANUAL_BANK' => 'Bank transfer',
-        'MANUAL_CASH' => 'Cash',
-        _ => wire ?? '',
-      };
+    'MANUAL_BANK' => 'Bank transfer',
+    'MANUAL_CASH' => 'Cash',
+    'MANUAL_CHALLAN' => 'Bank challan',
+    'JAZZCASH' => 'JazzCash',
+    'EASYPAISA' => 'Easypaisa',
+    'CARD' || 'STRIPE' => 'Card',
+    // Never show a raw wire code to staff.
+    null || '' => '',
+    _ => 'Other',
+  };
 }
 
 /// A recorded payment awaiting approval. The money is NOT on the invoice yet.
@@ -288,14 +306,14 @@ class PendingPayment {
   });
 
   factory PendingPayment.fromJson(Map<String, dynamic> json) => PendingPayment(
-        id: json['id'] as String,
-        invoiceId: json['invoice_id'] as String? ?? '',
-        studentName: json['student_name'] as String? ?? '',
-        amount: Money.fromJson(json['amount']),
-        source: PaymentSource.labelForWire(json['source'] as String?),
-        reference: json['reference'] as String?,
-        receivedAt: json['received_at'] as String? ?? '',
-      );
+    id: json['id'] as String,
+    invoiceId: json['invoice_id'] as String? ?? '',
+    studentName: json['student_name'] as String? ?? '',
+    amount: Money.fromJson(json['amount']),
+    source: PaymentSource.labelForWire(json['source'] as String?),
+    reference: json['reference'] as String?,
+    receivedAt: json['received_at'] as String? ?? '',
+  );
 
   final String id;
   final String invoiceId;
@@ -316,10 +334,10 @@ class ApprovalResult {
   });
 
   factory ApprovalResult.fromJson(Map<String, dynamic> json) => ApprovalResult(
-        receiptId: json['receiptId'] as String? ?? '',
-        receiptNumber: json['receiptNumber'] as String? ?? '',
-        amount: Money.fromJson(json['amount']),
-      );
+    receiptId: json['receiptId'] as String? ?? '',
+    receiptNumber: json['receiptNumber'] as String? ?? '',
+    amount: Money.fromJson(json['amount']),
+  );
 
   final String receiptId;
   final String receiptNumber;
@@ -338,14 +356,14 @@ class Receipt {
   });
 
   factory Receipt.fromJson(Map<String, dynamic> json) => Receipt(
-        id: json['id'] as String,
-        receiptNumber: json['receipt_number'] as String? ?? '',
-        generatedAt: json['generated_at'] as String? ?? '',
-        amount: Money.fromJson(json['amount']),
-        source: PaymentSource.labelForWire(json['source'] as String?),
-        studentName: json['student_name'] as String? ?? '',
-        invoiceId: json['invoice_id'] as String? ?? '',
-      );
+    id: json['id'] as String,
+    receiptNumber: json['receipt_number'] as String? ?? '',
+    generatedAt: json['generated_at'] as String? ?? '',
+    amount: Money.fromJson(json['amount']),
+    source: PaymentSource.labelForWire(json['source'] as String?),
+    studentName: json['student_name'] as String? ?? '',
+    invoiceId: json['invoice_id'] as String? ?? '',
+  );
 
   final String id;
   final String receiptNumber;
@@ -421,15 +439,15 @@ class DefaulterRow {
   });
 
   factory DefaulterRow.fromJson(Map<String, dynamic> json) => DefaulterRow(
-        invoiceId: json['invoice_id'] as String? ?? '',
-        studentName: json['student_name'] as String? ?? '',
-        admissionNumber: json['admission_number'] as String? ?? '',
-        period: json['period'] as String? ?? '',
-        dueDate: json['due_date'] as String? ?? '',
-        // Server-computed. Not total minus paid, done again here.
-        outstanding: Money.fromJson(json['outstanding']),
-        status: InvoiceStatus.parse(json['status'] as String?),
-      );
+    invoiceId: json['invoice_id'] as String? ?? '',
+    studentName: json['student_name'] as String? ?? '',
+    admissionNumber: json['admission_number'] as String? ?? '',
+    period: json['period'] as String? ?? '',
+    dueDate: json['due_date'] as String? ?? '',
+    // Server-computed. Not total minus paid, done again here.
+    outstanding: Money.fromJson(json['outstanding']),
+    status: InvoiceStatus.parse(json['status'] as String?),
+  );
 
   final String invoiceId;
   final String studentName;
@@ -442,8 +460,11 @@ class DefaulterRow {
   int daysOverdue(DateTime today) {
     final due = DateTime.tryParse(dueDate);
     if (due == null) return 0;
-    final days =
-        DateTime(today.year, today.month, today.day).difference(due).inDays;
+    final days = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).difference(due).inDays;
     return days > 0 ? days : 0;
   }
 }

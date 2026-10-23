@@ -1,4 +1,5 @@
-﻿import 'dart:convert';
+import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,16 @@ import 'package:smartems/features/parent/domain/parent_models.dart';
 import 'package:smartems/features/parent/presentation/child_attendance_screen.dart';
 import 'package:smartems/features/parent/presentation/child_progress_details.dart';
 import 'package:smartems/features/parent/presentation/parent_home_screen.dart';
+
+class _GatedAdapter extends _Adapter {
+  _GatedAdapter(this.asyncResponder) : super((_) => throw UnimplementedError());
+  final Future<ResponseBody> Function(RequestOptions o) asyncResponder;
+  @override
+  Future<ResponseBody> fetch(RequestOptions o, Stream<List<int>>? s, Future<void>? c) {
+    requests.add(o);
+    return asyncResponder(o);
+  }
+}
 
 class _Adapter implements HttpClientAdapter {
   _Adapter(this.responder);
@@ -179,8 +190,9 @@ void main() {
     test('classLabel prefers guardians/me\'s complete "Class 9-C" form', () {
       // parent-progress returns the bare section ("C") for the same field;
       // the complete label is the useful one.
+      // M1: normalised to the app-wide "Class · Section" separator.
       expect(GuardianProfile.fromJson(_guardianJson()).children.single.classLabel,
-          'Class 9-C');
+          'Class 9 · C');
     });
 
     test('parent-progress: a NULL attendanceStatus means NOT MARKED, not '
@@ -256,7 +268,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Bilal Ahmed'), findsOneWidget);
-      expect(find.text('Class 9-C'), findsOneWidget);
+      expect(find.text('Class 9 · C'), findsOneWidget); // M1 separator
       expect(find.byType(StatusPill), findsOneWidget);
     });
 
@@ -295,16 +307,19 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Both offered.
-      expect(find.text('Fatima Noor'), findsOneWidget);
-      expect(find.text('Bilal Ahmed'), findsWidgets);
+      // ADR-011: several children open on the All-children overview, which
+      // asks for EVERY linked child's day.
+      expect(find.byKey(const Key('all-children')), findsOneWidget);
+      expect(find.byKey(const Key('overview-st-1')), findsOneWidget);
+      expect(find.byKey(const Key('overview-st-2')), findsOneWidget);
 
       final before = adapter.requests
           .where((r) => r.path.contains(ApiConfig.parentProgressPath))
           .length;
 
-      await tester.tap(find.text('Fatima Noor'));
+      await tester.tap(find.text('Fatima Noor').first); // the chip
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('overview-st-1')), findsNothing);
 
       final after = adapter.requests
           .where((r) => r.path.contains(ApiConfig.parentProgressPath))
@@ -315,6 +330,37 @@ void main() {
         reason: 'switching child must re-ask for THAT child\'s day',
       );
       expect(adapter.requests.last.path, contains('st-2'));
+    });
+
+    testWidgets('a late answer for the previous child is never shown under the '
+        'newly selected child', (tester) async {
+      final gate = Completer<void>();
+      final adapter = _GatedAdapter((o) async {
+        if (o.path == ApiConfig.guardiansMePath) {
+          return _json(200, _guardianJson(childCount: 2));
+        }
+        if (o.path.contains('st-1')) {
+          await gate.future; // Bilal's answer arrives late
+          return _json(200, _progressJson(status: 'absent'));
+        }
+        return _json(200, _progressJson(status: 'present', name: 'Fatima Noor'));
+      });
+      await tester.pumpWidget(host(ParentHomeScreen(repository: _repo(adapter))));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      // Choose Bilal (slow), then Fatima before Bilal's answer arrives.
+      await tester.tap(find.text('Bilal Ahmed').first);
+      await tester.pump();
+      await tester.tap(find.text('Fatima Noor').first);
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 20)); // Fatima's answer lands
+      }
+      gate.complete(); // ...then Bilal's stale answer arrives
+      await tester.pumpAndSettle();
+      final pills = tester.widgetList<StatusPill>(find.byType(StatusPill)).map((p) => p.status);
+      expect(pills, [AppStatus.present],
+          reason: 'a late answer for one child must not appear on another child');
     });
 
     testWidgets('ORPHAN: guardians/me 404 renders UnlinkedProfileState with '
@@ -347,7 +393,7 @@ void main() {
       await tester.pumpWidget(host(ParentHomeScreen(repository: _repo(adapter))));
       await tester.pumpAndSettle();
 
-      expect(find.text('No children linked'), findsOneWidget);
+      expect(find.text('No verified child access'), findsOneWidget);
     });
 
     testWidgets('a server error offers a WORKING retry', (tester) async {
@@ -398,8 +444,11 @@ void main() {
       )));
       await tester.pumpAndSettle();
 
-      expect(find.text('2026-08-11'), findsOneWidget);
-      expect(find.text('2026-08-10'), findsOneWidget);
+      // Business dates are shown localized with the year, never as raw ISO
+      // and never shifted through a timezone (Aug 11 stays Aug 11).
+      expect(find.text('Aug 11, 2026'), findsOneWidget);
+      expect(find.text('Aug 10, 2026'), findsOneWidget);
+      expect(find.text('2026-08-11'), findsNothing);
       expect(find.byType(StatusPill), findsNWidgets(3));
     });
 
@@ -535,7 +584,7 @@ void main() {
 
       expect(find.text('60% · 12 of 20 days'), findsOneWidget);
       expect(
-        find.textContaining('below the school’s expected attendance'),
+        find.textContaining('below the institution’s expected attendance'),
         findsOneWidget,
       );
     });
@@ -582,7 +631,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Doing well in maths'), findsOneWidget);
-      expect(find.text('Ayesha Khan · 2026-09-26'), findsOneWidget);
+      expect(find.text('Ayesha Khan · Sep 26, 2026'), findsOneWidget);
     });
 
     test('the app does not filter remarks — the server already did', () {

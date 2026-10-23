@@ -21,3 +21,5 @@ frontend/test/failures/
 .claude/settings.local.json
 
 .DS_Store
+
+frontend/android/app/google-services.json

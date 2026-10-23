@@ -1,4 +1,23 @@
-﻿# Handoff — current state (2026-09-27)
+# Latest auth/ADR handoff — 13 October2026
+
+User's full ADR001–011 task remains incomplete. Current authoritative report: [backend final checkpoint](../EMS/docs/implementation/adr-001-011/06-final-audit.md). Do not claim production readiness.
+
+- main.dart now shares SerializedTokenStore. Android uses SecureTokenStore (flutter_secure_storage, resetOnError:false, one access/refresh pair); Web retains SharedPreferences pending HttpOnly-cookie/CSRF/multi-tab work. Obsolete Android plaintext credential keys are removed; attendance vaults and institution code are preserved.
+- Actual refresher/interceptor conditionally save/clear against the expected current refresh token, preventing single-isolate logout/account-switch races. Transport/429/503/incomplete-response failures preserve credentials; definitive invalid-refresh401 signs out. This is not cross-tab coordination.
+- AuthState exits splash on unreadable storage without deleting data; login reports secure-storage save failure. Real Android synthetic write/force-stop/read/rotation/scopedlogout passes1+1; physical-device/key-loss/OEM backup guarantees remain unverified.
+- Full Flutter tests726PASS/0FAIL/5SKIP; affected suites70PASS;11-target analyzer clean; local Web release buildPASS. Android integration uses no HTTP/provider calls and a synthetic namespace. Synthetic app uninstalled and read-only emulator stopped.
+- Backend V40 requires fresh login for historical session-less credentials, fixed absolute30-day per-device sessions and immediate access revocation. GET /auth/sessions, DELETE /auth/sessions/{id}, POST /auth/logout-all added. Existing development DB was not migrated; no deployment/push/tag.
+- Remaining: same-grant campus/department authorization, MFA/recovery, Web cookies/CSRF/multi-tab, offline provenance/durable review/72-hour policy, persistent payment intent, capability/workspace/campus/child UX, CI/upgrade/restore/final audit. Existing attendance queue remains retained by default on logout.
+
+Backend evidence: docs/implementation/adr-001-011/evidence/2026-10-13-frontend-full-auth.json and2026-10-13-auth-device-and-web.json. Earlier handoff sections below are historical; do not repeat old source-data cleanup.
+
+---
+
+# Local async contract update — 2026-10-10
+
+Read [ASYNC_WORKFLOWS.md](ASYNC_WORKFLOWS.md) first. It supersedes older synchronous import/generation notes below for the current local backend and records worker scope, verification and limitations. Production state is separately unverified.
+
+# Handoff — current state (2026-09-27)
 
 **T0–T16 are done. Every feature batch has shipped.** T12 is deferred; T17
 is the acceptance pass over the whole surface and needs its own prompt.

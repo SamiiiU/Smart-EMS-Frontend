@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../../core/widgets/status_pill.dart';
 import 'marks.dart';
 
@@ -36,19 +38,83 @@ enum ExamTerm {
   }
 }
 
+/// C9 lifecycle, exactly as the server enforces it:
+/// draft → marking → submitted → moderation → approved → published → archived.
+///
+/// The server is the authority: it refuses an out-of-order step with 409 and
+/// publishing anything but an APPROVED exam with 409. This enum only decides
+/// which action to offer; it never skips a step.
 enum ExamStatus {
-  pending,
-  published;
+  draft('draft', 'Draft'),
+  marking('marking', 'Marking'),
+  submitted('submitted', 'Submitted for moderation'),
+  moderation('moderation', 'In moderation'),
+  approved('approved', 'Approved'),
+  published('published', 'Published'),
+  archived('archived', 'Archived');
 
-  static ExamStatus parse(String? raw) =>
-      raw == 'published' ? ExamStatus.published : ExamStatus.pending;
+  const ExamStatus(this.wire, this.label);
 
-  /// Reuses the existing entity statuses rather than adding new ones — a
-  /// pending exam is "not started" and a published one is "complete".
+  final String wire;
+  final String label;
+
+  /// Pre-V55 values: `pending` was draft and `marks_entry` was marking. An
+  /// unrecognised value is treated as a locked, unreleased state so the app
+  /// never offers an edit or a release the server would refuse.
+  static ExamStatus parse(String? raw) => switch (raw) {
+    'draft' || 'pending' => ExamStatus.draft,
+    'marking' || 'marks_entry' => ExamStatus.marking,
+    'submitted' => ExamStatus.submitted,
+    'moderation' => ExamStatus.moderation,
+    'approved' => ExamStatus.approved,
+    'published' => ExamStatus.published,
+    'archived' => ExamStatus.archived,
+    _ => ExamStatus.submitted,
+  };
+
+  /// The single next step the server accepts, or null at the end.
+  ExamStatus? get next => switch (this) {
+    ExamStatus.draft => ExamStatus.marking,
+    ExamStatus.marking => ExamStatus.submitted,
+    ExamStatus.submitted => ExamStatus.moderation,
+    ExamStatus.moderation => ExamStatus.approved,
+    ExamStatus.approved => ExamStatus.published,
+    ExamStatus.published => ExamStatus.archived,
+    ExamStatus.archived => null,
+  };
+
+  /// What the button for moving to [next] says.
+  String? get nextActionLabel => switch (this) {
+    ExamStatus.draft => 'Start marking',
+    ExamStatus.marking => 'Submit for moderation',
+    ExamStatus.submitted => 'Start moderation',
+    ExamStatus.moderation => 'Approve results',
+    ExamStatus.approved => 'Publish results',
+    ExamStatus.published => 'Archive exam',
+    ExamStatus.archived => null,
+  };
+
+  /// Visible to students and guardians (unless a result is withheld).
+  bool get isReleased =>
+      this == ExamStatus.published || this == ExamStatus.archived;
+
+  /// Marks may be entered in draft and marking, and fixed by moderators.
+  bool get marksEditable =>
+      this == ExamStatus.draft ||
+      this == ExamStatus.marking ||
+      this == ExamStatus.moderation;
+
+  /// Papers may be added only before submission.
+  bool get papersEditable =>
+      this == ExamStatus.draft || this == ExamStatus.marking;
+
   AppStatus get pill => switch (this) {
-        ExamStatus.pending => AppStatus.notStarted,
-        ExamStatus.published => AppStatus.complete,
-      };
+    ExamStatus.draft || ExamStatus.marking => AppStatus.notStarted,
+    ExamStatus.submitted ||
+    ExamStatus.moderation ||
+    ExamStatus.approved => AppStatus.partial,
+    ExamStatus.published || ExamStatus.archived => AppStatus.complete,
+  };
 }
 
 class Exam {
@@ -59,16 +125,18 @@ class Exam {
     required this.status,
     required this.academicYearId,
     this.resultDate,
+    this.campusId,
   });
 
   factory Exam.fromJson(Map<String, dynamic> json) => Exam(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        term: json['term'] as String?,
-        status: ExamStatus.parse(json['status'] as String?),
-        academicYearId: json['academic_year_id'] as String? ?? '',
-        resultDate: json['result_date'] as String?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    term: json['term'] as String?,
+    status: ExamStatus.parse(json['status'] as String?),
+    academicYearId: json['academic_year_id'] as String? ?? '',
+    resultDate: json['result_date'] as String?,
+    campusId: json['campus_id'] as String?,
+  );
 
   final String id;
   final String name;
@@ -77,10 +145,14 @@ class Exam {
   final String academicYearId;
   final String? resultDate;
 
+  /// The exam's campus; lifecycle actions need exam.manage on it (ADR-001).
+  final String? campusId;
+
   String get termLabel => ExamTerm.labelForWire(term);
 
-  /// Publishing locks the marks permanently, and there is no unpublish.
-  bool get marksLocked => status == ExamStatus.published;
+  /// Marks are locked outside draft, marking and moderation (C9). After
+  /// publication only an official correction can change a result.
+  bool get marksLocked => !status.marksEditable;
 }
 
 /// One paper: a subject, for one section, within an exam.
@@ -106,17 +178,16 @@ class ExamPaper {
     Map<String, dynamic> json, {
     String subjectName = '',
     String sectionName = '',
-  }) =>
-      ExamPaper(
-        id: json['id'] as String,
-        examId: json['exam_id'] as String? ?? '',
-        sectionId: json['section_id'] as String? ?? '',
-        subjectId: json['subject_id'] as String? ?? '',
-        maxMarks: Marks.fromJson(json['max_marks']),
-        passingMarks: Marks.fromJson(json['passing_marks']),
-        subjectName: subjectName,
-        sectionName: sectionName,
-      );
+  }) => ExamPaper(
+    id: json['id'] as String,
+    examId: json['exam_id'] as String? ?? '',
+    sectionId: json['section_id'] as String? ?? '',
+    subjectId: json['subject_id'] as String? ?? '',
+    maxMarks: Marks.fromJson(json['max_marks']),
+    passingMarks: Marks.fromJson(json['passing_marks']),
+    subjectName: subjectName,
+    sectionName: sectionName,
+  );
 
   final String id;
   final String examId;
@@ -147,11 +218,11 @@ class MarkEntry {
   final bool isAbsent;
 
   MarkEntry copyWith({String? text, bool? isAbsent}) => MarkEntry(
-        studentId: studentId,
-        studentName: studentName,
-        text: text ?? this.text,
-        isAbsent: isAbsent ?? this.isAbsent,
-      );
+    studentId: studentId,
+    studentName: studentName,
+    text: text ?? this.text,
+    isAbsent: isAbsent ?? this.isAbsent,
+  );
 
   Marks? get value => text.trim().isEmpty ? null : Marks.tryParse(text);
 
@@ -198,17 +269,30 @@ class MarksSaveResult {
 
 // --- Results -----------------------------------------------------------------
 
+/// The server's result status. `pending` means at least one mark is missing:
+/// it is never a pass and never a zero (C9).
 enum ResultStatus {
-  pass,
-  fail;
+  pass('Passed'),
+  fail('Failed'),
+  absent('Absent'),
+  pending('Incomplete');
 
-  static ResultStatus parse(String? raw) =>
-      raw == 'fail' ? ResultStatus.fail : ResultStatus.pass;
+  const ResultStatus(this.label);
+
+  final String label;
+
+  static ResultStatus parse(String? raw) => switch (raw) {
+    'pass' => ResultStatus.pass,
+    'fail' => ResultStatus.fail,
+    'absent' => ResultStatus.absent,
+    _ => ResultStatus.pending,
+  };
 
   AppStatus get pill => switch (this) {
-        ResultStatus.pass => AppStatus.complete,
-        ResultStatus.fail => AppStatus.notStarted,
-      };
+    ResultStatus.pass => AppStatus.complete,
+    ResultStatus.fail || ResultStatus.absent => AppStatus.notStarted,
+    ResultStatus.pending => AppStatus.partial,
+  };
 }
 
 /// One student's result. Every figure is the server's.
@@ -225,24 +309,37 @@ class StudentResult {
     required this.status,
     this.subjects = const [],
     this.publishedAt,
+    this.withheld = false,
+    this.withheldReason,
+    this.currentVersion,
   });
 
   factory StudentResult.fromJson(Map<String, dynamic> json) => StudentResult(
-        studentId: json['student_id'] as String? ?? '',
-        studentName: json['student_name'] as String? ?? '',
-        totalMarks: Marks.fromJson(json['total_marks']),
-        totalMax: Marks.fromJson(json['total_max']),
-        percentage: Marks.fromJson(json['percentage']),
-        grade: json['grade'] as String? ?? '',
-        gradePoint: Marks.fromJson(json['grade_point'], fallback: Marks.zero),
-        position: json['position'] as int?,
-        status: ResultStatus.parse(json['result_status'] as String?),
-        subjects: (json['subjects'] as List? ?? const [])
-            .cast<Map<String, dynamic>>()
-            .map(SubjectResult.fromJson)
-            .toList(),
-        publishedAt: json['published_at'] as String?,
-      );
+    studentId: json['student_id'] as String? ?? '',
+    studentName: json['student_name'] as String? ?? '',
+    totalMarks: Marks.fromJson(json['total_marks']),
+    totalMax: Marks.fromJson(json['total_max']),
+    percentage: Marks.fromJson(json['percentage']),
+    grade: json['grade'] as String? ?? '',
+    gradePoint: Marks.fromJson(json['grade_point'], fallback: Marks.zero),
+    position: json['position'] as int?,
+    status: ResultStatus.parse(json['result_status'] as String?),
+    subjects: (json['subjects'] as List? ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(SubjectResult.fromJson)
+        .toList(),
+    publishedAt: json['published_at'] as String?,
+    withheld: json['withheld'] as bool? ?? false,
+    withheldReason: json['withheld_reason'] as String?,
+    currentVersion: json['current_version'] as int?,
+  );
+
+  /// Hidden from the student and guardians until released (staff only).
+  final bool withheld;
+  final String? withheldReason;
+
+  /// The official version in force (1 at publication, 2+ after corrections).
+  final int? currentVersion;
 
   final String studentId;
   final String studentName;
@@ -270,26 +367,38 @@ class SubjectResult {
     required this.marksObtained,
     required this.isAbsent,
     required this.grade,
+    this.examSubjectId,
   });
 
   factory SubjectResult.fromJson(Map<String, dynamic> json) => SubjectResult(
-        subjectName: json['subject_name'] as String? ?? '',
-        maxMarks: Marks.fromJson(json['max_marks']),
-        passingMarks: Marks.fromJson(json['passing_marks']),
-        marksObtained:
-            Marks.fromJson(json['marks_obtained'], fallback: Marks.zero),
-        isAbsent: json['is_absent'] as bool? ?? false,
-        grade: json['grade'] as String? ?? '',
-      );
+    subjectName: json['subject_name'] as String? ?? '',
+    maxMarks: Marks.fromJson(json['max_marks']),
+    passingMarks: Marks.fromJson(json['passing_marks']),
+    // A missing mark stays missing: never shown or counted as zero (C9).
+    marksObtained: json['marks_obtained'] == null
+        ? null
+        : Marks.fromJson(json['marks_obtained']),
+    examSubjectId: json['exam_subject_id'] as String?,
+    isAbsent: json['is_absent'] as bool? ?? false,
+    grade: json['grade'] as String? ?? '',
+  );
 
   final String subjectName;
   final Marks maxMarks;
   final Marks passingMarks;
-  final Marks marksObtained;
+  final Marks? marksObtained;
   final bool isAbsent;
   final String grade;
 
-  bool get failed => !isAbsent && marksObtained.compareTo(passingMarks) < 0;
+  /// The paper this mark belongs to; needed for an official correction.
+  final String? examSubjectId;
+
+  bool get isMissing => !isAbsent && marksObtained == null;
+
+  bool get failed =>
+      !isAbsent &&
+      marksObtained != null &&
+      marksObtained!.compareTo(passingMarks) < 0;
 }
 
 /// D-15's principle applied to results: a list is ordered by what needs
@@ -302,9 +411,12 @@ List<StudentResult> sortResults(List<StudentResult> rows) {
   final sorted = [...rows];
   sorted.sort((a, b) {
     int rank(StudentResult r) {
-      if (r.status == ResultStatus.fail) return 0;
-      if (r.isBorderline) return 1;
-      return 2;
+      if (r.status == ResultStatus.fail || r.status == ResultStatus.absent) {
+        return 0;
+      }
+      if (r.status == ResultStatus.pending) return 1;
+      if (r.isBorderline) return 2;
+      return 3;
     }
 
     final byRank = rank(a).compareTo(rank(b));
@@ -330,29 +442,62 @@ class ReportCard {
   });
 
   factory ReportCard.fromJson(Map<String, dynamic> json) => ReportCard(
-        generatedAt: json['generatedAt'] as String? ?? '',
-        available: json['available'] as bool? ?? false,
-        status: json['status'] as String? ?? '',
-      );
+    generatedAt: json['generatedAt'] as String? ?? '',
+    available: json['available'] as bool? ?? false,
+    status: json['status'] as String? ?? '',
+  );
 
   final String generatedAt;
   final bool available;
   final String status;
 }
 
+/// One official release of a learner's result (C9). Version 1 is the
+/// publication; later versions are corrections, each with its reason.
+class ResultVersion {
+  const ResultVersion({
+    required this.version,
+    required this.createdAt,
+    this.reason,
+    this.totalMarks,
+  });
+
+  factory ResultVersion.fromJson(Map<String, dynamic> json) {
+    final raw = json['snapshot'];
+    final snapshot = raw is String
+        ? (jsonDecode(AcademicJson.quoteNumbers(raw)) as Map)
+              .cast<String, dynamic>()
+        : (raw as Map? ?? const {}).cast<String, dynamic>();
+    return ResultVersion(
+      version: json['version'] as int? ?? 0,
+      createdAt: json['createdAt']?.toString() ?? '',
+      reason: json['reason'] as String?,
+      totalMarks: snapshot['total_marks']?.toString(),
+    );
+  }
+
+  final int version;
+  final String createdAt;
+  final String? reason;
+  final String? totalMarks;
+}
+
 /// What publishing reported.
 class PublishResult {
   const PublishResult({
     required this.reportCardsGenerated,
+    this.reportCardsQueued = 0,
     required this.resultsPublished,
   });
 
   factory PublishResult.fromJson(Map<String, dynamic> json) => PublishResult(
-        reportCardsGenerated: json['reportCardsGenerated'] as int? ?? 0,
-        resultsPublished: json['resultsPublished'] as int? ?? 0,
-      );
+    reportCardsGenerated: json['reportCardsGenerated'] as int? ?? 0,
+    reportCardsQueued: json['reportCardsQueued'] as int? ?? 0,
+    resultsPublished: json['resultsPublished'] as int? ?? 0,
+  );
 
   final int reportCardsGenerated;
+  final int reportCardsQueued;
   final int resultsPublished;
 }
 
@@ -378,15 +523,15 @@ class Remark {
   });
 
   factory Remark.fromJson(Map<String, dynamic> json) => Remark(
-        id: json['id'] as String,
-        studentId: json['studentId'] as String? ?? '',
-        studentName: json['studentName'] as String? ?? '',
-        remarkType: json['remarkType'] as String? ?? '',
-        body: json['body'] as String? ?? '',
-        isParentVisible: json['isParentVisible'] as bool? ?? false,
-        remarkDate: json['remarkDate'] as String? ?? '',
-        authorName: json['authorName'] as String? ?? '',
-      );
+    id: json['id'] as String,
+    studentId: json['studentId'] as String? ?? '',
+    studentName: json['studentName'] as String? ?? '',
+    remarkType: json['remarkType'] as String? ?? '',
+    body: json['body'] as String? ?? '',
+    isParentVisible: json['isParentVisible'] as bool? ?? false,
+    remarkDate: json['remarkDate'] as String? ?? '',
+    authorName: json['authorName'] as String? ?? '',
+  );
 
   final String id;
   final String studentId;
@@ -419,11 +564,11 @@ class Topic {
   });
 
   factory Topic.fromJson(Map<String, dynamic> json) => Topic(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        sortOrder: json['sort_order'] as int? ?? 0,
-        expectedPeriodCount: json['expected_period_count'] as int?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    sortOrder: json['sort_order'] as int? ?? 0,
+    expectedPeriodCount: json['expected_period_count'] as int?,
+  );
 
   final String id;
   final String name;
@@ -437,24 +582,38 @@ class Chapter {
     required this.name,
     required this.sortOrder,
     required this.topics,
+    this.status = 'proposed',
+    this.canEdit = false,
+    this.canPublish = false,
+    this.adopted = false,
+    this.latestPublicationId,
   });
 
   /// The list endpoint nests topics, so one call fetches the whole syllabus.
   factory Chapter.fromJson(Map<String, dynamic> json) => Chapter(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        sortOrder: json['sort_order'] as int? ?? 0,
-        topics: (json['topics'] as List? ?? const [])
+    id: json['id'] as String,
+    status: json['status'] as String? ?? 'proposed',
+    canEdit: json['canEdit'] == true,
+    canPublish: json['canPublish'] == true,
+    adopted: json['adopted'] == true,
+    latestPublicationId: json['latestPublicationId'] as String?,
+    name: json['name'] as String? ?? '',
+    sortOrder: json['sort_order'] as int? ?? 0,
+    topics:
+        (json['topics'] as List? ?? const [])
             .cast<Map<String, dynamic>>()
             .map(Topic.fromJson)
             .toList()
           ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)),
-      );
+  );
 
   final String id;
   final String name;
   final int sortOrder;
   final List<Topic> topics;
+  final String status;
+  final bool canEdit, canPublish, adopted;
+  final String? latestPublicationId;
 }
 
 /// The only two coverage statuses the backend accepts, lowercase.

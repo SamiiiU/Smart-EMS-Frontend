@@ -258,7 +258,7 @@ const _exam = Exam(
   id: 'exam-1',
   name: 'First Term',
   term: 'first_term',
-  status: ExamStatus.pending,
+  status: ExamStatus.marking,
   academicYearId: 'year-1',
 );
 
@@ -591,6 +591,10 @@ void main() {
     testWidgets('a duplicate paper explains that it cannot be reopened',
         (tester) async {
       final w = _wire();
+      // The C9 stage panel makes this screen taller than the default 800x600.
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(_host(ExamPapersScreen(
         repository: w.repo,
         exam: _exam,
@@ -601,8 +605,11 @@ void main() {
       await tester.pumpAndSettle();
 
       w.server.failStatus = 409;
+      // The C9 stage panel sits above the form; scroll to each control.
+      await tester.ensureVisible(find.text('Add a paper'));
       await tester.tap(find.text('Add a paper'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Save'));
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
@@ -610,7 +617,7 @@ void main() {
       expect(find.textContaining('no way to look a paper up'), findsOneWidget);
     });
 
-    testWidgets('publishing is confirmed and stated as irreversible',
+    testWidgets('C9: no direct publish; without exam.manage no stage action is offered',
         (tester) async {
       final w = _wire();
       await tester.pumpWidget(_host(ExamPapersScreen(
@@ -622,15 +629,9 @@ void main() {
       )));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Publish results'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Publish this exam?'), findsOneWidget);
-      expect(find.textContaining('marks are locked permanently'),
-          findsOneWidget);
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+      expect(find.text('Publish results'), findsNothing);
+      expect(find.text('Stage: Marking'), findsOneWidget);
+      expect(find.textContaining('Only an exam manager'), findsOneWidget);
       expect(
         w.server.requests.where((r) => r.path.endsWith('/publish')),
         isEmpty,
@@ -893,9 +894,10 @@ void main() {
       await tester.pumpWidget(_host(const SubjectResourcesScreen()));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('no way to receive an uploaded file'),
+      expect(find.text('Not available yet'), findsOneWidget);
+      expect(find.textContaining('A subject library for books, notes and links'),
           findsOneWidget);
-      expect(find.textContaining('Share material through the diary'),
+      expect(find.textContaining('Share class material through the diary'),
           findsOneWidget);
       expect(find.byType(TextField), findsNothing);
     });

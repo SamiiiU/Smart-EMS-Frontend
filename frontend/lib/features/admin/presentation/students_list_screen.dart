@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
-import '../../../core/theme/sizing.dart';
-import '../../../core/theme/typography.dart';
-import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/adaptive_data_view.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/page_header.dart';
+import '../../../core/widgets/search_field.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../data/admin_repository.dart';
@@ -30,11 +31,15 @@ class StudentsListScreen extends StatefulWidget {
   const StudentsListScreen({
     required this.repository,
     this.onOpenStudent,
+    this.onAdmit,
     super.key,
   });
 
   final AdminRepository repository;
   final void Function(AdminStudent student)? onOpenStudent;
+
+  /// Overhaul M4: opens the guided admission; the list reloads afterwards.
+  final Future<void> Function()? onAdmit;
 
   @override
   State<StudentsListScreen> createState() => StudentsListScreenState();
@@ -95,16 +100,31 @@ class StudentsListScreenState extends State<StudentsListScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Students',
-                    style: AppTypography.screenTitle
-                        .copyWith(color: t.textPrimary),
+                  // M1 shared header: on a narrow phone the action wraps under
+                  // the title instead of squeezing it.
+                  PageHeader(
+                    title: 'Students',
+                    padding: EdgeInsets.zero,
+                    actions: [
+                      if (widget.onAdmit != null)
+                        AppButton(
+                          key: const Key('open-admit-learner'),
+                          label: 'Admit learner',
+                          icon: Icons.person_add_alt_1_outlined,
+                          onPressed: () async {
+                            await widget.onAdmit!();
+                            if (mounted) await _load();
+                          },
+                        ),
+                    ],
                   ),
                   const SizedBox(height: AppSpacing.space5),
-                  AppTextField(
+                  // M1 shared search: clear button + announced result count.
+                  SearchField(
                     label: 'Search',
                     value: _query,
                     placeholder: 'Name or admission number',
+                    resultCount: visible.length,
                     onChanged: (v) => setState(() => _query = v),
                   ),
                 ],
@@ -126,89 +146,23 @@ class StudentsListScreenState extends State<StudentsListScreen> {
                 filterDescription: filtering ? 'matching “$_query”' : null,
                 onClearFilter:
                     filtering ? () => setState(() => _query = '') : null,
-                data: (context, rows) => ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.space6,
-                  ),
-                  itemCount: rows.length,
-                  itemBuilder: (context, i) => _StudentRow(
-                    student: rows[i],
-                    onTap: widget.onOpenStudent == null
-                        ? null
-                        : () => widget.onOpenStudent!(rows[i]),
-                  ),
+                // M1 adaptive list: a table on desktop/tablet, cards on phones.
+                data: (context, rows) => AdaptiveDataView<AdminStudent>(
+                  rows: rows,
+                  semanticLabel: (s) => s.fullName,
+                  onTap: widget.onOpenStudent,
+                  columns: [
+                    DataColumnSpec(label: 'Name', value: (s) => s.fullName, flex: 3),
+                    DataColumnSpec(label: 'Admission no.', value: (s) => s.admissionNumber, flex: 2),
+                    // Null when the student is enrolled nowhere: a real state,
+                    // shown plainly rather than as a blank column.
+                    DataColumnSpec(label: 'Class', value: (s) => s.classLabel ?? 'Not enrolled', flex: 2),
+                  ],
                 ),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StudentRow extends StatelessWidget {
-  const _StudentRow({required this.student, required this.onTap});
-
-  final AdminStudent student;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-
-    final card = Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.space3),
-      padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
-      decoration: BoxDecoration(
-        color: t.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: t.border, width: AppSizing.borderThin),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Wrap(
-              spacing: AppSpacing.space4,
-              runSpacing: AppSpacing.space2,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  student.fullName,
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
-                ),
-                Text(
-                  student.admissionNumber,
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
-                ),
-                // Null when the student is enrolled nowhere — a real state,
-                // shown plainly rather than as a blank column.
-                Text(
-                  student.classLabel ?? 'Not enrolled',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
-                ),
-              ],
-            ),
-          ),
-          if (onTap != null)
-            Icon(Icons.chevron_right, color: t.textSecondary),
-        ],
-      ),
-    );
-
-    if (onTap == null) return card;
-    return Semantics(
-      button: true,
-      label: student.fullName,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(child: card),
       ),
     );
   }

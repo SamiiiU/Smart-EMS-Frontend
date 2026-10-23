@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/auth_layout.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
-import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -85,14 +86,9 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     return Scaffold(
       backgroundColor: t.page,
+      // M1: the same sign-in frame as login.
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.space8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppSizing.authFormMaxWidth,
-              ),
+        child: AuthLayout(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -127,6 +123,7 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ],
                   AppTextField(
                     label: 'Current password',
+required: true,
                     value: _current,
                     obscure: true,
                     state: _submitting
@@ -137,6 +134,7 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   const SizedBox(height: AppSpacing.space6),
                   AppTextField(
                     label: 'New password',
+required: true,
                     value: _next,
                     obscure: true,
                     state: _submitting
@@ -147,6 +145,7 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   const SizedBox(height: AppSpacing.space6),
                   AppTextField(
                     label: 'Confirm new password',
+required: true,
                     value: _confirm,
                     obscure: true,
                     state: _submitting
@@ -162,8 +161,6 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ),
                 ],
               ),
-            ),
-          ),
         ),
       ),
     );

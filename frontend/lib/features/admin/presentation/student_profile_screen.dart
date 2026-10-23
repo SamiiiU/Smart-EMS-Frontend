@@ -12,6 +12,8 @@ import '../../attendance/presentation/attendance_marking_screen.dart'
 import '../../parent/data/parent_repository.dart';
 import '../../parent/domain/parent_models.dart';
 import '../domain/admin_models.dart';
+import '../data/admin_repository.dart';
+import 'guardian_links_screen.dart';
 
 /// One student, as the admin sees them.
 ///
@@ -57,8 +59,11 @@ class StudentProfileScreenState extends State<StudentProfileScreen> {
   }
 
   Future<void> _loadAttendance() async {
-    setState(() => _attendance =
-        ScreenState<List<AttendanceDay>>.loading(previous: _attendance.data));
+    setState(
+      () => _attendance = ScreenState<List<AttendanceDay>>.loading(
+        previous: _attendance.data,
+      ),
+    );
     try {
       final to = _now;
       final days = await widget.parentRepository.loadAttendance(
@@ -69,14 +74,15 @@ class StudentProfileScreenState extends State<StudentProfileScreen> {
         to: to,
       );
       if (!mounted) return;
-      setState(
-          () => _attendance = ScreenState<List<AttendanceDay>>.data(days));
+      setState(() => _attendance = ScreenState<List<AttendanceDay>>.data(days));
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _attendance = ScreenState<List<AttendanceDay>>.failed(
-            e is LoadFailure ? e : const LoadFailure(),
-            cached: _attendance.data,
-          ));
+      setState(
+        () => _attendance = ScreenState<List<AttendanceDay>>.failed(
+          e is LoadFailure ? e : const LoadFailure(),
+          cached: _attendance.data,
+        ),
+      );
     }
   }
 
@@ -110,9 +116,19 @@ class StudentProfileScreenState extends State<StudentProfileScreen> {
               ),
               child: Text(
                 'Attendance · last ${StudentProfileScreen.windowDays} days',
-                style:
-                    AppTypography.overline.copyWith(color: t.textSecondary),
+                style: AppTypography.overline.copyWith(color: t.textSecondary),
               ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => GuardianLinksScreen(
+                    repository: AdminRepository(widget.parentRepository.dio),
+                    studentId: student.id,
+                  ),
+                ),
+              ),
+              child: const Text('Guardian access'),
             ),
             const SizedBox(height: AppSpacing.space3),
             Expanded(
@@ -161,10 +177,7 @@ class _Details extends StatelessWidget {
         runSpacing: AppSpacing.space3,
         children: [
           _Field(label: 'Admission no.', value: student.admissionNumber),
-          _Field(
-            label: 'Class',
-            value: student.classLabel ?? 'Not enrolled',
-          ),
+          _Field(label: 'Class', value: student.classLabel ?? 'Not enrolled'),
           _Field(label: 'Status', value: student.status ?? '—'),
         ],
       ),
@@ -210,8 +223,7 @@ class _DayRow extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),

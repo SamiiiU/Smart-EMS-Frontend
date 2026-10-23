@@ -104,10 +104,70 @@ abstract final class RoleDestinations {
   /// in the array.
   static List<NavDestination> forRoles(Iterable<String> roles) {
     if (roles.contains('student')) return student;
-    if (roles.contains('teacher') || roles.contains('staff')) return teacher;
+    if (roles.any(teacherRoles.contains)) return teacher;
     if (roles.contains('parent')) return parent;
-    return admin;
+    if (roles.any(adminRoles.contains)) return admin;
+    // ADR-011: an unknown or empty role set NEVER falls back to admin.
+    return none;
   }
+
+  /// Explicitly administrative roles. `finance_staff` uses the admin shell
+  /// too, but only sees what its permissions allow (see [visibleFor]).
+  static const adminRoles = {
+    'owner', 'institution_owner', 'admin', 'institution_admin',
+    'super_admin', 'campus_admin', 'finance_staff',
+  };
+  static const teacherRoles = {'teacher', 'staff', 'attendance_staff'};
+
+  /// Shown when the account holds no role this app knows. No data screens.
+  static final List<NavDestination> none = [
+    _d('no_access', 'No access', Icons.lock_outline),
+  ];
+
+  /// ADR-011 workspaces: one login, separate authorization contexts.
+  static bool hasSchoolWorkspace(Iterable<String> roles) =>
+      roles.any(adminRoles.contains) || roles.any(teacherRoles.contains);
+  static bool hasPersonalWorkspace(Iterable<String> roles) =>
+      roles.contains('parent') || roles.contains('student');
+
+  /// Permissions any one of which makes an admin destination useful. The
+  /// backend still authorizes every request; this only avoids offering
+  /// screens the server would refuse. Unlisted ids are always shown.
+  static const Map<String, Set<String>> requiredAny = {
+    'students': {'student.view', 'student.manage'},
+    'setup': {'campus.manage', 'student.manage', 'timetable.manage'},
+    'fees': {'fee.view', 'fee.manage'},
+    'academics': {'exam.manage', 'syllabus.manage', 'timetable.manage', 'exam.results.view'},
+    'complaints': {'complaint.manage', 'complaint.view.all'},
+    'attendance_reviews': {'attendance.manage'},
+    'staff_attendance': {'attendance.manage', 'staff.manage'},
+    'people': {'staff.manage', 'student.manage', 'user.manage', 'user.provision'},
+    'add_user': {'user.provision'},
+    'import': {'student.manage'},
+    // The dashboard reads student/staff/section counts, which need student.view;
+    // fee-only roles (finance staff) start on Fees instead (overhaul route crawl).
+    'dashboard': {'student.view', 'report.view'},
+  };
+
+  /// Destinations whose endpoints need the permission held INSTITUTION-WIDE
+  /// (`principal.hasInstitutionPermission` on the server). A campus-scoped
+  /// grant of the same permission is not enough: e.g. a campus admin holds
+  /// student.manage for one campus, and CSV import refuses them on submit
+  /// (hard-QA BUG-QA-09).
+  static const Map<String, Set<String>> institutionWideAny = {
+    'import': {'student.manage', 'staff.manage'},
+  };
+
+  /// [institutionWide] = permissions held by grants with no campus. Null when
+  /// unknown (no grant detail from the server): the institution-wide gate is
+  /// then skipped and the server remains the authority.
+  static List<NavDestination> visibleFor(List<NavDestination> destinations, Set<String> permissions,
+          {Set<String>? institutionWide}) => [
+    for (final d in destinations)
+      if ((requiredAny[d.id]?.any(permissions.contains) ?? true) &&
+          (institutionWide == null || (institutionWideAny[d.id]?.any(institutionWide.contains) ?? true)))
+        d,
+  ];
 
   /// Whether [forRoles] would pick the admin shell.
   ///

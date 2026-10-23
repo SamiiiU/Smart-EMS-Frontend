@@ -159,8 +159,11 @@ class ReportCardScreenState extends State<ReportCardScreen> {
                       Text(
                         subject.isAbsent
                             ? 'Absent'
-                            : '${subject.marksObtained.format()}'
-                                ' / ${subject.maxMarks.format()}',
+                            // C9: a missing mark is "not entered", never zero.
+                            : subject.marksObtained == null
+                                ? 'Not entered / ${subject.maxMarks.format()}'
+                                : '${subject.marksObtained!.format()}'
+                                    ' / ${subject.maxMarks.format()}',
                         style: AppTypography.personName.copyWith(
                           color: subject.failed
                               ? t.dangerTextOnBg

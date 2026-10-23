@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/job_progress.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/motion_reveal.dart';
 import '../../../core/widgets/states/screen_state.dart';
@@ -53,6 +55,7 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
   bool _busy = false;
   String? _error;
   GenerationResult? _result;
+  String? _pendingJobId;
 
   @override
   void initState() {
@@ -87,41 +90,20 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
 
   Future<void> _confirmAndRun() async {
     final plan = _plan;
-    if (plan == null) return;
+    if (plan == null || _busy) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Generate these invoices?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Every student in ${_className(plan.classId)} will be invoiced '
-              'for ${_period.trim()} under “${plan.name}”.',
-            ),
-            const SizedBox(height: AppSpacing.space4),
-            const Text(
-              'This cannot be undone — there is no way to delete an invoice '
-              'on this system. Running it again for the same period is safe: '
-              'invoices that already exist are skipped, not duplicated.',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Generate'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmAction(
+      context,
+      title: 'Generate these invoices?',
+      message: 'Every student in ${_className(plan.classId)} will be invoiced '
+          'for ${_period.trim()} under “${plan.name}”.\n\n'
+          'There is no way to delete an invoice on this system. Running it again '
+          'for the same period is safe: invoices that already exist are skipped, '
+          'not duplicated.',
+      confirmLabel: 'Generate',
+      irreversible: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     setState(() {
       _busy = true;
@@ -135,8 +117,9 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _busy = false;
-        _result = result;
+        _pendingJobId = result.pending ? result.jobId : null;
+        _busy = _pendingJobId != null;
+        _result = result.pending ? null : result;
       });
     } on LoadFailure catch (f) {
       if (!mounted) return;
@@ -157,7 +140,8 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
       title: 'Generate invoices',
       note: const InlineAlert(
         tone: InlineAlertTone.warning,
-        message: 'This creates real fee records for every student in the '
+        message:
+            'This creates real fee records for every student in the '
             'class. Invoices cannot be deleted on this system.',
       ),
       children: [
@@ -175,6 +159,7 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
                 label: p.name,
                 selected: _planId == p.id,
                 onTap: () => setState(() {
+                  if (_busy) return;
                   _planId = p.id;
                   _result = null;
                 }),
@@ -187,6 +172,7 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
           value: _period,
           placeholder: 'e.g. 2026-09',
           onChanged: (v) => setState(() {
+            if (_busy) return;
             _period = v;
             _result = null;
           }),
@@ -212,15 +198,17 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
               children: [
                 Text(
                   'What this will do',
-                  style:
-                      AppTypography.cardHeading.copyWith(color: t.textPrimary),
+                  style: AppTypography.cardHeading.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space3),
                 Text(
                   'Invoice every student in ${_className(plan.classId)} for '
                   '${_period.trim()}, using “${plan.name}”.',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textPrimary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space2),
                 Text(
@@ -228,8 +216,9 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
                   'charged, is decided by the server — this screen does not '
                   'estimate it. The exact result is shown once the run '
                   'finishes.',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -239,10 +228,32 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
         AppButton(
           label: _busy ? 'Generating…' : 'Generate for this period',
           fullWidth: true,
-          onPressed:
-              _busy || plan == null || !_periodLooksValid ? null : _confirmAndRun,
+          onPressed: _busy || plan == null || !_periodLooksValid
+              ? null
+              : _confirmAndRun,
         ),
 
+        if (_pendingJobId != null) ...[
+          const SizedBox(height: AppSpacing.space5),
+          JobProgress(
+            key: ValueKey(_pendingJobId),
+            jobId: _pendingJobId!,
+            load: (token) =>
+                widget.repository.loadWorkflow(_pendingJobId!, token),
+            onFinished: (job) => setState(() {
+              _busy = false;
+              _pendingJobId = null;
+              if (job['status'] == 'completed') {
+                _result = GenerationResult.fromJson(
+                  (job['result'] as Map).cast<String, dynamic>(),
+                );
+              } else {
+                _error =
+                    'Invoice generation stopped. Some invoices may already exist. Review the job before trying again.';
+              }
+            }),
+          ),
+        ],
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.space5),
           InlineAlert(tone: InlineAlertTone.danger, message: _error!),
@@ -255,19 +266,19 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
           MotionConfirm(
             show: true,
             child: InlineAlert(
-            tone: result.generated > 0
-                ? InlineAlertTone.success
-                : InlineAlertTone.info,
-            message: result.generated > 0
-                ? '${result.generated} '
-                    '${result.generated == 1 ? 'invoice' : 'invoices'} '
-                    'created for ${_period.trim()}'
-                    '${result.skipped > 0 ? ', and ${result.skipped} '
-                        'already existed and ${result.skipped == 1 ? 'was' : 'were'} '
-                        'left alone' : ''}.'
-                : 'Nothing was created. All ${result.total} '
-                    '${result.total == 1 ? 'invoice' : 'invoices'} for '
-                    '${_period.trim()} already existed.',
+              tone: result.generated > 0
+                  ? InlineAlertTone.success
+                  : InlineAlertTone.info,
+              message: result.generated > 0
+                  ? '${result.generated} '
+                        '${result.generated == 1 ? 'invoice' : 'invoices'} '
+                        'created for ${_period.trim()}'
+                        '${result.skipped > 0 ? ', and ${result.skipped} '
+                                  'already existed and ${result.skipped == 1 ? 'was' : 'were'} '
+                                  'left alone' : ''}.'
+                  : 'Nothing was created. All ${result.total} '
+                        '${result.total == 1 ? 'invoice' : 'invoices'} for '
+                        '${_period.trim()} already existed.',
             ),
           ),
         ],

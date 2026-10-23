@@ -1,3 +1,5 @@
+import '../../features/academy/data/academy_repository.dart';
+import '../../features/academy/presentation/academy_today_panel.dart';
 import 'package:flutter/material.dart';
 
 import '../../features/attendance/data/attendance_repository.dart';
@@ -6,6 +8,7 @@ import '../../features/complaints/presentation/my_complaints_screen.dart';
 import '../../features/notifications/data/notifications_repository.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/attendance/presentation/attendance_marking_screen.dart';
+import '../../features/attendance/presentation/my_registers_panel.dart';
 import '../../features/diary/data/diary_repository.dart';
 import '../../features/diary/domain/diary_models.dart';
 import '../../features/diary/presentation/diary_editor_screen.dart';
@@ -38,6 +41,10 @@ List<NavDestination> buildTeacherDestinations({
   String? staffName,
   ComplaintsRepository? complaints,
   NotificationsRepository? notifications,
+  // ACADEMY profile only: Today also lists the teacher's dated course
+  // sessions (report 11 A-2). [campusChanges] reloads them on a campus switch.
+  AcademyRepository? academy,
+  Listenable? campusChanges,
 }) {
   return [
     NavDestination(
@@ -49,6 +56,8 @@ List<NavDestination> buildTeacherDestinations({
         timetable: timetable,
         attendance: attendance,
         staffId: staffId,
+        academy: academy,
+        campusChanges: campusChanges,
       ),
     ),
     NavDestination(
@@ -113,6 +122,8 @@ List<NavDestination> buildParentDestinations({
   ThemeController? themeController,
   ComplaintsRepository? complaints,
   NotificationsRepository? notifications,
+  // Only for an ACADEMY-profile institution (Academy-only children, report 11 A-1).
+  AcademyRepository? academy,
 }) {
   return [
     NavDestination(
@@ -120,7 +131,8 @@ List<NavDestination> buildParentDestinations({
       label: 'My child',
       icon: Icons.child_care_outlined,
       route: '/my-child',
-      builder: (context) => ParentHomeScreen(repository: parent),
+      builder: (context) =>
+          ParentHomeScreen(repository: parent, academy: academy),
     ),
     // T16. Optional so the many tests that build these lists without a
     // network layer keep working — a null repository means the
@@ -231,39 +243,65 @@ class _TodayFlow extends StatefulWidget {
     required this.timetable,
     required this.attendance,
     required this.staffId,
+    this.academy,
+    this.campusChanges,
   });
 
   final TimetableRepository timetable;
   final AttendanceRepository attendance;
   final String? staffId;
+  final AcademyRepository? academy;
+  final Listenable? campusChanges;
 
   @override
   State<_TodayFlow> createState() => _TodayFlowState();
 }
 
 class _TodayFlowState extends State<_TodayFlow> {
-  TimetablePeriod? _period;
+  /// The register being shown: from a timetabled period OR from "Your
+  /// classes" (BUG-QA-11), so attendance never depends on a timetable.
+  ({String sectionId, String label})? _open;
 
   @override
   Widget build(BuildContext context) {
-    final period = _period;
-    if (period == null) {
+    final open = _open;
+    if (open == null) {
       return TodayScreen(
         repository: widget.timetable,
         staffId: widget.staffId,
-        onOpenRegister: (p) => setState(() => _period = p),
+        header: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.academy case final academy?)
+              AcademyTodayPanel(
+                repository: academy,
+                campusChanges: widget.campusChanges,
+              ),
+            MyRegistersPanel(
+              repository: widget.attendance,
+              onOpen: (r) => setState(
+                () => _open = (sectionId: r.sectionId, label: r.label),
+              ),
+            ),
+          ],
+        ),
+        // Non-null sectionId: TodayScreen only offers a tap when it exists.
+        onOpenRegister: (p) => setState(
+          () => _open = (
+            sectionId: p.sectionId!,
+            label: p.sectionName ?? 'Register',
+          ),
+        ),
       );
     }
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(() => _period = null);
-      },
+    // The register owns back handling (unsaved-changes guard); it calls
+    // onExit only when leaving is allowed (NOTE-QA-17).
+    return KeyedSubtree(
       child: AttendanceMarkingScreen(
+        onExit: () => setState(() => _open = null),
         repository: widget.attendance,
-        // Non-null: TodayScreen only offers a tap when sectionId exists.
-        sectionId: period.sectionId!,
-        sectionLabel: period.sectionName ?? 'Register',
+        sectionId: open.sectionId,
+        sectionLabel: open.label,
         attendanceDate: DateTime.now(),
       ),
     );

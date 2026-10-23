@@ -10,7 +10,8 @@ import '../../setup/presentation/setup_scaffold.dart';
 ///
 /// Confirmed by listing every one of the API's 130 published paths: there is
 /// no grade-scheme endpoint of any kind, and no subject-resource or
-/// file-upload endpoint anywhere.
+/// subject-resource catalogue endpoint. Shared private /api/files storage now exists;
+/// its upload/gallery UI is separate from this unavailable subject catalogue.
 ///
 /// They still ship, and they still sit in the hub, because the standing rule
 /// is to name the limitation rather than hide the control: an admin looking
@@ -99,10 +100,7 @@ class SubjectResourcesScreen extends StatelessWidget {
         title: 'Subject resources',
         icon: Icons.folder_outlined,
         headline: 'Not available yet',
-        body: 'Books, notes, links and videos for a subject cannot be stored '
-            'yet — this system has nowhere to keep them, and no way to '
-            'receive an uploaded file. Share material through the diary for '
-            'now. This screen will fill in once the school system supports '
-            'it; nothing you do here is needed in the meantime.',
+        body: 'A subject library for books, notes and links is not available yet. '
+            'Share class material through the diary for now.',
       );
 }

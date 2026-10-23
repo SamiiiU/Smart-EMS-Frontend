@@ -23,7 +23,25 @@ const _linkedAdmin = IdentityResult(
   tenantId: 't-1',
 );
 
+class _UnreadableStore extends InMemoryTokenStore {
+  @override
+  Future<String?> readAccessToken() async => throw StateError('Locked storage');
+}
+
 void main() {
+  test(
+    'unreadable credential storage finishes splash without clearing data',
+    () async {
+      final store = _UnreadableStore()..refreshToken = 'preserve';
+      final resolver = _FakeResolver(_linkedAdmin);
+      final state = AuthState(tokenStore: store, identityResolver: resolver);
+      await state.restore();
+      expect(state.isRestored, isTrue);
+      expect(state.isSignedIn, isFalse);
+      expect(store.refreshToken, 'preserve');
+      expect(resolver.calls, 0);
+    },
+  );
   group('AuthState.restore', () {
     test('no stored token: restored, signed out, and the network is never '
         'touched', () async {
@@ -40,7 +58,8 @@ void main() {
       expect(
         resolver.calls,
         0,
-        reason: 'resolving identity without a token would be a guaranteed '
+        reason:
+            'resolving identity without a token would be a guaranteed '
             '401 on every cold start',
       );
     });
@@ -119,7 +138,8 @@ void main() {
       expect(
         notifications,
         greaterThan(before),
-        reason: 'without this notification, signing out would leave the user '
+        reason:
+            'without this notification, signing out would leave the user '
             'sitting on the shell route',
       );
     });

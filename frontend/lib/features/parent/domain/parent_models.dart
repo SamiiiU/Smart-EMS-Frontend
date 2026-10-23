@@ -47,7 +47,21 @@ class GuardianChild {
   final String? relationship;
 
   /// Best available label for the child's class.
-  String? get classLabel => sectionName ?? className;
+  ///
+  /// M1 consistency: guardians/me joins it as "{class}-{section}" ("Grade 6 A-6A-1")
+  /// while every other screen shows "Grade 6 A · 6A-1"; the join is normalised here.
+  /// Any other shape is shown as received.
+  String? get classLabel {
+    final section = sectionName;
+    final klass = className;
+    if (section != null &&
+        klass != null &&
+        section.startsWith('$klass-') &&
+        section.length > klass.length + 1) {
+      return '$klass · ${section.substring(klass.length + 1)}';
+    }
+    return section ?? klass;
+  }
 }
 
 /// The signed-in guardian and their children.
@@ -113,7 +127,11 @@ class ChildToday {
       sectionName: json['sectionName'] as String?,
       status: raw == null ? null : AttendanceStatus.fromWire(raw),
       diaryEntries: (json['diaryEntries'] as List? ?? const [])
-          .map((e) => e is Map ? (e['content'] ?? e['body'] ?? '').toString() : e.toString())
+          .map(
+            (e) => e is Map
+                ? (e['content'] ?? e['body'] ?? '').toString()
+                : e.toString(),
+          )
           .where((e) => e.isNotEmpty)
           .toList(),
       remarks: (json['remarks'] as List? ?? const [])
@@ -123,11 +141,13 @@ class ChildToday {
       attendanceStats: json['attendanceStats'] == null
           ? null
           : ChildAttendanceStats.fromJson(
-              (json['attendanceStats'] as Map).cast<String, dynamic>()),
+              (json['attendanceStats'] as Map).cast<String, dynamic>(),
+            ),
       latestResult: json['latestResult'] == null
           ? null
           : ChildLatestResult.fromJson(
-              (json['latestResult'] as Map).cast<String, dynamic>()),
+              (json['latestResult'] as Map).cast<String, dynamic>(),
+            ),
     );
   }
 
@@ -168,11 +188,11 @@ class ChildRemark {
   });
 
   factory ChildRemark.fromJson(Map<String, dynamic> json) => ChildRemark(
-        body: json['body'] as String? ?? '',
-        remarkType: json['remarkType'] as String? ?? '',
-        remarkDate: json['remarkDate'] as String? ?? '',
-        authorName: json['authorName'] as String? ?? '',
-      );
+    body: json['body'] as String? ?? '',
+    remarkType: json['remarkType'] as String? ?? '',
+    remarkDate: json['remarkDate'] as String? ?? '',
+    authorName: json['authorName'] as String? ?? '',
+  );
 
   final String body;
   final String remarkType;
@@ -246,9 +266,9 @@ class AttendanceDay {
   /// NOTE the snake_case keys: this endpoint returns raw DB columns, unlike
   /// the camelCase typed DTOs. Verified live 2026-08-11.
   factory AttendanceDay.fromJson(Map<String, dynamic> json) => AttendanceDay(
-        date: json['attendance_date'] as String? ?? '',
-        status: AttendanceStatus.fromWire(json['status'] as String),
-      );
+    date: json['attendance_date'] as String? ?? '',
+    status: AttendanceStatus.fromWire(json['status'] as String),
+  );
 
   final String date;
   final AttendanceStatus status;

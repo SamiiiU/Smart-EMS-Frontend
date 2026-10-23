@@ -38,9 +38,9 @@ class StudentTimetableUnavailable extends StatelessWidget {
           iconColour: t.info,
           title: '$title is not available yet',
           message: 'Your timetable cannot be shown in the app yet. This is '
-              'being added by the school’s system — nothing is wrong with '
+              'being added to Smart EMS — nothing is wrong with '
               'your account. For today’s classes, please check with your '
-              'class teacher or the school office.',
+              'class teacher or your institution’s office.',
         ),
       ),
     );

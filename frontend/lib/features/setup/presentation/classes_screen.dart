@@ -128,7 +128,7 @@ class ClassesScreenState extends State<ClassesScreen> {
             onRetry: _load,
             emptyTitle: 'No classes yet',
             emptyMessage:
-                'Add the classes this school teaches, such as Class 1 to '
+                'Add the classes this institution teaches, such as Class 1 to '
                 'Class 10.',
             emptyIcon: Icons.school_outlined,
             data: (context, classes) => ListView(

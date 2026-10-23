@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import 'api_config.dart';
@@ -46,6 +47,25 @@ class AuthInterceptor extends Interceptor {
   /// interceptor.
   final Dio retryDio;
 
+  bool _matchesAttendanceOwner(RequestOptions options, String? token) {
+    final expected =
+        options.extra['expectedOwner'] ?? options.extra['attendanceOwner'];
+    if (expected == null) return true;
+    try {
+      if (token == null) return false;
+      final claims =
+          jsonDecode(
+                utf8.decode(
+                  base64Url.decode(base64Url.normalize(token.split('.')[1])),
+                ),
+              )
+              as Map;
+      return expected == '${claims['tid']}:${claims['sub']}';
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<String?>? _refreshInFlight;
 
   /// Endpoints that must NEVER carry a bearer token.
@@ -87,6 +107,16 @@ class AuthInterceptor extends Interceptor {
     }
 
     final token = await tokenStore.readAccessToken();
+    if (!_matchesAttendanceOwner(options, token)) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          error: 'Attendance account changed',
+        ),
+      );
+      return;
+    }
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -106,26 +136,61 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
+    // Login/refresh rejection must never refresh or erase a different session.
+    if (unauthenticatedPaths.contains(err.requestOptions.uri.path)) {
+      handler.next(err);
+      return;
+    }
     final refreshToken = await tokenStore.readRefreshToken();
     if (refreshToken == null) {
       // The server rejected the token and there is nothing to recover with.
-      await tokenStore.clear();
+      await _clearIfCurrent(null);
       handler.next(err);
       return;
     }
 
-    final newAccessToken = await _singleFlightRefresh(refreshToken);
+    String? newAccessToken;
+    try {
+      newAccessToken = await _singleFlightRefresh(refreshToken);
+    } on DioException catch (refreshError) {
+      handler.next(
+        DioException(
+          requestOptions: err.requestOptions,
+          response: refreshError.response,
+          type: refreshError.type,
+          error: refreshError.error,
+        ),
+      );
+      return;
+    } catch (error) {
+      // Storage and unexpected refresh failures are not proof of revocation.
+      handler.next(
+        DioException(
+          requestOptions: err.requestOptions,
+          type: DioExceptionType.unknown,
+          error: error,
+        ),
+      );
+      return;
+    }
     if (newAccessToken == null) {
       // Refresh failed too — the session is dead, not merely stale.
-      await tokenStore.clear();
+      await _clearIfCurrent(refreshToken);
       handler.next(err);
       return;
     }
 
+    if (!_matchesAttendanceOwner(err.requestOptions, newAccessToken)) {
+      handler.next(err);
+      return;
+    }
     final retryOptions = err.requestOptions
       ..headers['Authorization'] = 'Bearer $newAccessToken'
       ..extra['_retried'] = true;
 
+    if (retryOptions.data is FormData) {
+      retryOptions.data = (retryOptions.data as FormData).clone();
+    }
     try {
       final retryResponse = await retryDio.fetch<dynamic>(retryOptions);
       handler.resolve(retryResponse);
@@ -143,6 +208,15 @@ class AuthInterceptor extends Interceptor {
   /// sees the new refresh token in the response body. Writing the access
   /// token here too would be a redundant second write that cannot carry the
   /// rotated refresh token with it.
+  Future<void> _clearIfCurrent(String? refreshToken) async {
+    final store = tokenStore;
+    if (store is ConditionalTokenStore) {
+      await store.clearIfCurrent(refreshToken);
+    } else {
+      await store.clear();
+    }
+  }
+
   Future<String?> _singleFlightRefresh(String refreshToken) {
     return _refreshInFlight ??= refresher
         .refresh(refreshToken)

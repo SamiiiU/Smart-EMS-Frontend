@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../features/admin/data/admin_repository.dart';
+import '../../features/attendance/data/attendance_review_repository.dart';
+import '../../features/attendance/presentation/attendance_review_screen.dart';
 import '../../features/admin/data/import_repository.dart';
 import '../../features/admin/data/user_wizard_repository.dart';
 import '../../features/admin/domain/admin_models.dart';
@@ -18,6 +20,8 @@ import '../../features/staff_attendance/presentation/staff_attendance_screen.dar
 import '../../features/academics/presentation/academics_home_screen.dart';
 import '../../features/finance/data/finance_repository.dart';
 import '../../features/finance/presentation/finance_home_screen.dart';
+import '../../features/admin/data/admission_repository.dart';
+import '../../features/admin/presentation/admit_learner_screen.dart';
 import '../../features/setup/data/setup_repository.dart';
 import '../../features/setup/presentation/setup_home_screen.dart';
 import '../../features/admin/presentation/student_profile_screen.dart';
@@ -25,7 +29,10 @@ import '../../features/admin/presentation/students_list_screen.dart';
 import '../../features/parent/data/parent_repository.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../theme/theme_controller.dart';
+import '../shell/campus_context.dart';
+import '../shell/identity_resolver.dart';
 import '../shell/nav_destination.dart';
+import '../widgets/inline_alert.dart';
 import '../widgets/states/screen_state.dart';
 import '../widgets/states/screen_state_builder.dart';
 
@@ -47,8 +54,16 @@ List<NavDestination> buildAdminDestinations({
   required NotificationsRepository notifications,
   required StaffAttendanceRepository staffAttendance,
   required Future<void> Function() onSignOut,
+
+  /// Held offline attendance (ADR-010). Optional so existing callers and
+  /// tests are unaffected; the server scopes the list to the reviewer's campuses.
+  AttendanceReviewRepository? attendanceReviews,
   required String? institutionCode,
   ThemeController? themeController,
+
+  /// The signed-in account, read when Accounts decides whether to offer
+  /// "Campus roles" (M5). Optional: without it the server decides, as before.
+  IdentityResult? Function()? currentIdentity,
 }) {
   return [
     NavDestination(
@@ -75,11 +90,11 @@ List<NavDestination> buildAdminDestinations({
       label: 'Students',
       icon: Icons.groups_outlined,
       route: '/students',
-      builder: (context) => _StudentsFlow(admin: admin, parent: parent),
+      builder: (context) => _StudentsFlow(admin: admin, parent: parent, setup: setup),
     ),
     NavDestination(
       id: 'setup',
-      group: 'School',
+      group: 'Institution',
       label: 'Setup',
       icon: Icons.tune_outlined,
       route: '/setup',
@@ -87,7 +102,7 @@ List<NavDestination> buildAdminDestinations({
     ),
     NavDestination(
       id: 'fees',
-      group: 'School',
+      group: 'Institution',
       label: 'Fees',
       icon: Icons.payments_outlined,
       route: '/fees',
@@ -99,7 +114,7 @@ List<NavDestination> buildAdminDestinations({
     ),
     NavDestination(
       id: 'academics',
-      group: 'School',
+      group: 'Institution',
       label: 'Academics',
       icon: Icons.school_outlined,
       route: '/academics',
@@ -120,6 +135,15 @@ List<NavDestination> buildAdminDestinations({
         admin: admin,
       ),
     ),
+    if (attendanceReviews != null)
+      NavDestination(
+        id: 'attendance_reviews',
+        group: 'Operations',
+        label: 'Attendance reviews',
+        icon: Icons.rule_outlined,
+        route: '/attendance-reviews',
+        builder: (context) => AttendanceReviewScreen(repository: attendanceReviews),
+      ),
     NavDestination(
       id: 'staff_attendance',
       group: 'Operations',
@@ -142,7 +166,7 @@ List<NavDestination> buildAdminDestinations({
       label: 'Accounts',
       icon: Icons.badge_outlined,
       route: '/accounts',
-      builder: (context) => PeopleScreen(repository: admin),
+      builder: (context) => PeopleScreen(repository: admin, currentIdentity: currentIdentity),
     ),
     NavDestination(
       id: 'add_user',
@@ -181,10 +205,11 @@ List<NavDestination> buildAdminDestinations({
 /// tab keeps its own state, and back returns to the roster rather than
 /// leaving the tab.
 class _StudentsFlow extends StatefulWidget {
-  const _StudentsFlow({required this.admin, required this.parent});
+  const _StudentsFlow({required this.admin, required this.parent, required this.setup});
 
   final AdminRepository admin;
   final ParentRepository parent;
+  final SetupRepository setup;
 
   @override
   State<_StudentsFlow> createState() => _StudentsFlowState();
@@ -200,6 +225,20 @@ class _StudentsFlowState extends State<_StudentsFlow> {
       return StudentsListScreen(
         repository: widget.admin,
         onOpenStudent: (s) => setState(() => _selected = s),
+        // Overhaul M4: guided admission for roles that may create students.
+        onAdmit: (CampusScope.maybeOf(context)?.options ?? const [])
+                .any((c) => c.permissions.contains('student.manage'))
+            ? () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => AdmitLearnerScreen(
+                    admissions: AdmissionRepository(widget.admin.dio),
+                    setup: widget.setup,
+                    campuses: [
+                      for (final c in CampusScope.maybeOf(context)?.options ?? const <CampusOption>[])
+                        if (c.permissions.contains('student.manage')) c,
+                    ],
+                  ),
+                ))
+            : null,
       );
     }
     return PopScope(
@@ -265,10 +304,20 @@ class _WizardLoaderState extends State<_WizardLoader> {
       emptyTitle: 'No campus yet',
       emptyMessage: 'A campus has to exist before users can be created.',
       emptyIcon: Icons.apartment_outlined,
-      data: (context, ids) => CreateUserWizardScreen(
-        repository: widget.wizard,
-        campusId: ids.first,
-      ),
+      data: (context, ids) {
+        // ADR-011: never write into the first of several campuses by accident.
+        final campusId = explicitCampusFor(context, ids);
+        if (campusId == null) {
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: InlineAlert(
+              tone: InlineAlertTone.info,
+              message: 'Choose a campus in More → Campus before creating users.',
+            ),
+          );
+        }
+        return CreateUserWizardScreen(repository: widget.wizard, campusId: campusId);
+      },
     );
   }
 }

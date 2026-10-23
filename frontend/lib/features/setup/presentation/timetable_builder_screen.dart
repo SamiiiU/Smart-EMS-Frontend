@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'timetable_generation_panel.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
@@ -71,6 +72,7 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
   ScreenState<_Week> _state = const ScreenState<_Week>.loading();
 
   List<PersonAccount> _staff = const [];
+  bool _generating = false;
   late Section _section = _sectionsThisYear.first;
   int _day = DateTime.now().weekday.clamp(1, 6);
 
@@ -112,19 +114,24 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
         }
       }
       if (!mounted) return;
-      setState(() => _state = ScreenState<_Week>.data(
-            _Week(periods: periods, slots: slots, rooms: rooms),
-            isEmpty: periods.isEmpty,
-          ));
+      setState(
+        () => _state = ScreenState<_Week>.data(
+          _Week(periods: periods, slots: slots, rooms: rooms),
+          isEmpty: periods.isEmpty,
+        ),
+      );
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<_Week>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<_Week>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -149,6 +156,7 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
       .fullName;
 
   Future<void> _fill(SchoolPeriod period, int day, _Week week) async {
+    if (_generating) return;
     final choice = await showModalBottomSheet<_SlotChoice>(
       context: context,
       isScrollControlled: true,
@@ -180,10 +188,7 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
       } else {
         _cellErrors.remove(key);
         if (slot != null) {
-          _state = ScreenState<_Week>.data(
-            week.withSlot(slot),
-            isEmpty: false,
-          );
+          _state = ScreenState<_Week>.data(week.withSlot(slot), isEmpty: false);
         }
       }
     });
@@ -201,7 +206,8 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
       title: 'Timetable',
       note: InlineAlert(
         tone: InlineAlertTone.info,
-        message: 'Periods are the same for the whole school. This week '
+        message:
+            'Periods are the same for the whole institution. This week '
             'belongs to ${widget.year.name}.',
       ),
       children: [
@@ -219,6 +225,7 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
                 label: s.name,
                 selected: s.id == _section.id,
                 onTap: () {
+                  if (_generating) return;
                   setState(() {
                     _section = s;
                     _cellErrors.clear();
@@ -229,10 +236,24 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
           ],
         ),
         const SizedBox(height: AppSpacing.space6),
-        _PeriodCreator(
+        TimetableGenerationPanel(
+          key: ValueKey(_section.id),
           repository: widget.repository,
           campusId: widget.campusId,
-          onCreated: _load,
+          yearId: widget.year.id,
+          sectionId: _section.id,
+          subjects: widget.subjects,
+          staff: _staff,
+          onApplied: _load,
+          onBusy: (busy) => setState(() => _generating = busy),
+        ),
+        AbsorbPointer(
+          absorbing: _generating,
+          child: _PeriodCreator(
+            repository: widget.repository,
+            campusId: widget.campusId,
+            onCreated: _load,
+          ),
         ),
         SizedBox(
           height: MediaQuery.sizeOf(context).height * 0.7,
@@ -241,14 +262,14 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
             onRetry: _load,
             emptyTitle: 'No periods yet',
             emptyMessage:
-                'Add the school day’s periods first — they are shared by '
+                'Add the teaching day’s periods first — they are shared by '
                 'every section.',
             emptyIcon: Icons.schedule_outlined,
             data: (context, week) => LayoutBuilder(
               builder: (context, constraints) =>
                   constraints.maxWidth >= AppSizing.tableCollapseBreakpoint
-                      ? _grid(context, week)
-                      : _dayList(context, week),
+                  ? _grid(context, week)
+                  : _dayList(context, week),
             ),
           ),
         ),
@@ -264,14 +285,13 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
     final body = Container(
       margin: const EdgeInsets.all(AppSpacing.space1),
       padding: const EdgeInsets.all(AppSpacing.space3),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: error != null
             ? t.dangerBg
             : slot != null
-                ? t.primarySubtle
-                : t.surface,
+            ? t.primarySubtle
+            : t.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: t.border, width: AppSizing.borderThin),
       ),
@@ -293,8 +313,7 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
           if (error != null)
             Text(
               _cellMessage(error),
-              style:
-                  AppTypography.overline.copyWith(color: t.dangerTextOnBg),
+              style: AppTypography.overline.copyWith(color: t.dangerTextOnBg),
             ),
         ],
       ),
@@ -318,14 +337,14 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
   /// tell them — the API does not say WHICH class the clash is with, and
   /// silently omitting that would send them looking through every section.
   String _cellMessage(SlotFailure failure) => switch (failure.kind) {
-        SlotFailureKind.teacherClash =>
-          'This teacher already teaches at this time, elsewhere. The app '
-              'cannot yet show which class.',
-        SlotFailureKind.roomClash =>
-          'This room is already booked at this time, elsewhere. The app '
-              'cannot yet show which class.',
-        SlotFailureKind.other => failure.message,
-      };
+    SlotFailureKind.teacherClash =>
+      'This teacher already teaches at this time, elsewhere. The app '
+          'cannot yet show which class.',
+    SlotFailureKind.roomClash =>
+      'This room is already booked at this time, elsewhere. The app '
+          'cannot yet show which class.',
+    SlotFailureKind.other => failure.message,
+  };
 
   Widget _grid(BuildContext context, _Week week) {
     final t = context.tokens;
@@ -340,8 +359,9 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
                 width: AppSizing.statCardSkeletonWidth,
                 child: Text(
                   'Day',
-                  style:
-                      AppTypography.overline.copyWith(color: t.textSecondary),
+                  style: AppTypography.overline.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               ),
               for (final p in week.teaching)
@@ -353,13 +373,15 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
                       children: [
                         Text(
                           p.name,
-                          style: AppTypography.overline
-                              .copyWith(color: t.textSecondary),
+                          style: AppTypography.overline.copyWith(
+                            color: t.textSecondary,
+                          ),
                         ),
                         Text(
                           p.timeLabel,
-                          style: AppTypography.overline
-                              .copyWith(color: t.textDisabled),
+                          style: AppTypography.overline.copyWith(
+                            color: t.textDisabled,
+                          ),
                         ),
                       ],
                     ),
@@ -378,8 +400,9 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
                     padding: const EdgeInsets.only(top: AppSpacing.space3),
                     child: Text(
                       label,
-                      style: AppTypography.personName
-                          .copyWith(color: t.textPrimary),
+                      style: AppTypography.personName.copyWith(
+                        color: t.textPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -424,28 +447,30 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
                   _BreakBand(period: p)
                 else
                   Padding(
-                    padding:
-                        const EdgeInsets.only(bottom: AppSpacing.space2),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.space2),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
                           width: AppSizing.statCardSkeletonWidth,
                           child: Padding(
-                            padding:
-                                const EdgeInsets.only(top: AppSpacing.space3),
+                            padding: const EdgeInsets.only(
+                              top: AppSpacing.space3,
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   p.name,
-                                  style: AppTypography.bodyAdminMeta
-                                      .copyWith(color: t.textPrimary),
+                                  style: AppTypography.bodyAdminMeta.copyWith(
+                                    color: t.textPrimary,
+                                  ),
                                 ),
                                 Text(
                                   p.timeLabel,
-                                  style: AppTypography.overline
-                                      .copyWith(color: t.textSecondary),
+                                  style: AppTypography.overline.copyWith(
+                                    color: t.textSecondary,
+                                  ),
                                 ),
                               ],
                             ),
@@ -522,8 +547,7 @@ class _PeriodCreatorState extends State<_PeriodCreator> {
       _isTime(_end) &&
       int.tryParse(_order.trim()) != null;
 
-  static bool _isTime(String v) =>
-      RegExp(r'^\d{2}:\d{2}$').hasMatch(v.trim());
+  static bool _isTime(String v) => RegExp(r'^\d{2}:\d{2}$').hasMatch(v.trim());
 
   Future<String?> _create() async {
     try {
@@ -559,7 +583,8 @@ class _PeriodCreatorState extends State<_PeriodCreator> {
     return CreatePanel(
       addLabel: 'Add a period',
       canSubmit: _valid,
-      confirmNote: 'Periods apply to the whole school and cannot be edited '
+      confirmNote:
+          'Periods apply to the whole school and cannot be edited '
           'or removed afterwards.',
       onSubmit: _create,
       fields: [
@@ -596,8 +621,9 @@ class _PeriodCreatorState extends State<_PeriodCreator> {
             Expanded(
               child: Text(
                 'This is a break (no classes are taught)',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
             ),
           ],
@@ -698,8 +724,9 @@ class _SlotSheetState extends State<_SlotSheet> {
               const SizedBox(height: AppSpacing.space5),
               Text(
                 'Room (optional)',
-                style:
-                    AppTypography.fieldLabel.copyWith(color: t.textSecondary),
+                style: AppTypography.fieldLabel.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.space3),
               Wrap(
@@ -727,12 +754,12 @@ class _SlotSheetState extends State<_SlotSheet> {
               onPressed: _subjectId == null || _staffId == null
                   ? null
                   : () => Navigator.of(context).pop(
-                        _SlotChoice(
-                          subjectId: _subjectId!,
-                          staffId: _staffId!,
-                          roomId: _roomId,
-                        ),
+                      _SlotChoice(
+                        subjectId: _subjectId!,
+                        staffId: _staffId!,
+                        roomId: _roomId,
                       ),
+                    ),
             ),
           ],
         ),
@@ -754,8 +781,7 @@ class _Week {
   final List<TimetableSlot> slots;
   final List<Room> rooms;
 
-  List<SchoolPeriod> get teaching =>
-      periods.where((p) => !p.isBreak).toList();
+  List<SchoolPeriod> get teaching => periods.where((p) => !p.isBreak).toList();
   List<SchoolPeriod> get breaks => periods.where((p) => p.isBreak).toList();
 
   TimetableSlot? slotFor(int day, String periodId) {

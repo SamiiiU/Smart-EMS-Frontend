@@ -5,6 +5,7 @@ import '../theme/scales.dart';
 import '../theme/sizing.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
+import '../widgets/keyboard_tap_target.dart';
 import 'nav_destination.dart';
 
 /// Renders WHATEVER LIST IT IS GIVEN.
@@ -77,48 +78,42 @@ class _BottomNavTab extends StatelessWidget {
     final labelColour = selected ? t.primaryTextOnSurface : t.textSecondary;
     final iconColour = selected ? t.primaryTextOnSurface : t.textSecondary;
 
-    return Semantics(
-      button: true,
-      selected: selected,
-      // The label IS the semantic label — the icon beside it is decorative
-      // and excluded below, so a screen reader announces "Attendance",
-      // never "Attendance, icon" or the icon's own description.
+    // The label IS the semantic label — the icon beside it is decorative and
+    // excluded, so a screen reader announces "Attendance", never "Attendance,
+    // icon". A11Y-2: keyboard-operable via KeyboardTapTarget.
+    return KeyboardTapTarget(
       label: destination.label,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Top indicator bar rather than a fill — consistent with the
-            // "border/line, not fill" idiom used for active state everywhere
-            // else in the shell (DesktopSidebar's left border).
-            Container(
-              height: AppSizing.tabIndicatorHeight,
-              width: AppSpacing.space9,
-              color: selected
-                  ? t.primaryAccent
-                  : SmartEmsTokens.transparent,
+      selected: selected,
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Top indicator bar rather than a fill — consistent with the
+          // "border/line, not fill" idiom used for active state everywhere
+          // else in the shell (DesktopSidebar's left border).
+          Container(
+            height: AppSizing.tabIndicatorHeight,
+            width: AppSpacing.space9,
+            color: selected ? t.primaryAccent : SmartEmsTokens.transparent,
+          ),
+          const SizedBox(height: AppSpacing.space2),
+          ExcludeSemantics(
+            child: Icon(
+              destination.icon,
+              color: iconColour,
+              size: AppSpacing.space7,
             ),
-            const SizedBox(height: AppSpacing.space2),
-            ExcludeSemantics(
-              child: Icon(
-                destination.icon,
-                color: iconColour,
-                size: AppSpacing.space7,
-              ),
+          ),
+          const SizedBox(height: AppSpacing.space1),
+          ExcludeSemantics(
+            child: Text(
+              destination.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(color: labelColour),
             ),
-            const SizedBox(height: AppSpacing.space1),
-            ExcludeSemantics(
-              child: Text(
-                destination.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.caption.copyWith(color: labelColour),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

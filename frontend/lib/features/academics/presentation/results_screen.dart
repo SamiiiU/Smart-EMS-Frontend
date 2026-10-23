@@ -13,6 +13,7 @@ import '../../setup/presentation/setup_scaffold.dart';
 import '../data/academics_repository.dart';
 import '../domain/academic_models.dart';
 import 'report_card_screen.dart';
+import 'result_governance.dart';
 
 /// Screen 4: results, per exam, per section.
 ///
@@ -31,8 +32,13 @@ class ResultsScreen extends StatefulWidget {
     required this.exam,
     required this.sectionId,
     this.sectionName = '',
+    this.canManage = false,
     super.key,
   });
+
+  /// exam.manage on the exam's campus: shows withholding, corrections and
+  /// version history. The server re-authorizes every action.
+  final bool canManage;
 
   final AcademicsRepository repository;
   final Exam exam;
@@ -81,12 +87,14 @@ class ResultsScreenState extends State<ResultsScreen> {
 
     return SetupScaffold(
       title: 'Results',
-      note: widget.exam.marksLocked
+      note: widget.exam.status.isReleased
           ? null
           : const InlineAlert(
               tone: InlineAlertTone.info,
-              message: 'These results update as marks are entered. They '
-                  'become visible to parents when the exam is published.',
+              message: 'These results update as marks are entered. A learner '
+                  'with a missing mark is shown as incomplete, never as zero. '
+                  'Results become visible to learners and guardians only after '
+                  'moderation, approval and publication.',
             ),
       children: [
         Text(
@@ -115,6 +123,14 @@ class ResultsScreenState extends State<ResultsScreen> {
                 for (final row in rows)
                   ResultRow(
                     result: row,
+                    actions: widget.canManage
+                        ? ResultGovernanceActions(
+                            repository: widget.repository,
+                            exam: widget.exam,
+                            result: row,
+                            onChanged: load,
+                          )
+                        : null,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => ReportCardScreen(
@@ -137,10 +153,13 @@ class ResultsScreenState extends State<ResultsScreen> {
 
 /// One student's result row.
 class ResultRow extends StatelessWidget {
-  const ResultRow({required this.result, this.onTap, super.key});
+  const ResultRow({required this.result, this.onTap, this.actions, super.key});
 
   final StudentResult result;
   final VoidCallback? onTap;
+
+  /// Staff-only governance actions, kept outside the tappable area.
+  final Widget? actions;
 
   @override
   Widget build(BuildContext context) {
@@ -173,13 +192,24 @@ class ResultRow extends StatelessWidget {
               ),
               StatusPill(status: result.status.pill, size: StatusPillSize.sm),
               // The pill vocabulary has no pass/fail, so the word is said
-              // rather than left to a colour (D-21).
+              // rather than left to a colour (D-21). Pending is "Incomplete":
+              // a missing mark is never a pass and never a zero (C9).
               Text(
-                failed ? 'Failed' : 'Passed',
+                result.status.label,
                 style: AppTypography.bodyAdminMeta.copyWith(
                   color: failed ? t.dangerTextOnBg : t.textSecondary,
                 ),
               ),
+              if (result.withheld)
+                Text(
+                  'Withheld${result.withheldReason == null ? '' : ': ${result.withheldReason}'}',
+                  style: AppTypography.bodyAdminMeta.copyWith(color: t.warningTextOnBg),
+                ),
+              if (result.currentVersion != null && result.currentVersion! > 1)
+                Text(
+                  'Corrected · version ${result.currentVersion}',
+                  style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+                ),
               if (result.isBorderline)
                 Text(
                   'Close to the line',
@@ -210,17 +240,31 @@ class ResultRow extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return row;
-    return Semantics(
+    if (onTap == null) {
+      return actions == null ? row : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [row, actions!]);
+    }
+    final tappable = Semantics(
       button: true,
       label: '${result.studentName}, '
           '${result.percentage.formatPercent()}, '
-          'grade ${result.grade}, ${failed ? 'failed' : 'passed'}',
+          'grade ${result.grade}, ${result.status.label.toLowerCase()}'
+          '${result.withheld ? ', withheld' : ''}',
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: ExcludeSemantics(child: row),
       ),
+    );
+    if (actions == null) return tappable;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tappable,
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.space4),
+          child: actions!,
+        ),
+      ],
     );
   }
 }

@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
+import '../../../core/widgets/page_header.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../data/timetable_repository.dart';
@@ -25,6 +26,7 @@ class TodayScreen extends StatefulWidget {
     this.onOpenRegister,
     this.now,
     this.title = 'Today',
+    this.header,
     super.key,
   });
 
@@ -32,6 +34,10 @@ class TodayScreen extends StatefulWidget {
   /// same break/free-period inertness — under its own name, rather than a
   /// second copy of the timetable screen.
   final String title;
+
+  /// Shown under the title, above the periods, e.g. the teacher's own
+  /// registers so attendance never depends on a timetable (BUG-QA-11).
+  final Widget? header;
 
   final TimetableRepository repository;
 
@@ -94,15 +100,13 @@ class TodayScreenState extends State<TodayScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.space6),
-              child: Text(
-                widget.title,
-                style:
-                    AppTypography.screenTitle.copyWith(color: t.textPrimary),
-              ),
+            // M1: shared header; the date answers "which day am I marking?"
+            // without the teacher having to check elsewhere.
+            PageHeader(
+              title: widget.title,
+              subtitle: MaterialLocalizations.of(context).formatFullDate(now),
             ),
-            const SizedBox(height: AppSpacing.space2),
+            if (widget.header != null) widget.header!,
             Expanded(
               child: ScreenStateBuilder<List<TimetablePeriod>>(
                 state: _state,

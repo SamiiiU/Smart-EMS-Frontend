@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show protected;
 
 import '../domain/attendance_models.dart';
 
@@ -28,6 +31,17 @@ class _QueueUser implements QueryExecutorUser {
 /// would be gone. Everything here survives process death.
 class AttendanceQueue {
   AttendanceQueue(this._executor);
+
+  /// Fires after every write (enqueue/remove/conflicts), so the sync badge and
+  /// pending counts never go stale (F11).
+  Stream<void> get changes => _changes.stream;
+  final _changes = StreamController<void>.broadcast();
+  @protected
+  void notifyChanged() {
+    if (!_changes.isClosed) _changes.add(null);
+  }
+
+  String? get scopeIdentity => null;
 
   final QueryExecutor _executor;
   bool _opened = false;
@@ -65,27 +79,36 @@ class AttendanceQueue {
   Future<void> enqueue(List<AttendanceMark> marks) async {
     await _ensureOpen();
     final now = DateTime.now().millisecondsSinceEpoch;
-    for (final m in marks) {
-      await _executor.runCustom(
-        'DELETE FROM attendance_queue '
-        'WHERE student_id = ? AND attendance_date = ?',
-        [m.studentId, m.attendanceDate],
-      );
-      await _executor.runInsert(
-        'INSERT INTO attendance_queue (client_uuid, section_id, student_id, '
-        'attendance_date, status, is_correction, created_at) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [
-          m.clientUuid,
-          m.sectionId,
-          m.studentId,
-          m.attendanceDate,
-          m.status.wire,
-          m.isCorrection ? 1 : 0,
-          now,
-        ],
-      );
+    final transaction = _executor.beginTransaction();
+    try {
+      await transaction.ensureOpen(_QueueUser());
+      for (final m in marks) {
+        await transaction.runCustom(
+          'DELETE FROM attendance_queue '
+          'WHERE student_id = ? AND attendance_date = ? AND section_id = ?',
+          [m.studentId, m.attendanceDate, m.sectionId],
+        );
+        await transaction.runInsert(
+          'INSERT INTO attendance_queue (client_uuid, section_id, student_id, '
+          'attendance_date, status, is_correction, created_at) '
+          'VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            m.clientUuid,
+            m.sectionId,
+            m.studentId,
+            m.attendanceDate,
+            m.status.wire,
+            m.isCorrection ? 1 : 0,
+            now,
+          ],
+        );
+      }
+      await transaction.send();
+    } catch (_) {
+      await transaction.rollback();
+      rethrow;
     }
+    notifyChanged();
   }
 
   Future<List<AttendanceMark>> pending() async {
@@ -117,6 +140,7 @@ class AttendanceQueue {
         [id],
       );
     }
+    notifyChanged();
   }
 
   Future<void> recordConflicts(List<AttendanceConflict> conflicts) async {
@@ -145,13 +169,16 @@ class AttendanceQueue {
       const [],
     );
     return rows
-        .map((r) => AttendanceConflict(
-              studentId: r['student_id'] as String,
-              attendanceDate: r['attendance_date'] as String,
-              localStatus: AttendanceStatus.fromWire(r['local_status'] as String),
-              serverStatus:
-                  AttendanceStatus.fromWire(r['server_status'] as String),
-            ))
+        .map(
+          (r) => AttendanceConflict(
+            studentId: r['student_id'] as String,
+            attendanceDate: r['attendance_date'] as String,
+            localStatus: AttendanceStatus.fromWire(r['local_status'] as String),
+            serverStatus: AttendanceStatus.fromWire(
+              r['server_status'] as String,
+            ),
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -161,11 +188,11 @@ class AttendanceQueue {
   }
 
   AttendanceMark _toMark(Map<String, Object?> r) => AttendanceMark(
-        clientUuid: r['client_uuid'] as String,
-        sectionId: r['section_id'] as String,
-        studentId: r['student_id'] as String,
-        attendanceDate: r['attendance_date'] as String,
-        status: AttendanceStatus.fromWire(r['status'] as String),
-        isCorrection: (r['is_correction'] as int? ?? 0) == 1,
-      );
+    clientUuid: r['client_uuid'] as String,
+    sectionId: r['section_id'] as String,
+    studentId: r['student_id'] as String,
+    attendanceDate: r['attendance_date'] as String,
+    status: AttendanceStatus.fromWire(r['status'] as String),
+    isCorrection: (r['is_correction'] as int? ?? 0) == 1,
+  );
 }

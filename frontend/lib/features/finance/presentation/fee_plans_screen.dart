@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
@@ -264,8 +265,10 @@ class FeePlansScreenState extends State<FeePlansScreen> {
   /// A plan's items and its SERVER-CALCULATED total, which only the detail
   /// endpoint carries.
   void _showPlan(String id) {
-    showModalBottomSheet<void>(
-      context: context,
+    // M1 shared sheet: titled, closable with a named button, scrollable.
+    showAppSheet<void>(
+      context,
+      title: 'Fee plan details',
       builder: (sheetContext) => _PlanSheet(
         future: widget.repository.loadPlan(id),
       ),

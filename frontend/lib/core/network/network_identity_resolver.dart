@@ -34,6 +34,8 @@ class NetworkIdentityResolver implements IdentityResolver {
       return IdentityResult(
         IdentityResultKind.error,
         message: mapDioError(err).message,
+        temporary: _temporary(err),
+        serverBusy: err.response?.statusCode == 429,
       );
     }
 
@@ -42,6 +44,12 @@ class NetworkIdentityResolver implements IdentityResolver {
     final roles = (account['roles'] as List?)?.cast<String>() ?? const [];
     final userId = account['userId'] as String?;
     final tenantId = account['tenantId'] as String?;
+    final permissions = (account['permissions'] as List?)?.cast<String>() ?? const <String>[];
+    final grants = [
+      for (final g in (account['grants'] as List?) ?? const [])
+        if (g is Map) GrantScope.fromJson(g),
+    ];
+    final known = account['permissions'] is List;
 
     final personPath = ApiConfig.personRecordPathFor(roles);
     if (personPath != null) {
@@ -68,6 +76,9 @@ class NetworkIdentityResolver implements IdentityResolver {
           roles: roles,
           userId: userId,
           tenantId: tenantId,
+          permissions: permissions,
+          grants: grants,
+          permissionsKnown: known,
           staffId: staffId,
           staffName: (staffName?.isEmpty ?? true) ? null : staffName,
         );
@@ -82,14 +93,22 @@ class NetworkIdentityResolver implements IdentityResolver {
             roles: roles,
             userId: userId,
             tenantId: tenantId,
+            permissions: permissions,
+            grants: grants,
+            permissionsKnown: known,
           );
         }
         return IdentityResult(
           IdentityResultKind.error,
           message: failure.message,
+          temporary: _temporary(err),
+        serverBusy: err.response?.statusCode == 429,
           roles: roles,
           userId: userId,
           tenantId: tenantId,
+          permissions: permissions,
+          grants: grants,
+          permissionsKnown: known,
         );
       }
     }
@@ -99,6 +118,17 @@ class NetworkIdentityResolver implements IdentityResolver {
       roles: roles,
       userId: userId,
       tenantId: tenantId,
+      permissions: permissions,
+      grants: grants,
+      permissionsKnown: known,
     );
+  }
+
+  /// No response at all, a gateway/outage status, or rate limiting (429):
+  /// the session may still be valid. A throttled /auth/me after rapid reloads
+  /// must never look like a sign-out (M1 screen sprint, reproduced in Chromium).
+  static bool _temporary(DioException err) {
+    final status = err.response?.statusCode;
+    return mapDioError(err).unreachable || status == 429 || status == 502 || status == 503 || status == 504;
   }
 }

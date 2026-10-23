@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shell/campus_context.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
@@ -12,6 +14,7 @@ import '../../setup/presentation/setup_scaffold.dart';
 import '../data/academics_repository.dart';
 import '../domain/academic_models.dart';
 import '../domain/marks.dart';
+import 'exam_lifecycle_panel.dart';
 import 'marks_entry_screen.dart';
 import 'results_screen.dart';
 
@@ -57,10 +60,15 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
   String _maxMarks = '100';
   String _passingMarks = '40';
 
-  bool _publishing = false;
-  String? _error;
-  PublishResult? _published;
   late ExamStatus _status = widget.exam.status;
+
+  /// exam.manage on the exam's own campus (ADR-001). The server re-checks.
+  bool get _canManage {
+    final options = CampusScope.maybeOf(context)?.options ?? const <CampusOption>[];
+    return options.any((c) =>
+        c.permissions.contains('exam.manage') &&
+        (widget.exam.campusId == null || c.id == widget.exam.campusId));
+  }
 
   @override
   void initState() {
@@ -93,7 +101,7 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
       _subjectId != null &&
       Marks.tryParse(_maxMarks.trim()) != null &&
       Marks.tryParse(_passingMarks.trim()) != null &&
-      !_status.isPublished;
+      _status.papersEditable;
 
   Future<String?> _addPaper() async {
     final max = Marks.tryParse(_maxMarks.trim());
@@ -132,70 +140,42 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
     }
   }
 
-  Future<void> _publish() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Publish this exam?'),
-        content: const Text(
-          'Results and report cards become available to parents.\n\n'
-          'This cannot be undone, and the marks are locked permanently — '
-          'after publishing, no mark in this exam can be corrected.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Publish'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() {
-      _publishing = true;
-      _error = null;
-    });
-    final outcome = await widget.repository.publish(widget.exam.id);
-    if (!mounted) return;
-    setState(() {
-      _publishing = false;
-      _error = outcome.error;
-      _published = outcome.result;
-      if (outcome.result != null) _status = ExamStatus.published;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
 
     return SetupScaffold(
       title: widget.exam.name,
-      note: _status.isPublished
-          ? const InlineAlert(
+      note: !_status.papersEditable
+          ? InlineAlert(
               tone: InlineAlertTone.warning,
-              message: 'This exam is published. Its marks are locked and no '
-                  'further papers can be added.',
+              message:
+                  'This exam is ${_status.label.toLowerCase()}. No further papers '
+                  'can be added${_status.marksEditable ? '' : ', and marks are locked'}.',
             )
           : const InlineAlert(
               tone: InlineAlertTone.warning,
-              message: 'Enter each paper’s marks before leaving this screen. '
+              message:
+                  'Enter each paper’s marks before leaving this screen. '
                   'This system cannot list papers back, so once you go, a '
                   'paper cannot be reopened and marks can no longer be '
                   'entered against it.',
             ),
       children: [
-        if (!_status.isPublished)
+        ExamLifecyclePanel(
+          repository: widget.repository,
+          exam: widget.exam,
+          status: _status,
+          canManage: _canManage,
+          onChanged: (s) => setState(() => _status = s),
+        ),
+        if (_status.papersEditable)
           CreatePanel(
             addLabel: 'Add a paper',
             canSubmit: _canAddPaper,
             onSubmit: _addPaper,
-            confirmNote: 'A paper cannot be edited or removed afterwards, '
+            confirmNote:
+                'A paper cannot be edited or removed afterwards, '
                 'and cannot be found again once you leave this screen.',
             fields: [
               _Picker(
@@ -241,9 +221,9 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
         Text(
           _papers.isEmpty
               ? 'Nothing yet. Papers you add appear here with a link to '
-                  'enter their marks.'
+                    'enter their marks.'
               : 'These are the papers created in this session — the only '
-                  'ones whose marks can still be entered.',
+                    'ones whose marks can still be entered.',
           style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
         ),
         const SizedBox(height: AppSpacing.space4),
@@ -251,14 +231,14 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
         for (final paper in _papers)
           _PaperRow(
             paper: paper,
-            locked: _status.isPublished,
+            locked: !_status.marksEditable,
             onEnterMarks: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => MarksEntryScreen(
                   repository: widget.repository,
-                              paper: paper,
+                  paper: paper,
                   examName: widget.exam.name,
-                  marksLocked: _status.isPublished,
+                  marksLocked: !_status.marksEditable,
                 ),
               ),
             ),
@@ -266,7 +246,16 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
               MaterialPageRoute<void>(
                 builder: (_) => ResultsScreen(
                   repository: widget.repository,
-                  exam: widget.exam,
+                  exam: Exam(
+                    id: widget.exam.id,
+                    name: widget.exam.name,
+                    term: widget.exam.term,
+                    status: _status,
+                    academicYearId: widget.exam.academicYearId,
+                    resultDate: widget.exam.resultDate,
+                    campusId: widget.exam.campusId,
+                  ),
+                  canManage: _canManage,
                   sectionId: paper.sectionId,
                   sectionName: paper.sectionName,
                 ),
@@ -274,30 +263,6 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
             ),
           ),
 
-        const SizedBox(height: AppSpacing.space6),
-
-        if (_error != null) ...[
-          InlineAlert(tone: InlineAlertTone.danger, message: _error!),
-          const SizedBox(height: AppSpacing.space4),
-        ],
-        if (_published != null) ...[
-          InlineAlert(
-            tone: InlineAlertTone.success,
-            message: '${_published!.resultsPublished} '
-                '${_published!.resultsPublished == 1 ? 'result' : 'results'} '
-                'published and ${_published!.reportCardsGenerated} '
-                '${_published!.reportCardsGenerated == 1 ? 'report card' : 'report cards'} '
-                'generated.',
-          ),
-          const SizedBox(height: AppSpacing.space4),
-        ],
-
-        if (!_status.isPublished)
-          AppButton(
-            label: _publishing ? 'Publishing…' : 'Publish results',
-            fullWidth: true,
-            onPressed: _publishing ? null : _publish,
-          ),
       ],
     );
   }
@@ -394,6 +359,3 @@ class _PaperRow extends StatelessWidget {
   }
 }
 
-extension on ExamStatus {
-  bool get isPublished => this == ExamStatus.published;
-}

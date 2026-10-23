@@ -372,7 +372,6 @@ class _MultilineFieldState extends State<_MultilineField> {
           ),
           child: Semantics(
             label: widget.label,
-            textField: true,
             child: TextField(
               controller: _controller,
               enabled: widget.enabled,

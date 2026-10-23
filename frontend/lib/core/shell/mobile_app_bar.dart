@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../theme/scales.dart';
 import '../theme/sizing.dart';
 import '../theme/typography.dart';
+import '../widgets/keyboard_tap_target.dart';
 import 'sync_indicator.dart';
 import 'sync_status.dart';
 
@@ -61,47 +62,54 @@ class MobileAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
+    // F9: Scaffold reserves the status-bar inset above a custom app bar; the
+    // background fills it, the content stays below it (edge-to-edge Android).
     return Container(
-      height: preferredSize.height,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space5),
       decoration: BoxDecoration(
         color: t.surface,
         border: Border(bottom: BorderSide(color: t.border)),
       ),
-      child: Row(
-        children: [
-          if (onMenuTap != null) ...[
-            Semantics(
-              button: true,
-              label: 'Open navigation menu',
-              child: IconButton(
-                onPressed: onMenuTap,
-                tooltip: 'Open navigation menu',
-                icon: Icon(Icons.menu, color: t.textPrimary),
+      child: SafeArea(
+        bottom: false,
+        child: Container(
+          // The bottom border sits outside this box now; subtract it so the bar
+          // keeps exactly its original geometry below the inset.
+          height: preferredSize.height - BorderSide(color: t.border).width,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space5),
+          child: Row(
+            children: [
+              if (onMenuTap != null) ...[
+                // F17: the tooltip already names this button for screen readers;
+                // an extra Semantics wrapper exposed it twice.
+                IconButton(
+                  onPressed: onMenuTap,
+                  tooltip: 'Open navigation menu',
+                  icon: Icon(Icons.menu, color: t.textPrimary),
+                ),
+                const SizedBox(width: AppSpacing.space2),
+              ],
+              Expanded(
+                child: Text(
+                  institutionName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.cardHeading.copyWith(
+                    color: t.textPrimary,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.space2),
-          ],
-          Expanded(
-            child: Text(
-              institutionName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.cardHeading.copyWith(
-                color: t.textPrimary,
-              ),
-            ),
+              const SizedBox(width: AppSpacing.space4),
+              SyncIndicator(status: syncStatus),
+              if (onNotificationsTap != null) ...[
+                const SizedBox(width: AppSpacing.space2),
+                _NotificationBell(
+                  hasUnread: hasUnreadNotifications,
+                  onTap: onNotificationsTap!,
+                ),
+              ],
+            ],
           ),
-          const SizedBox(width: AppSpacing.space4),
-          SyncIndicator(status: syncStatus),
-          if (onNotificationsTap != null) ...[
-            const SizedBox(width: AppSpacing.space2),
-            _NotificationBell(
-              hasUnread: hasUnreadNotifications,
-              onTap: onNotificationsTap!,
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -117,39 +125,40 @@ class _NotificationBell extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return Semantics(
-      button: true,
+    // A11Y-2: keyboard-operable, one named node.
+    return KeyboardTapTarget(
       label: hasUnread ? 'Notifications, unread' : 'Notifications',
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: AppSizing.touchTargetMin,
-          height: AppSizing.touchTargetMin,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Icon(
-                Icons.notifications_outlined,
-                color: t.textSecondary,
-                size: AppSpacing.space7,
-              ),
-              if (hasUnread)
-                Positioned(
-                  top: AppSpacing.space5,
-                  right: AppSpacing.space5,
-                  child: Container(
-                    width: AppSpacing.space3,
-                    height: AppSpacing.space3,
-                    decoration: BoxDecoration(
-                      color: t.danger,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: t.surface, width: AppSizing.borderThin),
+      onTap: onTap,
+      borderRadius: AppSizing.touchTargetMin / 2,
+      child: SizedBox(
+        width: AppSizing.touchTargetMin,
+        height: AppSizing.touchTargetMin,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              Icons.notifications_outlined,
+              color: t.textSecondary,
+              size: AppSpacing.space7,
+            ),
+            if (hasUnread)
+              Positioned(
+                top: AppSpacing.space5,
+                right: AppSpacing.space5,
+                child: Container(
+                  width: AppSpacing.space3,
+                  height: AppSpacing.space3,
+                  decoration: BoxDecoration(
+                    color: t.danger,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: t.surface,
+                      width: AppSizing.borderThin,
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

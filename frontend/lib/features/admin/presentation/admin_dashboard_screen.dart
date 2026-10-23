@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'workflow_jobs_screen.dart';
+import 'institution_mailbox_screen.dart';
+import 'institution_exit_screen.dart';
+import '../../../core/widgets/app_button.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/motion.dart';
@@ -10,6 +14,7 @@ import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../data/admin_repository.dart';
 import '../domain/admin_models.dart';
+import '../../../core/widgets/page_header.dart';
 
 /// The admin's landing screen.
 ///
@@ -56,23 +61,28 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _load() async {
-    setState(() =>
-        _state = ScreenState<AdminDashboard>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<AdminDashboard>.loading(previous: _state.data),
+    );
     try {
       final data = await widget.repository.loadDashboard();
       if (!mounted) return;
-      setState(() => _state = ScreenState<AdminDashboard>.data(
-            data,
-            // A dashboard is a single record, never a collection — without
-            // this the D-39 resolver would throw rather than guess.
-            isEmpty: false,
-          ));
+      setState(
+        () => _state = ScreenState<AdminDashboard>.data(
+          data,
+          // A dashboard is a single record, never a collection — without
+          // this the D-39 resolver would throw rather than guess.
+          isEmpty: false,
+        ),
+      );
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _state = ScreenState<AdminDashboard>.failed(
-            e is LoadFailure ? e : const LoadFailure(),
-            cached: _state.data,
-          ));
+      setState(
+        () => _state = ScreenState<AdminDashboard>.failed(
+          e is LoadFailure ? e : const LoadFailure(),
+          cached: _state.data,
+        ),
+      );
     }
   }
 
@@ -87,7 +97,8 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
           state: _state,
           onRetry: _load,
           emptyTitle: 'The dashboard could not be opened',
-          emptyMessage: 'The school’s figures could not be read. Reopen this '
+          emptyMessage:
+              'The institution’s figures could not be read. Reopen this '
               'tab to try again — if it keeps happening, tell your system '
               'administrator.',
           data: (context, data) => _body(context, data),
@@ -102,10 +113,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.space6),
       children: [
-        Text(
-          'Dashboard',
-          style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
-        ),
+        const PageHeader(title: 'Dashboard', padding: EdgeInsets.zero),
         // Title + one line of orientation, the same shape the Setup, Fees
         // and Academics hubs use. The dashboard was the only admin landing
         // surface without it, which made it read as the odd one out.
@@ -113,7 +121,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
         Text(
           data.isBrandNewSchool
               ? 'Nothing has been set up yet.'
-              : 'Where the school needs attention.',
+              : 'Where the institution needs attention.',
           style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
         ),
         const SizedBox(height: AppSpacing.space6),
@@ -185,8 +193,9 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
           // follow the data.
           Builder(
             builder: (context) {
-              final needsAttention =
-                  data.sections.where((s) => s.nextAction != null).length;
+              final needsAttention = data.sections
+                  .where((s) => s.nextAction != null)
+                  .length;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,18 +204,20 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     needsAttention == 0
                         ? 'All sections'
                         : 'Sections needing attention',
-                    style: AppTypography.sectionHeading
-                        .copyWith(color: t.textPrimary),
+                    style: AppTypography.sectionHeading.copyWith(
+                      color: t.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   Text(
                     needsAttention == 0
                         ? 'Every section is set up.'
                         : '$needsAttention of ${data.sections.length} '
-                            '${data.sections.length == 1 ? 'section is' : 'sections are'} '
-                            'unfinished. Least complete first.',
-                    style: AppTypography.bodyAdminMeta
-                        .copyWith(color: t.textSecondary),
+                              '${data.sections.length == 1 ? 'section is' : 'sections are'} '
+                              'unfinished. Least complete first.',
+                    style: AppTypography.bodyAdminMeta.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                 ],
               );
@@ -221,6 +232,50 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: _SectionRow(section: section),
             ),
         ],
+        // Overhaul (route crawl): administrative tools come after the page's
+        // purpose, not above its title.
+        const SizedBox(height: AppSpacing.space8),
+        Text(
+          'Tools',
+          style: AppTypography.sectionHeading.copyWith(color: t.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.space4),
+        Wrap(
+          spacing: AppSpacing.space4,
+          runSpacing: AppSpacing.space3,
+          children: [
+            AppButton(
+              label: 'Institution exit',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      InstitutionExitScreen(dio: widget.repository.dio),
+                ),
+              ),
+            ),
+            AppButton(
+              label: 'Institution email',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      InstitutionMailboxScreen(dio: widget.repository.dio),
+                ),
+              ),
+            ),
+            AppButton(
+              label: 'Background jobs',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      WorkflowJobsScreen(dio: widget.repository.dio),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -233,7 +288,11 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
 /// class that has not been created. Presenting these in any other order
 /// invites the admin to start with a step that cannot succeed yet.
 class _SetupChecklist extends StatelessWidget {
-  const _SetupChecklist({this.onOpenImport, this.onOpenWizard, this.onOpenSetup});
+  const _SetupChecklist({
+    this.onOpenImport,
+    this.onOpenWizard,
+    this.onOpenSetup,
+  });
 
   final VoidCallback? onOpenImport;
   final VoidCallback? onOpenWizard;
@@ -254,15 +313,14 @@ class _SetupChecklist extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Set up your school',
+            'Set up your institution',
             style: AppTypography.cardHeading.copyWith(color: t.textPrimary),
           ),
           const SizedBox(height: AppSpacing.space2),
           Text(
             'Nothing has been created yet. These steps depend on each '
             'other, so they are listed in the order they have to happen.',
-            style:
-                AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
           ),
           const SizedBox(height: AppSpacing.space6),
           // Live as of T13 Batch A. It was inert for two tasks because no
@@ -276,7 +334,8 @@ class _SetupChecklist extends StatelessWidget {
             child: _ChecklistStep(
               number: 1,
               title: 'Set up years, classes and sections',
-              detail: 'Students are enrolled INTO a section, so this comes '
+              detail:
+                  'Students are enrolled INTO a section, so this comes '
                   'first. Subjects and the timetable are here too.',
               onTap: onOpenSetup,
             ),
@@ -350,20 +409,21 @@ class _ChecklistStep extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space1),
                 Text(
                   detail,
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
-          if (onTap != null)
-            Icon(Icons.chevron_right, color: t.textSecondary),
+          if (onTap != null) Icon(Icons.chevron_right, color: t.textSecondary),
         ],
       ),
     );
@@ -429,8 +489,7 @@ class _SectionRow extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -451,8 +510,7 @@ class _SectionRow extends StatelessWidget {
           Text(
             '${section.studentCount} '
             '${section.studentCount == 1 ? 'student' : 'students'}',
-            style:
-                AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
           ),
           if (action != null)
             Container(
@@ -466,8 +524,9 @@ class _SectionRow extends StatelessWidget {
               ),
               child: Text(
                 action,
-                style: AppTypography.overline
-                    .copyWith(color: t.warningTextOnBg),
+                style: AppTypography.overline.copyWith(
+                  color: t.warningTextOnBg,
+                ),
               ),
             ),
         ],

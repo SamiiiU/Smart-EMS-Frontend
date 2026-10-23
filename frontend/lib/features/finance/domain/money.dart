@@ -92,8 +92,8 @@ class Money implements Comparable<Money> {
     if (value is String) return parse(value);
     throw FormatException(
       'A money field arrived as ${value.runtimeType} rather than a string — '
-      'its key is missing from FinanceJson.moneyKeys, so it was decoded as a '
-      'floating-point number.',
+          'its key is missing from FinanceJson.moneyKeys, so it was decoded as a '
+          'floating-point number.',
       '$value',
     );
   }
@@ -176,6 +176,9 @@ abstract final class FinanceJson {
     'tax_amount',
     'taxAmount',
     'discount_amount',
+    'requested_amount',
+    'requested_percentage',
+    'approved_amount',
     'outstanding',
     'invoiced',
     'collected',

@@ -138,7 +138,7 @@ void main() {
         ),
       )));
       await tester.pumpAndSettle();
-      expect(find.text('Set up your school'), findsOneWidget);
+      expect(find.text('Set up your institution'), findsOneWidget);
 
       await tester.pumpWidget(_host(AdminDashboardScreen(
         key: const ValueKey('b'),
@@ -151,7 +151,7 @@ void main() {
         ),
       )));
       await tester.pumpAndSettle();
-      expect(find.text('Set up your school'), findsNothing);
+      expect(find.text('Set up your institution'), findsNothing);
       expect(find.text('No students enrolled'), findsOneWidget);
     });
 
@@ -160,7 +160,7 @@ void main() {
       await tester
           .pumpWidget(_host(AdminDashboardScreen(repository: _FakeAdmin(fail: true))));
       await tester.pumpAndSettle();
-      expect(find.text('Set up your school'), findsNothing);
+      expect(find.text('Set up your institution'), findsNothing);
       expect(find.text('Retry'), findsOneWidget);
     });
   });
@@ -407,7 +407,7 @@ void main() {
       )));
       await tester.pumpAndSettle();
 
-      expect(find.text('Where the school needs attention.'), findsOneWidget);
+      expect(find.text('Where the institution needs attention.'), findsOneWidget);
     });
 
     testWidgets('the KPI row stacks on a narrow viewport', (tester) async {

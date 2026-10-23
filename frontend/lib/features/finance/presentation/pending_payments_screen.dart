@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
-import '../../../core/theme/sizing.dart';
-import '../../../core/theme/typography.dart';
+import '../../../core/widgets/adaptive_data_view.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
@@ -13,6 +13,7 @@ import '../../setup/presentation/setup_scaffold.dart';
 import '../data/finance_repository.dart';
 import '../domain/finance_models.dart';
 import 'receipt_screen.dart';
+import 'reject_payment_dialog.dart';
 
 /// The approval queue — the other half of screen 5.
 ///
@@ -23,10 +24,35 @@ import 'receipt_screen.dart';
 /// Every row states that the money is not counted yet. Approval is
 /// irreversible and says so before it happens; rejection is possible only
 /// here, before approval.
+///
+/// What the server does (FeeService, unchanged by this screen):
+/// - **Approve** (`fee.manage`, campus-scoped, finance step-up MFA): claims the
+///   payment atomically (`... WHERE status = 'pending_approval'`; a second
+///   attempt is a 409 "already processed"), re-checks the invoice balance under
+///   a row lock (409 if it would overpay), adds to `paid_amount`, sets the
+///   invoice partial/paid, issues a receipt and notifies guardians.
+/// - **Reject** (same permission and step-up): claims the payment atomically,
+///   marks it rejected and notifies guardians that it could not be verified.
+///   A rejected payment can no longer be approved.
+/// Step-up is handled by the network layer (prompt once, replay once). This
+/// screen never decides anything itself: it shows the server's answer.
+///
+/// M5: the list is the shared [AdaptiveDataView] (table on wide screens, cards
+/// on phones) with Approve / Reject as row actions, kept outside the row's
+/// tap target. Rows themselves do not navigate.
 class PendingPaymentsScreen extends StatefulWidget {
-  const PendingPaymentsScreen({required this.repository, super.key});
+  const PendingPaymentsScreen({
+    required this.repository,
+    this.canDecide = true,
+    super.key,
+  });
 
   final FinanceRepository repository;
+
+  /// Whether this account may approve/reject (the Fees hub only opens this
+  /// screen for `fee.manage` campuses). Hiding the actions is a convenience:
+  /// the server enforces `fee.manage` and step-up on every call.
+  final bool canDecide;
 
   @override
   State<PendingPaymentsScreen> createState() => PendingPaymentsScreenState();
@@ -36,8 +62,26 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
   ScreenState<List<PendingPayment>> _state =
       const ScreenState<List<PendingPayment>>.loading();
 
+  /// The payment an action is running for. While set, every row's actions are
+  /// disabled: one financial decision at a time from this screen. (The server's
+  /// atomic status claim is what guarantees exactly-once; this only prevents
+  /// confusing overlapping prompts.)
   String? _busyId;
   String? _error;
+  String? _notice;
+
+  /// Set when the server says the payment is no longer pending. Distinct from
+  /// [_error]: nothing failed, but THIS attempt did not process the payment.
+  String? _warning;
+
+  /// "Already processed" explanation. Never claims this attempt succeeded and
+  /// never offers a receipt: only the server's success response carries one.
+  String _alreadyProcessed(PendingPayment p, String message) {
+    final status = FinanceRepository.processedStatus(message);
+    return 'This payment (${p.amount.format()} from ${p.studentName}) was already '
+        'processed${status == null ? '' : ' — it is $status'} — by someone else or by '
+        'an earlier attempt. Nothing was applied again. The list has been refreshed.';
+  }
 
   @override
   void initState() {
@@ -65,39 +109,30 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
   }
 
   Future<void> _approve(PendingPayment payment) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Approve this payment?'),
-        content: Text(
-          '${payment.amount.format()} from ${payment.studentName} will be '
-          'counted against the invoice and a receipt will be issued.\n\n'
-          'This cannot be undone. There is no way to reverse an approved '
-          'payment on this system.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Approve'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmAction(
+      context,
+      title: 'Approve this payment?',
+      message: '${payment.amount.format()} from ${payment.studentName} will be '
+          'counted against the invoice and a receipt will be issued. There is '
+          'no way to reverse an approved payment on this system.',
+      confirmLabel: 'Approve',
+      irreversible: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     setState(() {
       _busyId = payment.id;
       _error = null;
+      _notice = null;
+      _warning = null;
     });
     final outcome = await widget.repository.approvePayment(payment.id);
     if (!mounted) return;
     setState(() {
       _busyId = null;
-      _error = outcome.error;
+      // Not retried: the server already answered for this payment.
+      _warning = outcome.alreadyProcessed ? _alreadyProcessed(payment, outcome.error!) : null;
+      _error = outcome.alreadyProcessed ? null : outcome.error;
     });
 
     final receipt = outcome.result;
@@ -116,21 +151,46 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
   }
 
   Future<void> _reject(PendingPayment payment) async {
+    // M5: rejection is consequential too (guardians are notified and the
+    // payment can no longer be approved), so it is confirmed like approval.
+    // A reason is required (sent on the existing API field). Cancel or
+    // Escape return null and send nothing.
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => RejectPaymentDialog(amount: payment.amount, studentName: payment.studentName),
+    );
+    if (reason == null || !mounted) return;
+
     setState(() {
       _busyId = payment.id;
       _error = null;
+      _notice = null;
+      _warning = null;
     });
-    final error = await widget.repository.rejectPayment(payment.id);
+    final outcome = await widget.repository.rejectPaymentWithReason(payment.id, reason);
     if (!mounted) return;
     setState(() {
       _busyId = null;
-      _error = error;
+      if (outcome.alreadyProcessed) {
+        _warning = _alreadyProcessed(payment, outcome.error!);
+      } else {
+        _error = outcome.error;
+        _notice = outcome.error == null
+            ? 'Payment of ${payment.amount.format()} from ${payment.studentName} rejected.'
+            : null;
+      }
     });
     await load();
   }
 
+  static String _received(String iso) {
+    final at = DateTime.tryParse(iso);
+    return at == null ? iso : DateFormat.yMMMd().format(at.toLocal());
+  }
+
   @override
   Widget build(BuildContext context) {
+    final busy = _busyId != null;
     return SetupScaffold(
       title: 'Awaiting approval',
       note: const InlineAlert(
@@ -143,6 +203,14 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
           InlineAlert(tone: InlineAlertTone.danger, message: _error!),
           const SizedBox(height: AppSpacing.space5),
         ],
+        if (_warning != null) ...[
+          InlineAlert(tone: InlineAlertTone.warning, message: _warning!),
+          const SizedBox(height: AppSpacing.space5),
+        ],
+        if (_notice != null) ...[
+          InlineAlert(tone: InlineAlertTone.success, message: _notice!),
+          const SizedBox(height: AppSpacing.space5),
+        ],
         SizedBox(
           height: setupListHeight(context),
           child: ScreenStateBuilder<List<PendingPayment>>(
@@ -152,99 +220,51 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
             emptyMessage: 'Payments appear here as soon as they are recorded '
                 'at the counter.',
             emptyIcon: Icons.payments_outlined,
-            data: (context, payments) => ListView(
-              children: [
-                for (final payment in payments)
-                  _PendingRow(
-                    payment: payment,
-                    busy: _busyId == payment.id,
-                    onApprove: () => _approve(payment),
-                    onReject: () => _reject(payment),
-                  ),
+            data: (context, payments) => AdaptiveDataView<PendingPayment>(
+              rows: payments,
+              padding: EdgeInsets.zero,
+              semanticLabel: (p) =>
+                  '${p.amount.format()} from ${p.studentName}, ${p.source}, not yet counted',
+              columns: [
+                DataColumnSpec(label: 'Amount', value: (p) => p.amount.format(), flex: 2),
+                DataColumnSpec(label: 'Learner', value: (p) => p.studentName, flex: 3),
+                DataColumnSpec(label: 'Method', value: (p) => p.source, flex: 2),
+                DataColumnSpec(
+                  label: 'Reference',
+                  value: (p) => p.reference == null || p.reference!.isEmpty ? '—' : p.reference!,
+                  flex: 2,
+                ),
+                DataColumnSpec(label: 'Received', value: (p) => _received(p.receivedAt), flex: 2),
+              ],
+              actionsFlex: 4,
+              rowActions: [
+                RowAction<PendingPayment>(
+                  label: 'Approve',
+                  icon: Icons.check,
+                  variant: AppButtonVariant.primary,
+                  loadingLabel: 'Approving…',
+                  key: (p) => Key('approve-${p.id}'),
+                  semanticLabel: (p) => 'Approve ${p.amount.format()} from ${p.studentName}',
+                  isVisible: (_) => widget.canDecide,
+                  isLoading: (p) => _busyId == p.id,
+                  isEnabled: (_) => !busy,
+                  disabledReason: (_) => busy ? 'Another payment is being processed' : null,
+                  onPressed: _approve,
+                ),
+                RowAction<PendingPayment>(
+                  label: 'Reject',
+                  key: (p) => Key('reject-${p.id}'),
+                  semanticLabel: (p) => 'Reject ${p.amount.format()} from ${p.studentName}',
+                  isVisible: (_) => widget.canDecide,
+                  isEnabled: (_) => !busy,
+                  disabledReason: (_) => busy ? 'Another payment is being processed' : null,
+                  onPressed: _reject,
+                ),
               ],
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PendingRow extends StatelessWidget {
-  const _PendingRow({
-    required this.payment,
-    required this.busy,
-    required this.onApprove,
-    required this.onReject,
-  });
-
-  final PendingPayment payment;
-  final bool busy;
-  final VoidCallback onApprove;
-  final VoidCallback onReject;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.space3),
-      padding: const EdgeInsets.all(AppSpacing.space5),
-      decoration: BoxDecoration(
-        color: t.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: t.border, width: AppSizing.borderThin),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: AppSpacing.space4,
-            runSpacing: AppSpacing.space2,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                payment.amount.format(),
-                style: AppTypography.personName.copyWith(color: t.textPrimary),
-              ),
-              Text(
-                payment.studentName,
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
-              ),
-              Text(
-                payment.source,
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
-              ),
-              if (payment.reference != null && payment.reference!.isNotEmpty)
-                Text(
-                  'Ref ${payment.reference}',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.space4),
-          // Wrap rather than Row so two buttons and a long name reflow on a
-          // 360px phone instead of overflowing.
-          Wrap(
-            spacing: AppSpacing.space3,
-            runSpacing: AppSpacing.space3,
-            children: [
-              AppButton(
-                label: busy ? 'Working…' : 'Approve',
-                onPressed: busy ? null : onApprove,
-              ),
-              AppButton(
-                label: 'Reject',
-                variant: AppButtonVariant.secondary,
-                onPressed: busy ? null : onReject,
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

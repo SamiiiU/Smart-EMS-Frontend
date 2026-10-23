@@ -29,6 +29,7 @@ class AppTextField extends StatefulWidget {
     this.placeholder,
     this.obscure = false,
     this.trailing,
+    this.trailingTouchTarget = false,
     this.state = AppTextFieldState.normal,
     this.errorText,
     this.onChanged,
@@ -36,6 +37,7 @@ class AppTextField extends StatefulWidget {
     this.autofocus = false,
     this.textInputAction,
     this.onSubmitted,
+    this.required = false,
     super.key,
   });
 
@@ -44,6 +46,17 @@ class AppTextField extends StatefulWidget {
   final String? placeholder;
   final bool obscure;
   final Widget? trailing;
+
+  /// Lay [trailing] out as a full-height, [trailingTargetWidth]-wide hit area
+  /// at the field's right edge (over the border), instead of an icon-sized box
+  /// inside the padding. Gives an icon toggle a 48 x 48 touch target on touch
+  /// platforms (field height 48) while the icon itself keeps its size and
+  /// (to within 2 px) its position. Opt-in, so other trailing widgets are
+  /// unchanged.
+  final bool trailingTouchTarget;
+
+  /// Width of the [trailingTouchTarget] hit area.
+  static const double trailingTargetWidth = 48;
 
   /// Supply one to drive focus from outside — e.g. moving field-to-field on
   /// the keyboard's "next". When null the field owns its own node, which is
@@ -70,6 +83,9 @@ class AppTextField extends StatefulWidget {
   final String? errorText;
 
   final ValueChanged<String>? onChanged;
+
+  /// Announced to assistive technology ("Required"); the visual design is unchanged.
+  final bool required;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -125,6 +141,15 @@ class _AppTextFieldState extends State<AppTextField> {
         : AppTextFieldState.normal;
   }
 
+  String? _semanticHint(AppTextFieldState state) {
+    final parts = [
+      if (widget.required) 'Required',
+      if (state == AppTextFieldState.error && widget.errorText != null)
+        widget.errorText!,
+    ];
+    return parts.isEmpty ? null : parts.join('. ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -150,62 +175,92 @@ class _AppTextFieldState extends State<AppTextField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.label,
-          style: AppTypography.fieldLabel.copyWith(
-            color: disabled ? t.textDisabled : t.textSecondary,
+        // F6: the visible label is decorative for assistive technology; the
+        // input itself carries the accessible name (no duplicate reading).
+        ExcludeSemantics(
+          child: Text(
+            widget.label,
+            style: AppTypography.fieldLabel.copyWith(
+              color: disabled ? t.textDisabled : t.textSecondary,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.space2),
-        Container(
-          height: height,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space5),
-          decoration: BoxDecoration(
-            color: disabled ? t.surfaceSunken : t.surface,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: borderColour, width: borderWidth),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  enabled: !disabled,
-                  obscureText: widget.obscure,
-                  onChanged: widget.onChanged,
-                  autofocus: widget.autofocus,
-                  textInputAction: widget.textInputAction,
-                  onSubmitted: widget.onSubmitted,
-                  maxLines: 1,
-                  cursorColor: t.primaryAccent,
-                  style: AppTypography.bodyTeacher.copyWith(
-                    color: disabled ? t.textDisabled : t.textPrimary,
-                  ),
-                  // `collapsed` strips Material's own padding, underline and
-                  // 48px min height, so the surrounding Container remains the
-                  // single source of the field's geometry — the same box the
-                  // display-only version drew.
-                  decoration: InputDecoration.collapsed(
-                    hintText: widget.placeholder ?? '',
-                    hintStyle: AppTypography.bodyTeacher.copyWith(
-                      color: disabled ? t.textDisabled : t.textMuted,
+        Stack(
+          children: [
+            Container(
+              height: height,
+              padding: EdgeInsets.only(
+                left: AppSpacing.space5,
+                right: widget.trailingTouchTarget && widget.trailing != null
+                    ? AppTextField.trailingTargetWidth
+                    : AppSpacing.space5,
+              ),
+              decoration: BoxDecoration(
+                color: disabled ? t.surfaceSunken : t.surface,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: borderColour, width: borderWidth),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      label: widget.label,
+                      hint: _semanticHint(state),
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        enabled: !disabled,
+                        obscureText: widget.obscure,
+                        onChanged: widget.onChanged,
+                        autofocus: widget.autofocus,
+                        textInputAction: widget.textInputAction,
+                        onSubmitted: widget.onSubmitted,
+                        maxLines: 1,
+                        cursorColor: t.primaryAccent,
+                        style: AppTypography.bodyTeacher.copyWith(
+                          color: disabled ? t.textDisabled : t.textPrimary,
+                        ),
+                        // `collapsed` strips Material's own padding, underline and
+                        // 48px min height, so the surrounding Container remains the
+                        // single source of the field's geometry — the same box the
+                        // display-only version drew.
+                        decoration: InputDecoration.collapsed(
+                          hintText: widget.placeholder ?? '',
+                          hintStyle: AppTypography.bodyTeacher.copyWith(
+                            color: disabled ? t.textDisabled : t.textMuted,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (widget.trailing != null &&
+                      !widget.trailingTouchTarget) ...[
+                    const SizedBox(width: AppSpacing.space3),
+                    widget.trailing!,
+                  ],
+                ],
               ),
-              if (widget.trailing != null) ...[
-                const SizedBox(width: AppSpacing.space3),
-                widget.trailing!,
-              ],
-            ],
-          ),
+            ),
+            if (widget.trailing != null && widget.trailingTouchTarget)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                width: AppTextField.trailingTargetWidth,
+                child: widget.trailing!,
+              ),
+          ],
         ),
         if (state == AppTextFieldState.error && widget.errorText != null) ...[
           const SizedBox(height: AppSpacing.space2),
-          Text(
-            widget.errorText!,
-            style: AppTypography.fieldLabel.copyWith(color: t.danger),
+          // Announced when it appears, so a screen-reader user hears the error.
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              widget.errorText!,
+              style: AppTypography.fieldLabel.copyWith(color: t.danger),
+            ),
           ),
         ],
       ],

@@ -1,4 +1,8 @@
-﻿# Project Status
+# Local async contract update — 2026-10-10
+
+Read [ASYNC_WORKFLOWS.md](ASYNC_WORKFLOWS.md) first. It supersedes older synchronous import/generation notes below for the current local backend and records worker scope, verification and limitations. Production state is separately unverified.
+
+# Project Status
 
 | Task | Depends on | Status | Gate result | Date |
 |------|------------|--------|--------------|------|

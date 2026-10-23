@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'academic_ai_screen.dart';
+import '../../admin/presentation/workflow_jobs_screen.dart';
+import '../../../core/shell/campus_context.dart';
+import '../../../core/widgets/app_button.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
@@ -15,6 +19,7 @@ import 'exam_setup_screen.dart';
 import 'remarks_screen.dart';
 import 'syllabus_screen.dart';
 import 'unavailable_screens.dart';
+import '../../../core/widgets/page_header.dart';
 
 /// What the academic screens need before they can do anything.
 @immutable
@@ -79,43 +84,71 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
     load();
   }
 
+  /// ADR-011: a campus switch reloads this context; an answer that started
+  /// under the previous campus is discarded (generation check below).
+  String? _campusSeen;
+  bool _campusTracked = false;
+  int _generation = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final now = CampusScope.maybeOf(context)?.selectedId;
+    if (!_campusTracked) {
+      _campusTracked = true; // initState already loaded for this campus
+      _campusSeen = now;
+    } else if (_campusSeen != now) {
+      _campusSeen = now;
+      load();
+    }
+  }
+
   Future<void> load() async {
-    setState(() =>
-        _state = ScreenState<AcademicsContext>.loading(previous: _state.data));
+    final generation = ++_generation;
+    setState(
+      () =>
+          _state = ScreenState<AcademicsContext>.loading(previous: _state.data),
+    );
     try {
       final campuses = await widget.admin.loadCampusIds();
       final years = await widget.setup.loadYears();
       final classes = await widget.setup.loadClasses();
       final sections = await widget.setup.loadSections();
       final subjects = await widget.setup.loadSubjects();
-      if (!mounted) return;
-      setState(() => _state = ScreenState<AcademicsContext>.data(
-            AcademicsContext(
-              campusId: campuses.isEmpty ? null : campuses.first,
-              years: years,
-              classes: classes,
-              sections: sections,
-              subjects: subjects,
-            ),
-            isEmpty: false,
-          ));
+      if (!mounted || generation != _generation) return;
+      setState(
+        () => _state = ScreenState<AcademicsContext>.data(
+          AcademicsContext(
+            // ADR-011: the explicitly selected campus (or the only one), never
+            // the first of several. Null renders the "choose a campus" notice.
+            campusId: explicitCampusFor(context, campuses),
+            years: years,
+            classes: classes,
+            sections: sections,
+            subjects: subjects,
+          ),
+          isEmpty: false,
+        ),
+      );
     } on Object catch (e) {
       if (!mounted) return;
       final failure = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<AcademicsContext>.failed(
-            failure,
-            cached: _state.data,
-            connection: failure.unreachable
-                ? NetworkStatus.offline
-                : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<AcademicsContext>.failed(
+          failure,
+          cached: _state.data,
+          connection: failure.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
   Future<void> _open(Widget screen) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => screen),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => screen));
     await load();
   }
 
@@ -130,7 +163,8 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
           state: _state,
           onRetry: load,
           emptyTitle: 'Academics could not be opened',
-          emptyMessage: 'The year, classes and subjects could not be read. '
+          emptyMessage:
+              'The year, classes and subjects could not be read. '
               'Reopen this tab to try again — if it keeps happening, tell '
               'your system administrator.',
           data: _body,
@@ -148,10 +182,26 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.space6),
       children: [
-        Text(
-          'Academics',
-          style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
+        AppButton(
+          label: 'AI teaching assistant',
+          variant: AppButtonVariant.secondary,
+          onPressed: () => _open(
+            AcademicAiScreen(
+              dio: widget.academics.dio,
+              subjects: ctx.subjects,
+              sections: ctx.sections,
+              classes: ctx.classes,
+              years: ctx.years,
+            ),
+          ),
         ),
+        AppButton(
+          label: 'Background jobs',
+          variant: AppButtonVariant.secondary,
+          onPressed: () => _open(WorkflowJobsScreen(dio: widget.academics.dio)),
+        ),
+        const SizedBox(height: AppSpacing.space4),
+        const PageHeader(title: 'Academics', padding: EdgeInsets.zero),
         const SizedBox(height: AppSpacing.space2),
         Text(
           'Exams and marks, and what has been taught so far.',
@@ -161,20 +211,23 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
 
         if (ctx.campusId == null)
           const InlineAlert(
-            tone: InlineAlertTone.danger,
-            message: 'This school has no campus, so no exam can be created. '
-                'Ask your system administrator.',
+            tone: InlineAlertTone.info,
+            message:
+                'Choose a campus in More → Campus to create exams. If no '
+                'campus is listed, ask your administrator.',
           )
         else if (year == null)
           const InlineAlert(
             tone: InlineAlertTone.info,
-            message: 'Exams belong to an academic year. Create one under '
+            message:
+                'Exams belong to an academic year. Create one under '
                 'Setup first.',
           )
         else if (ctx.usingFallbackYear)
           InlineAlert(
             tone: InlineAlertTone.warning,
-            message: 'No year is marked as current, so “${year.name}” is '
+            message:
+                'No year is marked as current, so “${year.name}” is '
                 'being used. The current year can only be changed by your '
                 'system administrator.',
           ),
@@ -190,24 +243,26 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
           number: 2,
           title: 'Exams',
           detail: 'Create an exam, add its papers, enter marks, publish.',
-          onTap: (year == null || ctx.campusId == null || noSections ||
-                  noSubjects)
+          onTap:
+              (year == null || ctx.campusId == null || noSections || noSubjects)
               ? null
-              : () => _open(ExamSetupScreen(
+              : () => _open(
+                  ExamSetupScreen(
                     repository: widget.academics,
-                                  year: year,
+                    year: year,
                     campusId: ctx.campusId!,
                     sections: ctx.sections,
                     classes: ctx.classes,
                     subjects: ctx.subjects,
-                  )),
+                  ),
+                ),
           blockedReason: year == null
               ? 'Create an academic year first'
               : noSections
-                  ? 'Create a section first'
-                  : noSubjects
-                      ? 'Create a subject first'
-                      : null,
+              ? 'Create a section first'
+              : noSubjects
+              ? 'Create a subject first'
+              : null,
         ),
         StepRow(
           number: 3,
@@ -215,11 +270,13 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
           detail: 'Notes about a student, and who can see them.',
           onTap: noSections
               ? null
-              : () => _open(RemarksScreen(
+              : () => _open(
+                  RemarksScreen(
                     repository: widget.academics,
-                                  sectionId: ctx.sections.first.id,
+                    sectionId: ctx.sections.first.id,
                     sectionName: _sectionLabel(ctx, ctx.sections.first),
-                  )),
+                  ),
+                ),
           blockedReason: noSections ? 'Create a section first' : null,
         ),
         StepRow(
@@ -228,20 +285,22 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
           detail: 'Chapters and topics, and how much has been covered.',
           onTap: (year == null || noSections || noSubjects)
               ? null
-              : () => _open(SyllabusScreen(
+              : () => _open(
+                  SyllabusScreen(
                     repository: widget.academics,
                     year: year,
                     classes: ctx.classes,
                     sections: ctx.sections,
                     subjects: ctx.subjects,
-                  )),
+                  ),
+                ),
           blockedReason: year == null
               ? 'Create an academic year first'
               : noSections
-                  ? 'Create a section first'
-                  : noSubjects
-                      ? 'Create a subject first'
-                      : null,
+              ? 'Create a section first'
+              : noSubjects
+              ? 'Create a subject first'
+              : null,
         ),
         StepRow(
           number: 5,

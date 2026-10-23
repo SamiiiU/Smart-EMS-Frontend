@@ -33,19 +33,36 @@ class ParentRepository {
   /// `UnlinkedProfileState` and offers no retry, since the parent cannot
   /// fix it themselves.
   Future<GuardianProfile> loadGuardian() => _mapped(() async {
-        final res =
-            await dio.get<Map<String, dynamic>>(ApiConfig.guardiansMePath);
-        return GuardianProfile.fromJson(res.data ?? const {});
-      });
+    final res = await dio.get<Map<String, dynamic>>(ApiConfig.guardiansMePath);
+    return GuardianProfile.fromJson(res.data ?? const {});
+  });
 
   /// Today's snapshot for one child — name, class and today's attendance in
   /// a single call, which is exactly the landing screen's question.
-  Future<ChildToday> loadToday(String studentId) => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '${ApiConfig.parentProgressPath}/$studentId',
-        );
-        return ChildToday.fromJson(res.data ?? const {});
-      });
+  ///
+  /// Null ONLY when the server says the child has no class enrollment
+  /// (404 with `details.code == NO_SCHOOL_ENROLLMENT`, e.g. an Academy-only
+  /// learner). The server sends that code only after confirming this parent
+  /// may read the child; every other 404 (not their child, other
+  /// institution) stays a [LoadFailure], never an empty success.
+  Future<ChildToday?> loadToday(String studentId) async {
+    try {
+      final res = await dio.get<Map<String, dynamic>>(
+        '${ApiConfig.parentProgressPath}/$studentId',
+      );
+      return ChildToday.fromJson(res.data ?? const {});
+    } on DioException catch (err) {
+      if (isNoSchoolEnrollment(err)) return null;
+      throw mapDioError(err);
+    }
+  }
+
+  static bool isNoSchoolEnrollment(DioException err) {
+    if (err.response?.statusCode != 404) return false;
+    final data = err.response?.data;
+    final details = data is Map ? data['details'] : null;
+    return details is Map && details['code'] == 'NO_SCHOOL_ENROLLMENT';
+  }
 
   /// Attendance across a date range. `from` is REQUIRED by the backend —
   /// there is no "everything" call, so the caller always picks a window.
@@ -53,24 +70,20 @@ class ParentRepository {
     required String studentId,
     required DateTime from,
     required DateTime to,
-  }) =>
-      _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '${ApiConfig.attendanceStudentPath}/$studentId',
-          queryParameters: {
-            'from': _iso(from),
-            'to': _iso(to),
-          },
-        );
-        final rows = (res.data?['content'] as List? ?? const [])
-            .cast<Map<String, dynamic>>()
-            .map(AttendanceDay.fromJson)
-            .toList();
-        // Most recent first: a parent checking in cares about the last few
-        // days, not the start of the window.
-        rows.sort((a, b) => b.date.compareTo(a.date));
-        return rows;
-      });
+  }) => _mapped(() async {
+    final res = await dio.get<Map<String, dynamic>>(
+      '${ApiConfig.attendanceStudentPath}/$studentId',
+      queryParameters: {'from': _iso(from), 'to': _iso(to)},
+    );
+    final rows = (res.data?['content'] as List? ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(AttendanceDay.fromJson)
+        .toList();
+    // Most recent first: a parent checking in cares about the last few
+    // days, not the start of the window.
+    rows.sort((a, b) => b.date.compareTo(a.date));
+    return rows;
+  });
 
   static String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
 }

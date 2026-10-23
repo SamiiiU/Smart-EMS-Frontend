@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/widgets/job_progress.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -12,23 +13,9 @@ import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../data/import_repository.dart';
 import '../domain/admin_models.dart';
+import '../../../core/widgets/page_header.dart';
 
-/// Bulk student import.
-///
-/// **No progress bar, because there is no progress to show.** Part B
-/// established the endpoint is synchronous: the POST returns the finished
-/// counts. An animated bar here would be theatre — it would report a
-/// percentage nothing measures. So the screen is submit → result.
-///
-/// **Paste, not file-pick.** The project has no `file_picker` dependency,
-/// and adding one is the user's call, not this task's. Pasting is honest in
-/// the meantime: it works on web and Android identically and needs nothing
-/// new. Flagged in the handoff as a dependency decision.
-///
-/// **The header row is shown before the admin submits**, because the backend
-/// requires snake_case and a camelCase file fails EVERY row with a message
-/// that does not name the real cause. Teaching by failure would cost a full
-/// round trip and a confusing error; teaching up front costs a line of text.
+/// Upload a CSV, then show durable job progress and final per-row results.
 class CsvImportScreen extends StatefulWidget {
   const CsvImportScreen({required this.repository, super.key});
 
@@ -44,6 +31,7 @@ class CsvImportScreenState extends State<CsvImportScreen> {
   bool _submitting = false;
   String? _error;
   ImportResult? _result;
+  String? _pendingJobId;
   List<ImportRowError> _rowErrors = const [];
 
   /// Set when the import ran but its per-row errors could not be fetched.
@@ -91,8 +79,11 @@ class CsvImportScreenState extends State<CsvImportScreen> {
       });
     } on Object {
       if (!mounted) return;
-      setState(() => _error = 'That file could not be opened. Try pasting '
-          'its contents instead.');
+      setState(
+        () => _error =
+            'That file could not be opened. Try pasting '
+            'its contents instead.',
+      );
     }
   }
 
@@ -113,7 +104,8 @@ class CsvImportScreenState extends State<CsvImportScreen> {
       setState(() {
         _result = null;
         _rowErrors = const [];
-        _error = 'The first line must be the header row: '
+        _error =
+            'The first line must be the header row: '
             '${ImportRepository.studentHeaders.join(',')}. '
             'Missing: ${missing.join(', ')}. '
             'Add the header as line 1, then your students below it.';
@@ -134,10 +126,13 @@ class CsvImportScreenState extends State<CsvImportScreen> {
       if (!mounted) return;
       setState(() {
         _result = result;
-        _submitting = false;
+        _pendingJobId = const ['pending', 'processing'].contains(result.status)
+            ? result.jobId
+            : null;
+        _submitting = _pendingJobId != null;
       });
 
-      if (result.hasErrors) {
+      if (_pendingJobId == null && result.hasErrors) {
         try {
           final errors = await widget.repository.loadErrors(result.jobId);
           if (!mounted) return;
@@ -158,10 +153,31 @@ class CsvImportScreenState extends State<CsvImportScreen> {
     }
   }
 
+  Future<void> _finishJob(Map<String, dynamic> job) async {
+    final result = ImportResult.fromJson(job);
+    setState(() {
+      _result = result;
+      _pendingJobId = null;
+      _submitting = false;
+      if (result.status != 'completed') {
+        _error =
+            'Import stopped. Review saved counts and row errors before importing again.';
+      }
+    });
+    if (result.hasErrors) {
+      try {
+        final errors = await widget.repository.loadErrors(result.jobId);
+        if (mounted) setState(() => _rowErrors = errors);
+      } on Object {
+        if (mounted) setState(() => _rowErrorsUnavailable = true);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final result = _result;
+    final result = _pendingJobId == null ? _result : null;
 
     return Scaffold(
       backgroundColor: t.page,
@@ -169,16 +185,14 @@ class CsvImportScreenState extends State<CsvImportScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.space6),
           children: [
-            Text(
-              'Import students',
-              style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
-            ),
+            const PageHeader(title: 'Import students', padding: EdgeInsets.zero),
             const SizedBox(height: AppSpacing.space2),
             Text(
               'Choose your CSV file, or paste its contents below. Either way '
               'the first line has to be the header row.',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
             const SizedBox(height: AppSpacing.space5),
             const _HeaderHint(),
@@ -200,7 +214,8 @@ class CsvImportScreenState extends State<CsvImportScreen> {
               const SizedBox(height: AppSpacing.space3),
               InlineAlert(
                 tone: InlineAlertTone.info,
-                message: 'Loaded “$_pickedFileName”. Check it below, then '
+                message:
+                    'Loaded “$_pickedFileName”. Check it below, then '
                     'import.',
               ),
             ],
@@ -212,6 +227,16 @@ class CsvImportScreenState extends State<CsvImportScreen> {
               fullWidth: true,
               onPressed: _submitting ? null : submit,
             ),
+            if (_pendingJobId != null) ...[
+              const SizedBox(height: AppSpacing.space5),
+              JobProgress(
+                key: ValueKey(_pendingJobId),
+                jobId: _pendingJobId!,
+                load: (token) =>
+                    widget.repository.loadStatus(_pendingJobId!, token),
+                onFinished: _finishJob,
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.space6),
               InlineAlert(tone: InlineAlertTone.danger, message: _error!),
@@ -222,16 +247,17 @@ class CsvImportScreenState extends State<CsvImportScreen> {
                 tone: result.hasErrors
                     ? InlineAlertTone.warning
                     : InlineAlertTone.success,
-                message: '${result.successRows} of ${result.totalRows} rows '
+                message:
+                    '${result.successRows} of ${result.totalRows} rows '
                     'imported'
-                    '${result.hasErrors ? ' · ${result.errorRows} rejected'
-                        : '.'}',
+                    '${result.hasErrors ? ' · ${result.errorRows} rejected' : '.'}',
               ),
               if (_rowErrorsUnavailable) ...[
                 const SizedBox(height: AppSpacing.space5),
                 const InlineAlert(
                   tone: InlineAlertTone.warning,
-                  message: 'The rows that imported were saved. The list of '
+                  message:
+                      'The rows that imported were saved. The list of '
                       'rejected rows could not be loaded — try importing the '
                       'remaining rows again.',
                 ),
@@ -242,14 +268,16 @@ class CsvImportScreenState extends State<CsvImportScreen> {
                 const SizedBox(height: AppSpacing.space6),
                 Text(
                   'Rejected rows',
-                  style: AppTypography.sectionHeading
-                      .copyWith(color: t.textPrimary),
+                  style: AppTypography.sectionHeading.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space2),
                 Text(
                   'Row numbers match your file, header included.',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space4),
                 for (final row in _rowErrors) _RowErrorTile(error: row),
@@ -292,8 +320,7 @@ class _HeaderHint extends StatelessWidget {
           Text(
             'These names are case- and underscore-sensitive. A file using '
             'firstName instead of first_name is rejected row by row.',
-            style:
-                AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
           ),
         ],
       ),
@@ -318,25 +345,32 @@ class _PasteBox extends StatelessWidget {
     final t = context.tokens;
 
     return Container(
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.csvPasteMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.csvPasteMinHeight),
       padding: const EdgeInsets.all(AppSpacing.space4),
       decoration: BoxDecoration(
         color: enabled ? t.surface : t.surfaceSunken,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: t.border, width: AppSizing.borderThin),
       ),
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        maxLines: null,
-        keyboardType: TextInputType.multiline,
-        style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
-        decoration: InputDecoration.collapsed(
-          hintText: '${ImportRepository.studentHeaders.join(',')}\n'
-              'Ayesha,Khan,2026-001',
-          hintStyle:
-              AppTypography.bodyAdminMeta.copyWith(color: t.textDisabled),
+      child: Semantics(
+        label: 'CSV rows to import',
+        hint:
+            'First line is the header: '
+            '${ImportRepository.studentHeaders.join(', ')}',
+        child: TextField(
+          controller: controller,
+          enabled: enabled,
+          maxLines: null,
+          keyboardType: TextInputType.multiline,
+          style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
+          decoration: InputDecoration.collapsed(
+            hintText:
+                '${ImportRepository.studentHeaders.join(',')}\n'
+                'Ayesha,Khan,2026-001',
+            hintStyle: AppTypography.bodyAdminMeta.copyWith(
+              color: t.textDisabled,
+            ),
+          ),
         ),
       ),
     );
@@ -355,8 +389,7 @@ class _RowErrorTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -373,8 +406,7 @@ class _RowErrorTile extends StatelessWidget {
           ),
           Text(
             error.message,
-            style:
-                AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
           ),
         ],
       ),

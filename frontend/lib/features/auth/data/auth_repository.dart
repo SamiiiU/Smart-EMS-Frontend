@@ -36,10 +36,17 @@ class LoginFailed extends LoginOutcome {
 /// means "wrong password", which the interceptor leaves alone because there
 /// is no stored refresh token to retry with on a fresh install.
 class AuthRepository {
-  const AuthRepository({required this.dio, required this.tokenStore});
+  const AuthRepository({
+    required this.dio,
+    required this.tokenStore,
+    Future<void> Function()? beforeLogout,
+    // Public callback name keeps existing repository test doubles compatible.
+    // ignore: prefer_initializing_formals
+  }) : _beforeLogout = beforeLogout;
 
   final Dio dio;
   final TokenStore tokenStore;
+  final Future<void> Function()? _beforeLogout;
 
   /// `POST /auth/login` with `{institutionCode, username, password}` — all
   /// three required (confirmed against the live OpenAPI schema).
@@ -85,6 +92,13 @@ class AuthRepository {
       // is "Invalid credentials" (verified live), which is more useful and
       // more honest than a generic string.
       return LoginFailed(mapDioError(err));
+    } catch (_) {
+      return const LoginFailed(
+        LoadFailure(
+          message:
+              'Unable to save your session securely. Unlock your device and try again.',
+        ),
+      );
     }
   }
 
@@ -99,12 +113,10 @@ class AuthRepository {
     required String newPassword,
   }) async {
     try {
+      await _cleanupDevice();
       await dio.post<dynamic>(
         ApiConfig.changePasswordPath,
-        data: {
-          'currentPassword': currentPassword,
-          'newPassword': newPassword,
-        },
+        data: {'currentPassword': currentPassword, 'newPassword': newPassword},
       );
       await tokenStore.clear();
       return null;
@@ -119,7 +131,19 @@ class AuthRepository {
   /// Local tokens are cleared even if the network call fails: the user asked
   /// to sign out, and leaving a usable token on the device because the
   /// server was unreachable would be the wrong failure mode.
+  Future<void> _cleanupDevice() async {
+    try {
+      final cleanup = _beforeLogout;
+      if (cleanup != null) {
+        await cleanup().timeout(const Duration(seconds: 2));
+      }
+    } catch (_) {
+      // Device/provider cleanup must never prevent local sign-out.
+    }
+  }
+
   Future<void> logout() async {
+    await _cleanupDevice();
     final refreshToken = await tokenStore.readRefreshToken();
     if (refreshToken != null) {
       try {

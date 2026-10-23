@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 
 import 'api_config.dart';
 import 'auth_interceptor.dart';
+import 'test_ca_trust.dart';
 import 'token_store.dart';
+import 'web_session.dart';
 
 /// Hits [ApiConfig.refreshPath] — CONFIRMED shape (2026-08-03):
 /// `POST {refreshToken}` → `{accessToken, refreshToken, expiresIn}`.
@@ -29,15 +31,40 @@ class DioTokenRefresher implements TokenRefresher {
       );
       final accessToken = response.data?['accessToken'] as String?;
       final rotatedRefreshToken = response.data?['refreshToken'] as String?;
-      if (accessToken != null) {
-        await _tokenStore.writeTokens(
+      if (accessToken == null ||
+          accessToken.isEmpty ||
+          rotatedRefreshToken == null ||
+          rotatedRefreshToken.isEmpty) {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          type: DioExceptionType.unknown,
+          error: 'Incomplete refresh response',
+        );
+      }
+      final store = _tokenStore;
+      if (store is ConditionalTokenStore) {
+        final saved = await store.rotateIfCurrent(
+          refreshToken,
+          accessToken,
+          rotatedRefreshToken,
+        );
+        if (!saved) {
+          throw DioException(
+            requestOptions: response.requestOptions,
+            type: DioExceptionType.cancel,
+            error: 'Session changed during refresh',
+          );
+        }
+      } else {
+        await store.writeTokens(
           accessToken: accessToken,
           refreshToken: rotatedRefreshToken,
         );
       }
       return accessToken;
-    } on DioException {
-      return null;
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 401) return null;
+      rethrow;
     }
   }
 }
@@ -45,7 +72,14 @@ class DioTokenRefresher implements TokenRefresher {
 /// Builds the single [Dio] instance every repository should share — base
 /// URL, timeouts, and the auth interceptor wired in one place so nothing
 /// under `lib/` hand-rolls its own HTTP client.
-Dio buildApiClient({required TokenStore tokenStore}) {
+/// [web] installs the ADR-010 cookie-session rules on BOTH clients (the plain
+/// one performs refresh) and serializes refreshes across browser tabs.
+Dio buildApiClient({
+  required TokenStore tokenStore,
+  bool web = false,
+  String? Function()? readCsrf,
+  Future<String?> Function(Future<String?> Function())? crossTabLock,
+}) {
   final baseOptions = BaseOptions(
     baseUrl: ApiConfig.baseUrl,
     connectTimeout: ApiConfig.connectTimeout,
@@ -59,10 +93,23 @@ Dio buildApiClient({required TokenStore tokenStore}) {
   final plainDio = Dio(baseOptions);
 
   final dio = Dio(baseOptions);
+  // Local rehearsal on a physical device: trust only the test CA (non-release only).
+  final testTrust = testCaAdapter();
+  if (testTrust != null) {
+    plainDio.httpClientAdapter = testTrust;
+    dio.httpClientAdapter = testTrust;
+  }
+  TokenRefresher refresher = DioTokenRefresher(plainDio, tokenStore);
+  if (web) {
+    final session = WebSessionInterceptor(readCsrf: readCsrf ?? () => null);
+    plainDio.interceptors.add(session);
+    dio.interceptors.add(session);
+    if (crossTabLock != null) refresher = CrossTabRefresher(refresher, crossTabLock);
+  }
   dio.interceptors.add(
     AuthInterceptor(
       tokenStore: tokenStore,
-      refresher: DioTokenRefresher(plainDio, tokenStore),
+      refresher: refresher,
       retryDio: plainDio,
     ),
   );

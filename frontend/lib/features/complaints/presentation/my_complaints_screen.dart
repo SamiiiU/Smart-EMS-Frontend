@@ -97,8 +97,8 @@ class MyComplaintsScreenState extends State<MyComplaintsScreen> {
           const InlineAlert(
             tone: InlineAlertTone.warning,
             message: 'Complaints cannot be raised from a parent account yet '
-                '— the app has no way to tell the school which campus it '
-                'belongs to. Please contact the school office directly. '
+                '— the app has no way to tell the institution which campus it '
+                'belongs to. Please contact the institution office directly. '
                 'Anything already raised for you is shown below.',
           )
         else

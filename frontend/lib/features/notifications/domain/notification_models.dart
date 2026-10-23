@@ -39,17 +39,17 @@ class AppNotification {
   bool get isUnread => readAt == null;
 
   String get categoryLabel => switch (category) {
-        'admin' => 'Admin',
-        'attendance' => 'Attendance',
-        'fee' => 'Fees',
-        'exam' => 'Exams',
-        'diary' => 'Diary',
-        'complaint' => 'Complaints',
-        '' => 'Other',
-        // Shown as it comes rather than hidden: a category this app has not
-        // seen is still a real notification, and dropping it would lose it.
-        _ => category,
-      };
+    'admin' => 'Admin',
+    'attendance' => 'Attendance',
+    'fee' => 'Fees',
+    'exam' => 'Exams',
+    'diary' => 'Diary',
+    'complaint' => 'Complaints',
+    '' => 'Other',
+    // Shown as it comes rather than hidden: a category this app has not
+    // seen is still a real notification, and dropping it would lose it.
+    _ => category,
+  };
 }
 
 /// Notifications grouped by category, unread first.
@@ -73,7 +73,8 @@ List<NotificationGroup> groupNotifications(List<AppNotification> rows) {
   }
 
   final groups = byCategory.entries.map((e) {
-    final items = [...e.value]..sort((a, b) {
+    final items = [...e.value]
+      ..sort((a, b) {
         if (a.isUnread != b.isUnread) return a.isUnread ? -1 : 1;
         return b.createdAt.compareTo(a.createdAt);
       });

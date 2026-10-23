@@ -1,3 +1,4 @@
+import 'package:smartems/core/network/paged_get.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_error_mapper.dart';
@@ -21,8 +22,6 @@ class ComplaintsRepository {
     }
   }
 
-  static List<Map<String, dynamic>> _content(Map<String, dynamic>? body) =>
-      (body?['content'] as List? ?? const []).cast<Map<String, dynamic>>();
 
   // --- Campus ----------------------------------------------------------------
 
@@ -96,11 +95,8 @@ class ComplaintsRepository {
 
   /// The caller's OWN complaints. Available to every role.
   Future<List<Complaint>> loadMine() => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '/api/complaints/my',
-          queryParameters: const {'size': 100},
-        );
-        return _content(res.data).map(Complaint.fromJson).toList();
+        final rows = await dio.getAllPages('/api/complaints/my');
+        return rows.map(Complaint.fromJson).toList();
       });
 
   /// Every complaint. **Admin only** — other roles get a 403, which is the
@@ -113,15 +109,14 @@ class ComplaintsRepository {
     ComplaintCategory? category,
   }) =>
       _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
+        final rows = await dio.getAllPages(
           '/api/complaints',
           queryParameters: {
-            'size': 200,
             'status': ?status?.wire,
             'category': ?category?.wire,
           },
         );
-        return _content(res.data).map(Complaint.fromJson).toList();
+        return rows.map(Complaint.fromJson).toList();
       });
 
   Future<Complaint> load(String id) => _mapped(() async {

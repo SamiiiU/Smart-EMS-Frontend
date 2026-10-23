@@ -5,6 +5,7 @@ import '../theme/scales.dart';
 import '../theme/sizing.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
+import '../widgets/keyboard_tap_target.dart';
 import '../widgets/overline.dart';
 import 'nav_destination.dart';
 
@@ -46,55 +47,61 @@ class DesktopSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return Semantics(
-      container: true,
-      child: Container(
-        width: compact
-            ? AppSizing.sidebarCompactWidth
-            : AppSizing.sidebarWidth,
-        decoration: BoxDecoration(
-          color: t.surface,
-          border: Border(right: BorderSide(color: t.border)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (header != null)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.space5),
-                child: header,
-              ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.space3,
+    // FocusTraversalGroup (A11Y-2): the default reading-order policy sorts
+    // every focusable on the page by vertical bands, which interleaved sidebar
+    // rows with page content (Complaints -> Campus -> Attendance reviews ->
+    // Two-factor ...). Grouped, Tab walks the whole sidebar, then the page.
+    return FocusTraversalGroup(
+      child: Semantics(
+        container: true,
+        child: Container(
+          width: compact
+              ? AppSizing.sidebarCompactWidth
+              : AppSizing.sidebarWidth,
+          decoration: BoxDecoration(
+            color: t.surface,
+            border: Border(right: BorderSide(color: t.border)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (header != null)
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.space5),
+                  child: header,
                 ),
-                children: [
-                  for (var i = 0; i < destinations.length; i++) ...[
-                    // A heading whenever the group changes. Grouping by
-                    // FIRST APPEARANCE rather than sorting keeps `i` the
-                    // caller's own index, so selection cannot drift.
-                    //
-                    // Suppressed in the compact rail: 72px has no room for
-                    // a label, and a heading with no text is just a gap.
-                    if (!compact && startsGroup(destinations, i))
-                      _GroupHeading(label: destinations[i].group!),
-                    _SidebarItem(
-                      destination: destinations[i],
-                      selected: i == selectedIndex,
-                      compact: compact,
-                      onTap: () => onSelect(i),
-                    ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.space3,
+                  ),
+                  children: [
+                    for (var i = 0; i < destinations.length; i++) ...[
+                      // A heading whenever the group changes. Grouping by
+                      // FIRST APPEARANCE rather than sorting keeps `i` the
+                      // caller's own index, so selection cannot drift.
+                      //
+                      // Suppressed in the compact rail: 72px has no room for
+                      // a label, and a heading with no text is just a gap.
+                      if (!compact && startsGroup(destinations, i))
+                        _GroupHeading(label: destinations[i].group!),
+                      _SidebarItem(
+                        destination: destinations[i],
+                        selected: i == selectedIndex,
+                        compact: compact,
+                        onTap: () => onSelect(i),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            if (footer != null)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.space4),
-                child: footer,
-              ),
-          ],
+              if (footer != null)
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.space4),
+                  child: footer,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -126,14 +133,14 @@ class _GroupHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.space6,
-          AppSpacing.space5,
-          AppSpacing.space6,
-          AppSpacing.space2,
-        ),
-        child: Overline(label),
-      );
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.space6,
+      AppSpacing.space5,
+      AppSpacing.space6,
+      AppSpacing.space2,
+    ),
+    child: Overline(label),
+  );
 }
 
 class _SidebarItem extends StatelessWidget {
@@ -164,8 +171,9 @@ class _SidebarItem extends StatelessWidget {
     // both modes comfortably (12.0:1 dark / 15.6:1 light).
     final bg = selected ? t.primarySubtle : SmartEmsTokens.transparent;
     final fg = selected ? t.textPrimary : t.textSecondary;
-    final borderColour =
-        selected ? t.primaryAccent : SmartEmsTokens.transparent;
+    final borderColour = selected
+        ? t.primaryAccent
+        : SmartEmsTokens.transparent;
 
     final row = Container(
       margin: const EdgeInsets.symmetric(
@@ -206,18 +214,14 @@ class _SidebarItem extends StatelessWidget {
             ),
     );
 
-    return Semantics(
-      button: true,
-      selected: selected,
+    // A11Y-2: keyboard-operable (Tab, Enter/Space, focus ring) with one
+    // named, selectable node; the row's own semantics are excluded, so the
+    // icon and text are not announced as separate nodes.
+    return KeyboardTapTarget(
       label: destination.label,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        // ExcludeSemantics on the visual row: the Semantics above already
-        // supplies the label, so a screen reader is not shown the icon and
-        // the text as two separate un-labelled nodes.
-        child: ExcludeSemantics(child: row),
-      ),
+      selected: selected,
+      onTap: onTap,
+      child: row,
     );
   }
 }

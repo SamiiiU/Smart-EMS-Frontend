@@ -16,6 +16,7 @@ import 'sections_screen.dart';
 import 'subjects_screen.dart';
 import 'teaching_assignments_screen.dart';
 import 'timetable_builder_screen.dart';
+import '../../../core/widgets/page_header.dart';
 
 /// What every setup screen needs to know before it can write anything.
 @immutable
@@ -137,7 +138,7 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
           state: _state,
           onRetry: load,
           emptyTitle: 'Setup could not be opened',
-          emptyMessage: 'The school’s years, classes and sections could not '
+          emptyMessage: 'The institution’s years, classes and sections could not '
               'be read. Reopen this tab to try again — if it keeps '
               'happening, tell your system administrator.',
           data: (context, ctx) => _body(context, ctx),
@@ -153,10 +154,7 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.space6),
       children: [
-        Text(
-          'School setup',
-          style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
-        ),
+        const PageHeader(title: 'Institution setup', padding: EdgeInsets.zero),
         const SizedBox(height: AppSpacing.space2),
         Text(
           'Each step needs the one above it.',
@@ -167,8 +165,8 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
         if (ctx.campusId == null)
           const InlineAlert(
             tone: InlineAlertTone.danger,
-            message: 'This school has no campus, so nothing can be created '
-                'yet. A campus is set up when the school is created — ask '
+            message: 'This institution has no campus, so nothing can be created '
+                'yet. A campus is set up when the institution is created — ask '
                 'your system administrator.',
           )
         else if (year == null)
@@ -236,7 +234,7 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
         StepRow(
           number: 4,
           title: 'Subjects',
-          detail: 'Taught across the school.',
+          detail: 'Taught across the institution.',
           count: ctx.subjects.length,
           onTap: () => _open(SubjectsScreen(repository: widget.setup)),
         ),
@@ -267,7 +265,7 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
         StepRow(
           number: 6,
           title: 'Timetable',
-          detail: 'Periods for the school, then each section’s week.',
+          detail: 'Periods for the institution, then each section’s week.',
           onTap: (ctx.campusId == null || ctx.sections.isEmpty || year == null)
               ? null
               : () => _open(TimetableBuilderScreen(

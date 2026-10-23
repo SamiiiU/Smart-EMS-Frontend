@@ -91,11 +91,15 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _roster =
-        ScreenState<List<RosterStudent>>.loading(previous: _roster.data));
+    setState(
+      () => _roster = ScreenState<List<RosterStudent>>.loading(
+        previous: _roster.data,
+      ),
+    );
     try {
-      final students =
-          await widget.repository.loadRoster(widget.paper.sectionId);
+      final students = await widget.repository.loadRoster(
+        widget.paper.sectionId,
+      );
       if (!mounted) return;
       setState(() {
         for (final s in students) {
@@ -111,19 +115,21 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _roster = ScreenState<List<RosterStudent>>.failed(
-            f,
-            cached: _roster.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _roster = ScreenState<List<RosterStudent>>.failed(
+          f,
+          cached: _roster.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
   List<RosterStudent> get _students => _roster.data ?? const [];
 
-  int get _enteredCount =>
-      _entries.values.where((e) => e.isEntered).length;
+  int get _enteredCount => _entries.values.where((e) => e.isEntered).length;
 
   /// Rows that cannot be sent, so the count is honest about what "done"
   /// means.
@@ -132,7 +138,10 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
       .length;
 
   bool get _canSave =>
-      !_saving && !widget.marksLocked && _enteredCount > 0 && _problemCount == 0;
+      !_saving &&
+      !widget.marksLocked &&
+      _enteredCount > 0 &&
+      _problemCount == 0;
 
   void _update(String studentId, MarkEntry next) {
     setState(() {
@@ -199,7 +208,8 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
                 ),
                 child: InlineAlert(
                   tone: InlineAlertTone.warning,
-                  message: 'This exam has been published, so its marks are '
+                  message:
+                      'This exam has been published, so its marks are '
                       'locked and can no longer be changed.',
                 ),
               )
@@ -212,7 +222,8 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
                 // Two facts a teacher needs BEFORE typing forty numbers.
                 child: InlineAlert(
                   tone: InlineAlertTone.info,
-                  message: 'Marks already saved cannot be shown — this system '
+                  message:
+                      'Marks already saved cannot be shown — this system '
                       'has no way to read them back. Saving again replaces '
                       'whatever is stored. Once the exam is published, marks '
                       'are locked for good.',
@@ -233,8 +244,10 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
                   horizontal: AppSpacing.space6,
                   vertical: AppSpacing.space3,
                 ),
-                child:
-                    InlineAlert(tone: InlineAlertTone.danger, message: _error!),
+                child: InlineAlert(
+                  tone: InlineAlertTone.danger,
+                  message: _error!,
+                ),
               ),
 
             // D-29: submit confirmation, 250ms then settle — the ONLY
@@ -244,22 +257,22 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
               MotionConfirm(
                 show: true,
                 child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.space6,
-                  vertical: AppSpacing.space3,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.space6,
+                    vertical: AppSpacing.space3,
+                  ),
+                  child: InlineAlert(
+                    tone: _saved!.allSaved
+                        ? InlineAlertTone.success
+                        : InlineAlertTone.warning,
+                    message: _saved!.allSaved
+                        ? '${_saved!.successCount} '
+                              '${_saved!.successCount == 1 ? 'mark' : 'marks'} saved.'
+                        : '${_saved!.successCount} saved, '
+                              '${_saved!.errorCount} could not be: '
+                              '${_saved!.errors.join('; ')}',
+                  ),
                 ),
-                child: InlineAlert(
-                  tone: _saved!.allSaved
-                      ? InlineAlertTone.success
-                      : InlineAlertTone.warning,
-                  message: _saved!.allSaved
-                      ? '${_saved!.successCount} '
-                          '${_saved!.successCount == 1 ? 'mark' : 'marks'} saved.'
-                      : '${_saved!.successCount} saved, '
-                          '${_saved!.errorCount} could not be: '
-                          '${_saved!.errors.join('; ')}',
-                ),
-              ),
               ),
 
             Expanded(
@@ -267,7 +280,8 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
                 state: _roster,
                 onRetry: _load,
                 emptyTitle: 'No students enrolled',
-                emptyMessage: 'This section has no enrolled students, so '
+                emptyMessage:
+                    'This section has no enrolled students, so '
                     'there is nothing to mark.',
                 emptyIcon: Icons.groups_outlined,
                 data: (context, students) => ListView.builder(
@@ -401,14 +415,16 @@ class _Summary extends StatelessWidget {
           if (remaining > 0)
             Text(
               '$remaining left',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
           if (problems > 0)
             Text(
               problems == 1 ? '1 needs fixing' : '$problems need fixing',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.dangerTextOnBg),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.dangerTextOnBg,
+              ),
             ),
         ],
       ),
@@ -473,8 +489,9 @@ class MarkRow extends StatelessWidget {
                 constraints: const BoxConstraints(minWidth: AppSizing.avatar56),
                 child: Text(
                   entry.studentName,
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
               ),
               SizedBox(
@@ -492,22 +509,31 @@ class MarkRow extends StatelessWidget {
                     }
                     return KeyEventResult.ignored;
                   },
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    enabled: enabled && !entry.isAbsent,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
-                    onChanged: onChanged,
-                    onSubmitted: (_) => onNext(),
-                    style: AppTypography.personName
-                        .copyWith(color: t.textPrimary),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: entry.isAbsent ? '—' : maxMarks.format(),
-                      hintStyle: AppTypography.bodyAdminMeta
-                          .copyWith(color: t.textSecondary),
+                  child: Semantics(
+                    label: 'Marks for ${entry.studentName}',
+                    hint: entry.isAbsent
+                        ? 'Marked absent'
+                        : 'Out of ${maxMarks.format()}',
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      enabled: enabled && !entry.isAbsent,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                      onChanged: onChanged,
+                      onSubmitted: (_) => onNext(),
+                      style: AppTypography.personName.copyWith(
+                        color: t.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: entry.isAbsent ? '—' : maxMarks.format(),
+                        hintStyle: AppTypography.bodyAdminMeta.copyWith(
+                          color: t.textSecondary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -525,8 +551,9 @@ class MarkRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: AppSpacing.space1),
               child: Text(
                 problem,
-                style:
-                    AppTypography.bodyAdminMeta.copyWith(color: t.dangerTextOnBg),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.dangerTextOnBg,
+                ),
               ),
             ),
         ],

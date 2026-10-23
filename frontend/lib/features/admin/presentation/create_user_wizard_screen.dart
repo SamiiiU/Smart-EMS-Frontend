@@ -8,6 +8,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../data/user_wizard_repository.dart';
+import '../../../core/widgets/page_header.dart';
 
 /// Creates a login and its person record.
 ///
@@ -152,11 +153,7 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Create a user',
-                  style: AppTypography.screenTitle
-                      .copyWith(color: t.textPrimary),
-                ),
+                const PageHeader(title: 'Create a user', padding: EdgeInsets.zero),
                 const SizedBox(height: AppSpacing.space2),
                 Text(
                   _done
@@ -261,6 +258,7 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
         return [
           AppTextField(
             label: 'Username',
+required: true,
             value: _username,
             state: _isRecovering ? AppTextFieldState.disabled : fieldState,
             textInputAction: TextInputAction.next,
@@ -269,6 +267,7 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
           const SizedBox(height: AppSpacing.space5),
           AppTextField(
             label: 'Temporary password',
+required: true,
             value: _password,
             obscure: true,
             state: _isRecovering ? AppTextFieldState.disabled : fieldState,
@@ -286,6 +285,7 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
         return [
           AppTextField(
             label: 'First name',
+required: true,
             value: _firstName,
             state: fieldState,
             textInputAction: TextInputAction.next,
@@ -294,6 +294,7 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
           const SizedBox(height: AppSpacing.space5),
           AppTextField(
             label: 'Last name',
+required: true,
             value: _lastName,
             state: fieldState,
             onChanged: (v) => setState(() => _lastName = v),
