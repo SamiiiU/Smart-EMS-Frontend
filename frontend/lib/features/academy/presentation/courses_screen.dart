@@ -85,7 +85,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
             level: level.trim().isEmpty ? null : level.trim(),
           );
         }
-      }),
+      }).then((m) => course == null ? courseCodeConflict(m, code) : m),
     );
     if (saved) await _loader.currentState?.reload();
   }
@@ -114,8 +114,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
             runSpacing: AppSpacing.space5,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              SizedBox(
-                width: 320,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
                 child: SearchField(
                   label: 'Search courses',
                   value: _query,
@@ -202,3 +202,10 @@ class _CoursesScreenState extends State<CoursesScreen> {
     );
   }
 }
+
+/// The only unique key a course CREATE can hit is (tenant, lower(code)), ux_course_code. The server
+/// answers any unique violation with a generic 409 message, so name the real cause (H09).
+String? courseCodeConflict(String? message, String code) =>
+    message == 'Conflicts with existing data'
+    ? 'A course with code "${code.trim()}" already exists (codes are not case-sensitive). Use a different code.'
+    : message;

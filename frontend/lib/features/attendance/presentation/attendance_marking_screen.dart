@@ -9,6 +9,7 @@ import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/inline_alert.dart';
+import '../../../core/widgets/keyboard_tap_target.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../../core/widgets/status_pill.dart';
@@ -636,14 +637,23 @@ class AttendanceMarkingScreenState extends State<AttendanceMarkingScreen> {
           'Nothing is sent until you submit.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            key: const Key('confirm-all-present'),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Mark present'),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: AppSpacing.space3,
+            runSpacing: AppSpacing.space3,
+            children: [
+              AppButton(
+                label: 'Cancel',
+                variant: AppButtonVariant.secondary,
+                autofocus: true,
+                onPressed: () => Navigator.pop(context, false),
+              ),
+              AppButton(
+                key: const Key('confirm-all-present'),
+                label: 'Mark present',
+                onPressed: () => Navigator.pop(context, true),
+              ),
+            ],
           ),
         ],
       ),
@@ -666,14 +676,23 @@ class AttendanceMarkingScreenState extends State<AttendanceMarkingScreen> {
             'Your marks on this register have not been submitted and will be lost.',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Keep marking'),
-            ),
-            TextButton(
-              key: const Key('confirm-leave'),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Leave'),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: AppSpacing.space3,
+              runSpacing: AppSpacing.space3,
+              children: [
+                AppButton(
+                  label: 'Keep marking',
+                  variant: AppButtonVariant.secondary,
+                  autofocus: true,
+                  onPressed: () => Navigator.pop(context, false),
+                ),
+                AppButton(
+                  key: const Key('confirm-leave'),
+                  label: 'Leave',
+                  onPressed: () => Navigator.pop(context, true),
+                ),
+              ],
             ),
           ],
         ),
@@ -923,30 +942,54 @@ class _StatusChoice extends StatelessWidget {
         : t.textDisabled;
     final border = selected ? t.primaryAccent : t.border;
 
-    return Semantics(
-      button: true,
+    // DEF-18: was a bare GestureDetector (mouse/touch only). The shared target
+    // adds Tab focus, Enter/Space activation and a keyboard focus ring, with the
+    // same single "<status> for <learner>" announcement and selected state.
+    return KeyboardTapTarget(
+      label: semanticLabel,
       selected: selected,
       enabled: enabled,
-      label: semanticLabel,
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.space4,
-              vertical: AppSpacing.space3,
-            ),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(AppRadius.full),
-              border: Border.all(color: border),
-            ),
-            child: Text(
-              label,
-              style: AppTypography.fieldLabel.copyWith(color: fg),
-            ),
-          ),
+      onTap: onTap,
+      borderRadius: AppRadius.full,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.space4,
+          vertical: AppSpacing.space3,
+        ),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          border: Border.all(color: border),
+        ),
+        child: Text(label, style: AppTypography.fieldLabel.copyWith(color: fg)),
+      ),
+    );
+  }
+}
+
+/// A small neutral pill for "Unmarked" / "Pending" / counts.
+class _CountChip extends StatelessWidget {
+  const _CountChip({required this.text, this.muted = false, super.key});
+  final String text;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.space4,
+        vertical: AppSpacing.space2,
+      ),
+      decoration: BoxDecoration(
+        color: muted ? t.surfaceSunken : t.surface,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(color: t.border),
+      ),
+      child: Text(
+        text,
+        style: AppTypography.bodyAdminMeta.copyWith(
+          color: muted ? t.textSecondary : t.textPrimary,
         ),
       ),
     );

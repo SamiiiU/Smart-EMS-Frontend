@@ -32,6 +32,7 @@ class PrivateFilesRepository {
     required String requestKey,
     String? studentId,
     CancelToken? cancelToken,
+    ProgressCallback? onSendProgress,
   }) => _mapped(() async {
     final form = FormData.fromMap({
       'file': MultipartFile.fromBytes(bytes, filename: filename),
@@ -43,6 +44,7 @@ class PrivateFilesRepository {
       '/api/files',
       data: form,
       cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
       options: Options(
         headers: {'Idempotency-Key': _id(requestKey)},
         receiveTimeout: const Duration(seconds: 45),

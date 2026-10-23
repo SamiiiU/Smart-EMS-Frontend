@@ -56,9 +56,7 @@ class _NoAccessScreenState extends State<NoAccessScreen> {
                 child: Text(
                   'Your account has no access here yet',
                   textAlign: TextAlign.center,
-                  style: AppTypography.screenTitle.copyWith(
-                    color: t.textPrimary,
-                  ),
+                  style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
                 ),
               ),
               const SizedBox(height: AppSpacing.space3),
@@ -67,9 +65,7 @@ class _NoAccessScreenState extends State<NoAccessScreen> {
                 'institution. If you need access, ask your institution’s administrator, then '
                 'check again.',
                 textAlign: TextAlign.center,
-                style: AppTypography.bodyTeacher.copyWith(
-                  color: t.textSecondary,
-                ),
+                style: AppTypography.bodyTeacher.copyWith(color: t.textSecondary),
               ),
               const SizedBox(height: AppSpacing.space6),
               if (widget.onCheckAgain != null) ...[

@@ -5,6 +5,7 @@ import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/inline_alert.dart';
+import '../../../core/widgets/keyboard_tap_target.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../../core/widgets/status_pill.dart';
@@ -266,18 +267,26 @@ class ResultRow extends StatelessWidget {
               children: [row, actions!],
             );
     }
-    final tappable = Semantics(
-      button: true,
+    // Keyboard-operable (Tab + Enter/Space opens the report card).
+    final tappable = KeyboardTapTarget(
       label:
           '${result.studentName}, '
           '${result.percentage.formatPercent()}, '
           'grade ${result.grade}, ${result.status.label.toLowerCase()}'
           '${result.withheld ? ', withheld' : ''}',
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(child: row),
-      ),
+      onTap: onTap,
+      child: row,
+    );
+    if (actions == null) return tappable;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tappable,
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.space4),
+          child: actions!,
+        ),
+      ],
     );
     if (actions == null) return tappable;
     return Column(

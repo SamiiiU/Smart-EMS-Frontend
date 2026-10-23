@@ -154,6 +154,78 @@ void main() {
       );
     }
   });
+  group('DEF-26: a transport failure with no response reads as unreachable', () {
+    test('unknown + underlying socket error, no response → "Could not reach the server."', () {
+      final failure = mapDioError(DioException(
+        requestOptions: RequestOptions(path: ApiConfig.mfaVerifyPath),
+        type: DioExceptionType.unknown,
+        error: Exception('Connection refused'),
+      ));
+      expect(failure.message, 'Could not reach the server.');
+      expect(failure.unreachable, isTrue);
+    });
+    test('a real server answer keeps its own message and is not unreachable', () {
+      final opts = RequestOptions(path: ApiConfig.mfaVerifyPath);
+      final failure = mapDioError(DioException(
+        requestOptions: opts,
+        type: DioExceptionType.badResponse,
+        response: Response<dynamic>(requestOptions: opts, statusCode: 401, data: {'message': 'Invalid verification code'}),
+      ));
+      expect(failure.message, 'Invalid verification code');
+      expect(failure.unreachable, isFalse);
+    });
+  });
+
+  group('DEF-22: MFA code rejection is not a token expiry', () {
+    ({Dio client, _ScriptedAdapter server, _ScriptedAdapter refresh, InMemoryTokenStore store}) wire(
+      ResponseBody Function(RequestOptions) verify,
+    ) {
+      final store = InMemoryTokenStore(accessToken: 'live', refreshToken: 'r');
+      final refresh = _ScriptedAdapter((o) => _jsonBody(200, {'accessToken': 'new', 'refreshToken': 'new-r'}));
+      final plain = Dio(BaseOptions(baseUrl: 'https://example.test'))..httpClientAdapter = refresh;
+      final server = _ScriptedAdapter(verify);
+      final client = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = server
+        ..interceptors.add(AuthInterceptor(
+          tokenStore: store,
+          refresher: DioTokenRefresher(plain, store),
+          retryDio: Dio(BaseOptions(baseUrl: 'https://example.test'))..httpClientAdapter = server,
+        ));
+      return (client: client, server: server, refresh: refresh, store: store);
+    }
+
+    for (final path in [ApiConfig.mfaVerifyPath, ApiConfig.mfaStepUpPath, ApiConfig.mfaEnrollmentConfirmPath]) {
+      test('$path: a rejected code is sent once, with no refresh and the session kept', () async {
+        final w = wire((o) => _jsonBody(401, {'status': 401, 'message': 'Invalid verification code'}));
+        await expectLater(w.client.post<dynamic>(path, data: {'code': '000000'}), throwsA(isA<DioException>()));
+        expect(w.server.callCount, 1, reason: 'the wrong code must not be replayed');
+        expect(w.refresh.callCount, 0);
+        expect(w.store.accessToken, 'live');
+      });
+    }
+
+    test('change-password: a wrong current password is sent once, with no refresh', () async {
+      final w = wire((o) => _jsonBody(401, {'status': 401, 'message': 'Current password is incorrect'}));
+      await expectLater(
+          w.client.post<dynamic>('/api/users/me/change-password', data: {'currentPassword': 'x', 'newPassword': 'y'}),
+          throwsA(isA<DioException>()));
+      expect(w.server.callCount, 1, reason: 'a wrong password must not be replayed');
+      expect(w.refresh.callCount, 0);
+      expect(w.store.accessToken, 'live');
+    });
+
+    test('an expired token on the verify endpoint is still refreshed and retried once', () async {
+      var calls = 0;
+      final w = wire((o) => ++calls == 1
+          ? _jsonBody(401, {'status': 401, 'message': 'Access token missing or invalid'})
+          : _jsonBody(200, {}));
+      await w.client.post<dynamic>(ApiConfig.mfaVerifyPath, data: {'code': '123456'});
+      expect(w.refresh.callCount, 1);
+      expect(w.server.callCount, 2);
+      expect(w.store.accessToken, 'new');
+    });
+  });
+
   group('AuthInterceptor — single-flight refresh under concurrency', () {
     test('N concurrent 401s trigger exactly ONE refresh call', () async {
       final tokenStore = InMemoryTokenStore(
@@ -340,14 +412,11 @@ void main() {
           response: Response(
             requestOptions: options,
             statusCode: 503,
-            headers: Headers.fromMap({
-              'retry-after': ['5'],
-            }),
+            headers: Headers.fromMap({'retry-after': ['5']}),
             data: {
               'status': 503,
               'error': 'Service Unavailable',
-              'message':
-                  'The service is temporarily unavailable. Please try again shortly.',
+              'message': 'The service is temporarily unavailable. Please try again shortly.',
               'path': ApiConfig.loginPath,
             },
           ),
@@ -389,27 +458,12 @@ void main() {
       },
     );
 
-    test(
-      'BUG-QA-13: internal ids are stripped from server messages, the rest kept',
-      () {
-        expect(
-          withoutInternalIds(
-            'Campus not found: 23d08841-4963-473a-a96b-5d7269b2cc85',
-          ),
-          'Campus not found',
-        );
-        expect(
-          withoutInternalIds('Attendance for this date is locked.'),
-          'Attendance for this date is locked.',
-        );
-        expect(withoutInternalIds(null), isNull);
-        expect(
-          withoutInternalIds('23d08841-4963-473a-a96b-5d7269b2cc85'),
-          isNull,
-          reason: 'nothing left: fall back to the generic message',
-        );
-      },
-    );
+    test('BUG-QA-13: internal ids are stripped from server messages, the rest kept', () {
+      expect(withoutInternalIds('Campus not found: 23d08841-4963-473a-a96b-5d7269b2cc85'), 'Campus not found');
+      expect(withoutInternalIds('Attendance for this date is locked.'), 'Attendance for this date is locked.');
+      expect(withoutInternalIds(null), isNull);
+      expect(withoutInternalIds('23d08841-4963-473a-a96b-5d7269b2cc85'), isNull, reason: 'nothing left: fall back to the generic message');
+    });
 
     test('M1: a 403 is forbidden (no retry), keeping the server message', () {
       final options = RequestOptions(path: '/api/fee/plans');

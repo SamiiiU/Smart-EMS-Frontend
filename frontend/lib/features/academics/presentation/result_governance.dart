@@ -23,6 +23,8 @@ Future<String?> askReason(
       builder: (context, setState) {
         final ok = value.trim().length >= 3 && value.length <= 500;
         return AlertDialog(
+          // Fields stay reachable above the phone keyboard.
+          scrollable: true,
           title: Text(title),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -42,15 +44,16 @@ Future<String?> askReason(
             ],
           ),
           actions: [
-            TextButton(
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
             ),
-            TextButton(
+            AppButton(
+              label: confirmLabel,
               onPressed: ok
                   ? () => Navigator.of(dialogContext).pop(value.trim())
                   : null,
-              child: Text(confirmLabel),
             ),
           ],
         );
@@ -160,9 +163,10 @@ class ResultGovernanceActionsState extends State<ResultGovernanceActions> {
                 ],
         ),
         actions: [
-          TextButton(
+          AppButton(
+            label: 'Close',
+            variant: AppButtonVariant.secondary,
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Close'),
           ),
         ],
       ),
@@ -340,13 +344,14 @@ class CorrectionDialogState extends State<CorrectionDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        AppButton(
+          label: 'Cancel',
+          variant: AppButtonVariant.secondary,
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
         ),
-        TextButton(
+        AppButton(
+          label: _busy ? 'Saving…' : 'Record correction',
           onPressed: _valid && !_busy ? _submit : null,
-          child: Text(_busy ? 'Saving…' : 'Record correction'),
         ),
       ],
     );

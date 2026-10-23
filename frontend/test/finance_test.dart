@@ -620,9 +620,18 @@ void main() {
       expect(find.text('PKR 5,500.00'), findsNothing);
     });
 
-    testWidgets('due date is a localized business date, not raw ISO', (
-      tester,
-    ) async {
+    testWidgets('due date is a localized business date, not raw ISO', (tester) async {
+      final w = _wire();
+      w.server.invoiceDetailJson = _invoiceJson;
+      await tester.pumpWidget(_host(InvoiceDetailScreen(repository: w.repo, invoiceId: 'inv-1')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('due Jul 10, 2026'), findsOneWidget);
+      expect(find.textContaining('2026-07-10'), findsNothing);
+    });
+
+    testWidgets('it admits it cannot list the individual payments',
+        (tester) async {
       final w = _wire();
       w.server.invoiceDetailJson = _invoiceJson;
       await tester.pumpWidget(
@@ -735,11 +744,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // M5: the summary panel moved the note below the fold; scroll to it.
-      await tester.scrollUntilVisible(
-        find.textContaining('cannot be recorded while offline'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.textContaining('cannot be recorded while offline'), 200,
+          scrollable: find.byType(Scrollable).first);
       expect(
         find.textContaining('cannot be recorded while offline'),
         findsOneWidget,
@@ -788,10 +794,7 @@ void main() {
       await tester.tap(find.byKey(const Key('confirm-record-payment')));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('counts against the invoice only after approval'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('counts against the invoice only after approval'), findsOneWidget);
       // NOTE-QA-10: a payment recorded just now is not described as restored.
       expect(find.textContaining('restored'), findsNothing);
       expect(find.textContaining('earlier attempt'), findsNothing);
@@ -983,63 +986,36 @@ void main() {
       expect(find.textContaining('Could not load'), findsNothing);
     });
 
-    testWidgets(
-      'M6: the hub opens on collected / outstanding / awaiting approval',
-      (tester) async {
-        final w = _wire();
-        w.server.collectionJson =
-            '{"totalInvoiced":125000.00,"totalCollected":100000.50,'
-            '"outstanding":24999.50,"byClass":[]}';
-        await tester.pumpWidget(hub(w.dio, w.repo));
-        await tester.pumpAndSettle();
+    testWidgets('M6: the hub opens on collected / outstanding / awaiting approval',
+        (tester) async {
+      final w = _wire();
+      w.server.collectionJson =
+          '{"totalInvoiced":125000.00,"totalCollected":100000.50,'
+          '"outstanding":24999.50,"byClass":[]}';
+      await tester.pumpWidget(hub(w.dio, w.repo));
+      await tester.pumpAndSettle();
 
-        final summary = find.byKey(const Key('finance-summary'));
-        expect(
-          find.descendant(of: summary, matching: find.text('PKR 100,000.50')),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(of: summary, matching: find.text('PKR 24,999.50')),
-          findsOneWidget,
-        );
-        expect(find.text('of PKR 125,000.00 invoiced'), findsOneWidget);
-        expect(
-          find.descendant(
-            of: summary,
-            matching: find.text('Payments awaiting approval'),
-          ),
-          findsOneWidget,
-        );
-      },
-    );
+      final summary = find.byKey(const Key('finance-summary'));
+      expect(find.descendant(of: summary, matching: find.text('PKR 100,000.50')), findsOneWidget);
+      expect(find.descendant(of: summary, matching: find.text('PKR 24,999.50')), findsOneWidget);
+      expect(find.text('of PKR 125,000.00 invoiced'), findsOneWidget);
+      expect(find.descendant(of: summary, matching: find.text('Payments awaiting approval')), findsOneWidget);
+    });
 
-    testWidgets('M6: a failed collection report never blocks the fee tools', (
-      tester,
-    ) async {
+    testWidgets('M6: a failed collection report never blocks the fee tools',
+        (tester) async {
       final w = _wire();
       w.server.collectionStatus = 500;
       await tester.pumpWidget(hub(w.dio, w.repo));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Collection totals could not be loaded'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Fee heads'),
-        findsOneWidget,
-        reason: 'the hub itself still renders',
-      );
-      expect(
-        find.text('Collected'),
-        findsNothing,
-        reason: 'no invented zero totals',
-      );
+      expect(find.textContaining('Collection totals could not be loaded'), findsOneWidget);
+      expect(find.text('Fee heads'), findsOneWidget, reason: 'the hub itself still renders');
+      expect(find.text('Collected'), findsNothing, reason: 'no invented zero totals');
     });
 
-    testWidgets('the steps unblock in order as their dependency appears', (
-      tester,
-    ) async {
+    testWidgets('the steps unblock in order as their dependency appears',
+        (tester) async {
       final w = _wire();
       w.server.heads.add(
         '{"id":"head-1","name":"Tuition Fee","is_recurring":true,'

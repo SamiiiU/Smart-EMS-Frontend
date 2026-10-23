@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/states/loading_skeleton.dart';
+
 import '../../../core/widgets/auth_layout.dart';
 import 'package:flutter/services.dart';
 
@@ -40,12 +42,19 @@ class MfaScreen extends StatefulWidget {
 
 enum _Stage { loading, enrol, recoveryCodes, verify, alreadyEnabled, failed }
 
+/// "ABCDEFGH" → "ABCD EFGH": a screen reader reads a long key in short groups.
+String groupForReading(String key) => [
+  for (var i = 0; i < key.length; i += 4)
+    key.substring(i, i + 4 > key.length ? key.length : i + 4),
+].join(' ');
+
 class MfaScreenState extends State<MfaScreen> {
   _Stage _stage = _Stage.loading;
   MfaEnrollment? _enrollment;
   List<String> _recoveryCodes = const [];
   String _code = '';
   bool _useRecoveryCode = false;
+  bool _copied = false;
   bool _submitting = false;
   String? _error;
 
@@ -157,7 +166,7 @@ class MfaScreenState extends State<MfaScreen> {
 
     switch (_stage) {
       case _Stage.loading:
-        children.add(const Center(child: CircularProgressIndicator()));
+        children.add(const LoadingSkeleton.cards(count: 1));
       case _Stage.alreadyEnabled:
         heading(
           'Two-factor authentication',
@@ -187,12 +196,21 @@ class MfaScreenState extends State<MfaScreen> {
         );
         children
           ..add(
-            SelectableText(
-              _enrollment!.secret,
-              key: const Key('mfa-secret'),
-              style: AppTypography.screenTitle.copyWith(
-                color: t.textPrimary,
-                letterSpacing: 2,
+            // DEF-23: SelectableText is not exposed to assistive technology on
+            // web, so the key was unreadable by a screen reader. The label reads
+            // it in groups of four.
+            Semantics(
+              container: true,
+              label: 'Setup key: ${groupForReading(_enrollment!.secret)}',
+              child: ExcludeSemantics(
+                child: SelectableText(
+                  _enrollment!.secret,
+                  key: const Key('mfa-secret'),
+                  style: AppTypography.screenTitle.copyWith(
+                    color: t.textPrimary,
+                    letterSpacing: 2,
+                  ),
+                ),
               ),
             ),
           )
@@ -201,11 +219,24 @@ class MfaScreenState extends State<MfaScreen> {
             AppButton(
               label: 'Copy setup link',
               variant: AppButtonVariant.secondary,
-              onPressed: () => Clipboard.setData(
-                ClipboardData(text: _enrollment!.otpauthUrl),
-              ),
+              onPressed: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: _enrollment!.otpauthUrl),
+                );
+                if (mounted) setState(() => _copied = true);
+              },
             ),
           )
+          ..addAll([
+            if (_copied)
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Setup link copied. Paste it into your authenticator app.',
+                  style: AppTypography.caption.copyWith(color: t.textSecondary),
+                ),
+              ),
+          ])
           ..add(const SizedBox(height: AppSpacing.space6))
           ..addAll(_codeField('Authenticator code'));
       case _Stage.recoveryCodes:
@@ -216,12 +247,19 @@ class MfaScreenState extends State<MfaScreen> {
         );
         children
           ..add(
-            SelectableText(
-              _recoveryCodes.join('\n'),
-              key: const Key('mfa-recovery-codes'),
-              style: AppTypography.bodyAdminMeta.copyWith(
-                color: t.textPrimary,
-                fontFamily: 'monospace',
+            // DEF-23: readable by a screen reader (see the setup key).
+            Semantics(
+              container: true,
+              label: 'Recovery codes: ${_recoveryCodes.join(', ')}',
+              child: ExcludeSemantics(
+                child: SelectableText(
+                  _recoveryCodes.join('\n'),
+                  key: const Key('mfa-recovery-codes'),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textPrimary,
+                    fontFamily: 'monospace',
+                  ),
+                ),
               ),
             ),
           )
@@ -330,10 +368,7 @@ Future<bool> showStepUpDialog(
           'Two-factor authentication, then try again.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
+          AppButton(label: 'OK', onPressed: () => Navigator.of(context).pop()),
         ],
       ),
     );
@@ -381,6 +416,8 @@ class _StepUpDialogState extends State<_StepUpDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      // Fields stay reachable above the phone keyboard.
+      scrollable: true,
       title: const Text('Confirm it is you'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -410,15 +447,23 @@ class _StepUpDialogState extends State<_StepUpDialog> {
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: _submitting
-              ? null
-              : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: _submitting || _code.trim().isEmpty ? null : _submit,
-          child: Text(_submitting ? 'Checking…' : 'Confirm'),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: AppSpacing.space3,
+          runSpacing: AppSpacing.space3,
+          children: [
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: _submitting
+                  ? null
+                  : () => Navigator.of(context).pop(false),
+            ),
+            AppButton(
+              label: _submitting ? 'Checking…' : 'Confirm',
+              onPressed: _submitting || _code.trim().isEmpty ? null : _submit,
+            ),
+          ],
         ),
       ],
     );

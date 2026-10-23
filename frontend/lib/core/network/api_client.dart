@@ -104,8 +104,7 @@ Dio buildApiClient({
     final session = WebSessionInterceptor(readCsrf: readCsrf ?? () => null);
     plainDio.interceptors.add(session);
     dio.interceptors.add(session);
-    if (crossTabLock != null)
-      refresher = CrossTabRefresher(refresher, crossTabLock);
+    if (crossTabLock != null) refresher = CrossTabRefresher(refresher, crossTabLock);
   }
   dio.interceptors.add(
     AuthInterceptor(

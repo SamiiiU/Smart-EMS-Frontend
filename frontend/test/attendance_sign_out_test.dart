@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:smartems/core/theme/app_theme.dart';
+import 'package:smartems/core/theme/typography.dart' show AppRole;
 import 'package:drift/native.dart';
 import 'package:smartems/features/attendance/data/attendance_queue.dart';
 import 'package:smartems/features/attendance/domain/attendance_models.dart';
@@ -26,6 +28,7 @@ void main() {
       bool? result;
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.light(role: AppRole.admin),
           home: Builder(
             builder: (context) => TextButton(
               onPressed: () async {
@@ -63,6 +66,7 @@ void main() {
       bool? result;
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.light(role: AppRole.admin),
           home: Builder(
             builder: (context) => TextButton(
               onPressed: () async {

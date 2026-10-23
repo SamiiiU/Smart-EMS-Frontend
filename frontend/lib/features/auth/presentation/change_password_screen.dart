@@ -83,6 +83,9 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    // Opened from Settings (a pushed page) rather than forced after login:
+    // the user may change their mind.
+    final voluntary = Navigator.of(context).canPop();
 
     return Scaffold(
       backgroundColor: t.page,
@@ -99,8 +102,10 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               const SizedBox(height: AppSpacing.space3),
               Text(
-                'Your account needs a new password before you can '
-                'continue.',
+                voluntary
+                    ? 'Choose a new password for your account.'
+                    : 'Your account needs a new password before you can '
+                          'continue.',
                 style: AppTypography.bodyAdminMeta.copyWith(
                   color: t.textSecondary,
                 ),
@@ -157,10 +162,48 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 fullWidth: true,
                 onPressed: _canSubmit ? submit : null,
               ),
+              if (voluntary) ...[
+                const SizedBox(height: AppSpacing.space3),
+                AppButton(
+                  key: const Key('change-password-cancel'),
+                  label: 'Cancel',
+                  variant: AppButtonVariant.ghost,
+                  fullWidth: true,
+                  onPressed: _submitting
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Makes a user-initiated password change reachable from Settings without
+/// threading the auth repository through every role's destination builder
+/// (same pattern as `MfaScope`). The forced change after login still uses
+/// the `/change-password` route.
+class PasswordScope extends InheritedWidget {
+  const PasswordScope({
+    required this.repository,
+    required this.onChanged,
+    required super.child,
+    super.key,
+  });
+
+  final AuthRepository repository;
+
+  /// After a successful change every session is revoked server-side, so the
+  /// app drops its identity and the router returns to login.
+  final VoidCallback onChanged;
+
+  static PasswordScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<PasswordScope>();
+
+  @override
+  bool updateShouldNotify(PasswordScope oldWidget) =>
+      repository != oldWidget.repository || onChanged != oldWidget.onChanged;
 }

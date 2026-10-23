@@ -50,8 +50,7 @@ class OfflineRestoreScreen extends StatefulWidget {
   State<OfflineRestoreScreen> createState() => _OfflineRestoreScreenState();
 }
 
-class _OfflineRestoreScreenState extends State<OfflineRestoreScreen>
-    with WidgetsBindingObserver {
+class _OfflineRestoreScreenState extends State<OfflineRestoreScreen> with WidgetsBindingObserver {
   bool _retrying = false;
   int _attempt = 0;
   Timer? _timer;
@@ -83,8 +82,7 @@ class _OfflineRestoreScreenState extends State<OfflineRestoreScreen>
     _timer?.cancel();
     final delays = widget.backoff;
     if (delays.isEmpty) return;
-    final delay =
-        delays[_attempt < delays.length ? _attempt : delays.length - 1];
+    final delay = delays[_attempt < delays.length ? _attempt : delays.length - 1];
     _timer = Timer(delay, () {
       _attempt++;
       _retry();
@@ -124,25 +122,19 @@ class _OfflineRestoreScreenState extends State<OfflineRestoreScreen>
                 children: [
                   Semantics(
                     header: true,
-                    child: Text(
-                      widget.serverBusy ? 'Server busy' : "You're offline",
-                      style: AppTypography.screenTitle.copyWith(
-                        color: t.textPrimary,
-                      ),
-                    ),
+                    child: Text(widget.serverBusy ? 'Server busy' : "You're offline",
+                        style: AppTypography.screenTitle.copyWith(color: t.textPrimary)),
                   ),
                   const SizedBox(height: AppSpacing.space4),
                   Text(
                     widget.serverBusy
                         ? 'Smart EMS is receiving too many requests right now. You are still '
-                              'signed in, and any attendance you saved offline is kept safely on '
-                              'this device. It will sync once the server catches up.'
+                            'signed in, and any attendance you saved offline is kept safely on '
+                            'this device. It will sync once the server catches up.'
                         : 'Smart EMS could not reach the server. You are still signed in, and any '
-                              'attendance you saved offline is kept safely on this device. It will '
-                              'sync when the connection returns.',
-                    style: AppTypography.bodyTeacher.copyWith(
-                      color: t.textSecondary,
-                    ),
+                            'attendance you saved offline is kept safely on this device. It will '
+                            'sync when the connection returns.',
+                    style: AppTypography.bodyTeacher.copyWith(color: t.textSecondary),
                   ),
                   const SizedBox(height: AppSpacing.space4),
                   Semantics(
@@ -151,12 +143,10 @@ class _OfflineRestoreScreenState extends State<OfflineRestoreScreen>
                       _retrying
                           ? 'Connecting…'
                           : widget.serverBusy
-                          ? 'Retrying automatically. You do not need to do anything.'
-                          : 'Reconnecting automatically. You do not need to do anything.',
+                              ? 'Retrying automatically. You do not need to do anything.'
+                              : 'Reconnecting automatically. You do not need to do anything.',
                       key: const Key('offline-auto-status'),
-                      style: AppTypography.bodyAdminMeta.copyWith(
-                        color: t.textSecondary,
-                      ),
+                      style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.space6),

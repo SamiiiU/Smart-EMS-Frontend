@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/states/loading_skeleton.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
@@ -57,8 +58,9 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
       _candidates = (candidates?.candidates ?? const <AdminCandidate>[])
           .where((c) => !current.contains(c.userId))
           .toList();
-      if (_target != null && !_candidates.any((c) => c.userId == _target))
+      if (_target != null && !_candidates.any((c) => c.userId == _target)) {
         _target = null;
+      }
       _error = admins.failure?.message ?? candidates?.failure?.message;
     });
   }
@@ -111,7 +113,8 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
     final t = context.tokens;
     final canAppoint = !_busy && _target != null && _code.trim().length >= 6;
     return Scaffold(
-      appBar: AppBar(),
+      backgroundColor: context.tokens.page,
+      appBar: AppBar(title: const Text('Institution admins')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.space6),
         children: [
@@ -148,7 +151,7 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
           ),
           const SizedBox(height: AppSpacing.space3),
           if (_loading)
-            const Center(child: CircularProgressIndicator())
+            const LoadingSkeleton.listRows(count: 3)
           else if (_admins.isEmpty)
             Text(
               'No Institution Admins yet.',
@@ -173,6 +176,8 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
                     AppButton(
                       key: Key('remove-${a.userId}'),
                       label: 'Remove',
+                      // Several rows each have "Remove"; say whose access goes.
+                      semanticsLabel: 'Remove ${a.username}',
                       variant: AppButtonVariant.secondary,
                       onPressed: _busy ? null : () => _remove(a),
                     ),

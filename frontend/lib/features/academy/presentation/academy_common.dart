@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/shell/campus_context.dart';
@@ -6,6 +8,7 @@ import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../finance/domain/money.dart';
@@ -166,13 +169,89 @@ class StatusChip extends StatelessWidget {
   }
 }
 
+/// Reports an Academy action's outcome. Shown INLINE, at the top of the
+/// nearest [ResultBannerHost] (the design system's rule: no state is a
+/// SnackBar or an overlay; an error must stay readable until dismissed).
+/// Only where no host exists (e.g. a context from a dialog route) does it
+/// fall back to a SnackBar.
 void showResult(BuildContext context, String message, {bool error = false}) {
+  final host = context.findAncestorStateOfType<ResultBannerHostState>();
+  if (host != null) {
+    host.show(message, error: error);
+    return;
+  }
   ScaffoldMessenger.maybeOf(context)?.showSnackBar(
     SnackBar(
       content: Text(message),
       backgroundColor: error ? context.tokens.danger : null,
     ),
   );
+}
+
+/// Hosts the inline outcome banner for [showResult] above [child].
+/// [child] fills the remaining height, so the host must itself be bounded
+/// (inside an Expanded or a Scaffold body).
+class ResultBannerHost extends StatefulWidget {
+  const ResultBannerHost({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  State<ResultBannerHost> createState() => ResultBannerHostState();
+}
+
+class ResultBannerHostState extends State<ResultBannerHost> {
+  String? _message;
+  bool _error = false;
+
+  void show(String message, {bool error = false}) {
+    if (!mounted) return;
+    setState(() {
+      _message = message;
+      _error = error;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final message = _message;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (message != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.space4,
+              AppSpacing.space3,
+              AppSpacing.space4,
+              0,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: InlineAlert(
+                    tone: _error
+                        ? InlineAlertTone.danger
+                        : InlineAlertTone.success,
+                    message: message,
+                  ),
+                ),
+                AppButton(
+                  key: const Key('result-banner-dismiss'),
+                  label: 'Dismiss',
+                  variant: AppButtonVariant.ghost,
+                  size: AppButtonSize.sm,
+                  semanticsLabel: 'Dismiss message',
+                  onPressed: () => setState(() => _message = null),
+                ),
+              ],
+            ),
+          ),
+        Expanded(child: widget.child),
+      ],
+    );
+  }
 }
 
 /// A titled form in a dialog: [fields] edit local state; [submit] returns an
@@ -198,7 +277,7 @@ Future<bool> showFormDialog(
         builder: (context, setState) => AlertDialog(
           title: Text(title),
           content: SizedBox(
-            width: 460,
+            width: math.min(460.0, MediaQuery.sizeOf(context).width - 80),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -219,11 +298,12 @@ Future<bool> showFormDialog(
             ),
           ),
           actions: [
-            TextButton(
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
               onPressed: busy
                   ? null
                   : () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
             ),
             AppButton(
               label: busy ? 'Saving…' : submitLabel,

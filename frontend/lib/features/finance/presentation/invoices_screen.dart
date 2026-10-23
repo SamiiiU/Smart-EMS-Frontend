@@ -16,6 +16,7 @@ import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/finance_repository.dart';
 import '../domain/finance_models.dart';
+import '../../../core/widgets/app_button.dart';
 import 'invoice_detail_screen.dart';
 
 /// Screen 4: the invoice list.
@@ -153,7 +154,12 @@ class InvoicesScreenState extends State<InvoicesScreen> {
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton(onPressed: load, child: const Text('Apply period')),
+          child: AppButton(
+            label: 'Apply period',
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.sm,
+            onPressed: load,
+          ),
         ),
         const SizedBox(height: AppSpacing.space4),
         SizedBox(

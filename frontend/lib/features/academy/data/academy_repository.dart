@@ -116,6 +116,8 @@ class AcademyRepository {
     'ALREADY_ENROLLED':
         'This learner already has an active place in this batch.',
     'BATCH_FULL': 'The batch is full.',
+    'ASSESSMENT_NO_MARKS':
+        "Enter and save at least one learner's marks before publishing. The assessment stays a draft.",
     'BATCH_NOT_OPEN': 'The batch is not open for this change.',
     'WRONG_CAMPUS':
         'This learner belongs to a different campus. In this version a learner can only join batches on their own campus.',

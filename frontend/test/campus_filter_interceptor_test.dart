@@ -11,20 +11,11 @@ class _Server implements HttpClientAdapter {
   final Completer<void>? gate;
   final List<RequestOptions> requests = [];
   @override
-  Future<ResponseBody> fetch(
-    RequestOptions o,
-    Stream<List<int>>? s,
-    Future<void>? c,
-  ) async {
+  Future<ResponseBody> fetch(RequestOptions o, Stream<List<int>>? s, Future<void>? c) async {
     requests.add(o);
     await gate?.future;
-    return ResponseBody.fromBytes(
-      utf8.encode(jsonEncode({'content': []})),
-      200,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+    return ResponseBody.fromBytes(utf8.encode(jsonEncode({'content': []})), 200,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]});
   }
 
   @override
@@ -43,21 +34,13 @@ void main() {
     expect(server.requests.single.queryParameters['campusId'], 'A');
   });
 
-  test(
-    'All Campuses (no selection) sends no filter; other paths untouched',
-    () async {
-      final server = _Server();
-      final dio = _dio(server, () => null);
-      await dio.get<dynamic>('/api/students');
-      await dio.get<dynamic>('/api/fee/plans');
-      expect(
-        server.requests.every(
-          (r) => !r.queryParameters.containsKey('campusId'),
-        ),
-        isTrue,
-      );
-    },
-  );
+  test('All Campuses (no selection) sends no filter; other paths untouched', () async {
+    final server = _Server();
+    final dio = _dio(server, () => null);
+    await dio.get<dynamic>('/api/students');
+    await dio.get<dynamic>('/api/fee/plans');
+    expect(server.requests.every((r) => !r.queryParameters.containsKey('campusId')), isTrue);
+  });
 
   test('a late response for the previous campus is rejected', () async {
     final gate = Completer<void>();
@@ -69,24 +52,12 @@ void main() {
     }
     campus = 'B'; // switched while the request was in flight
     gate.complete();
-    await expectLater(
-      pending,
-      throwsA(
-        isA<DioException>().having(
-          (e) => e.type,
-          'type',
-          DioExceptionType.cancel,
-        ),
-      ),
-    );
+    await expectLater(pending, throwsA(isA<DioException>().having((e) => e.type, 'type', DioExceptionType.cancel)));
   });
 
   test('mutations are never rewritten by the filter', () async {
     final server = _Server();
-    await _dio(
-      server,
-      () => 'A',
-    ).post<dynamic>('/api/students', data: {'campusId': 'X'});
+    await _dio(server, () => 'A').post<dynamic>('/api/students', data: {'campusId': 'X'});
     expect(server.requests.single.queryParameters, isEmpty);
     expect((server.requests.single.data as Map)['campusId'], 'X');
   });

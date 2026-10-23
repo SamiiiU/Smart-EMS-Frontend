@@ -68,6 +68,8 @@ class _RejectPaymentDialogState extends State<RejectPaymentDialog> {
               label: 'Reason',
               required: true,
               autofocus: true,
+              // Controlled field: without `value`, each rebuild resynced the text to '' (DEF-13).
+              value: _reason,
               placeholder: 'e.g. Bank challan not found in statement',
               onChanged: (v) => setState(() => _reason = v),
               onSubmitted: (_) => _submit(),

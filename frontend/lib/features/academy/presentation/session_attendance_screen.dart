@@ -1,12 +1,15 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/states/loading_skeleton.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/page_header.dart';
+import '../../../core/widgets/states/empty_state.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../data/academy_repository.dart';
 import '../domain/academy_models.dart';
@@ -184,6 +187,7 @@ class _SessionAttendanceScreenState extends State<SessionAttendanceScreen> {
     final s = widget.session;
     final future = DateTime.tryParse(s.date)?.isAfter(DateTime.now()) ?? false;
     return Scaffold(
+      backgroundColor: context.tokens.page,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -248,11 +252,14 @@ class _SessionAttendanceScreenState extends State<SessionAttendanceScreen> {
                         ),
                       );
                     }
-                    return const Center(child: CircularProgressIndicator());
+                    return const LoadingSkeleton.listRows(count: 5);
                   }
                   if (sheet.learners.isEmpty) {
-                    return const Center(
-                      child: Text('No learners are enrolled in this batch.'),
+                    return const EmptyState(
+                      icon: Icons.groups_outlined,
+                      title: 'No learners are enrolled in this batch.',
+                      message:
+                          'Enrol learners in the batch to take attendance for this session.',
                     );
                   }
                   final unmarked = [

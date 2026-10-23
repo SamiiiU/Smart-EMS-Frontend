@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/states/loading_skeleton.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
@@ -90,7 +92,7 @@ class _AttendanceReviewScreenState extends State<AttendanceReviewScreen> {
                 const SizedBox(height: AppSpacing.space6),
               ],
               if (reviews == null && _error == null)
-                const Center(child: CircularProgressIndicator()),
+                const LoadingSkeleton.listRows(count: 3),
               if (reviews != null && reviews.isEmpty)
                 Text(
                   'Nothing is waiting for review.',
@@ -163,24 +165,51 @@ class _ReasonDialogState extends State<_ReasonDialog> {
   Widget build(BuildContext context) {
     final valid = _reason.trim().length >= 3;
     return AlertDialog(
+      // Fields stay reachable above the phone keyboard.
+      scrollable: true,
       title: Text(widget.accept ? 'Apply teacher mark' : 'Keep office record'),
-      content: AppTextField(
-        key: const Key('review-reason'),
-        label: 'Reason (recorded)',
-        value: _reason,
-        autofocus: true,
-        onChanged: (v) => setState(() => _reason = v),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            key: const Key('review-reason'),
+            label: 'Reason (recorded)',
+            required: true,
+            value: _reason,
+            autofocus: true,
+            onChanged: (v) => setState(() => _reason = v),
+          ),
+          const SizedBox(height: AppSpacing.space2),
+          // H09: say why Confirm is unavailable instead of a silently disabled button.
+          Text(
+            valid
+                ? 'Saved with the review.'
+                : 'Enter at least 3 characters to confirm.',
+            style: AppTypography.caption.copyWith(
+              color: context.tokens.textSecondary,
+            ),
+          ),
+        ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: valid
-              ? () => Navigator.of(context).pop(_reason.trim())
-              : null,
-          child: const Text('Confirm'),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: AppSpacing.space3,
+          runSpacing: AppSpacing.space3,
+          children: [
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            AppButton(
+              label: 'Confirm',
+              onPressed: valid
+                  ? () => Navigator.of(context).pop(_reason.trim())
+                  : null,
+            ),
+          ],
         ),
       ],
     );

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'workflow_jobs_screen.dart';
 import 'institution_mailbox_screen.dart';
-import 'institution_exit_screen.dart';
 import '../../../core/widgets/app_button.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -244,16 +243,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
           spacing: AppSpacing.space4,
           runSpacing: AppSpacing.space3,
           children: [
-            AppButton(
-              label: 'Institution exit',
-              variant: AppButtonVariant.secondary,
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      InstitutionExitScreen(dio: widget.repository.dio),
-                ),
-              ),
-            ),
+            // RC1 V62 candidate: the V63-only 'Institution exit' tool is excluded (no backend route).
             AppButton(
               label: 'Institution email',
               variant: AppButtonVariant.secondary,

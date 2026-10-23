@@ -98,11 +98,8 @@ void main() {
       name: 'E2E Exam $stamp',
       term: ExamTerm.firstTerm,
     );
-    expect(
-      exam.academicYearId,
-      year.id,
-      reason: 'the exam must store the year it was given',
-    );
+    expect(exam.academicYearId, year.id,
+        reason: 'the exam must store the year it was given');
     expect(exam.status, ExamStatus.draft);
     expect(exam.marksLocked, isFalse);
 

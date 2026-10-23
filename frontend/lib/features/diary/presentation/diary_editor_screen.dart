@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
+import '../../../core/widgets/app_text_area.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/inline_alert.dart';
@@ -369,28 +370,12 @@ class _MultilineFieldState extends State<_MultilineField> {
           style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
         ),
         const SizedBox(height: AppSpacing.space2),
-        Container(
-          constraints: const BoxConstraints(
-            minHeight: AppSizing.diaryFieldMinHeight,
-          ),
-          padding: const EdgeInsets.all(AppSpacing.space4),
-          decoration: BoxDecoration(
-            color: widget.enabled ? t.surface : t.surfaceSunken,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: t.border, width: AppSizing.borderThin),
-          ),
-          child: Semantics(
-            label: widget.label,
-            child: TextField(
-              controller: _controller,
-              enabled: widget.enabled,
-              maxLines: null,
-              keyboardType: TextInputType.multiline,
-              onChanged: widget.onChanged,
-              style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
-              decoration: const InputDecoration.collapsed(hintText: null),
-            ),
-          ),
+        AppTextArea(
+          controller: _controller,
+          enabled: widget.enabled,
+          onChanged: widget.onChanged,
+          minHeight: AppSizing.diaryFieldMinHeight,
+          semanticsLabel: widget.label,
         ),
       ],
     );

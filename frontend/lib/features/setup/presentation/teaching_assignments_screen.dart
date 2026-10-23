@@ -69,8 +69,9 @@ class TeachingAssignmentsScreenState extends State<TeachingAssignmentsScreen> {
     final s = _startsOn.trim(), e = _endsOn.trim();
     if (s.isNotEmpty && !isIsoDate(s)) return false;
     if (e.isNotEmpty && !isIsoDate(e)) return false;
-    if (_type == AssignmentType.substitute && (s.isEmpty || e.isEmpty))
+    if (_type == AssignmentType.substitute && (s.isEmpty || e.isEmpty)) {
       return false;
+    }
     if (s.isNotEmpty && e.isNotEmpty && e.compareTo(s) < 0) return false;
     return true;
   }
@@ -152,8 +153,9 @@ class TeachingAssignmentsScreenState extends State<TeachingAssignmentsScreen> {
   Future<String?> _create() async {
     final subjectId = _subjectId;
     final staffId = _staffId;
-    if (subjectId == null || staffId == null)
+    if (subjectId == null || staffId == null) {
       return 'Pick a subject and a teacher.';
+    }
     try {
       await widget.repository.createAssignment(
         staffId: staffId,
@@ -194,16 +196,20 @@ class TeachingAssignmentsScreenState extends State<TeachingAssignmentsScreen> {
     if (!ok || !mounted) return;
     try {
       await widget.repository.endAssignment(a.id);
+      if (mounted) setState(() => _endError = null);
     } on LoadFailure catch (f) {
       if (!mounted) return;
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(
-          content: Text(f.message ?? 'The assignment could not be ended.'),
-        ),
+      // Inline, not a toast: the refusal stays readable (and is announced)
+      // until the next action.
+      setState(
+        () => _endError = f.message ?? 'The assignment could not be ended.',
       );
     }
     if (mounted) await _load();
   }
+
+  /// A refused "End assignment", shown above the list.
+  String? _endError;
 
   @override
   Widget build(BuildContext context) {
@@ -219,6 +225,10 @@ class TeachingAssignmentsScreenState extends State<TeachingAssignmentsScreen> {
             'a new one; ending takes effect immediately.',
       ),
       children: [
+        if (_endError != null) ...[
+          InlineAlert(tone: InlineAlertTone.danger, message: _endError!),
+          const SizedBox(height: AppSpacing.space4),
+        ],
         Text(
           'Section',
           style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),

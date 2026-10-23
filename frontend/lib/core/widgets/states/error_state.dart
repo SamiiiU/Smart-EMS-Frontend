@@ -149,8 +149,8 @@ class UnlinkedProfileState extends StatelessWidget {
     this.title = 'Your profile is not set up yet',
     this.message =
         'Your login works, but it has not been linked to a staff or student '
-        'record yet. Please ask your institution’s administrator to finish setting '
-        'up your profile.',
+            'record yet. Please ask your institution’s administrator to finish setting '
+            'up your profile.',
     super.key,
   });
 
@@ -183,7 +183,7 @@ class PermissionDeniedState extends StatelessWidget {
     this.title = 'You don’t have access to this',
     this.message =
         'Your account isn’t allowed to open this for the selected campus. '
-        'If you need it for your work, ask your institution’s administrator.',
+            'If you need it for your work, ask your institution’s administrator.',
     super.key,
   });
 

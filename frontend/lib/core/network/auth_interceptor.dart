@@ -93,6 +93,31 @@ class AuthInterceptor extends Interceptor {
     ApiConfig.refreshPath,
   };
 
+  /// Endpoints whose 401 can mean "this code was not accepted" (DEF-22).
+  static const Set<String> codeCheckPaths = {
+    ApiConfig.mfaVerifyPath,
+    ApiConfig.mfaStepUpPath,
+    ApiConfig.mfaEnrollmentConfirmPath,
+    // A wrong CURRENT password is also answered 401; replaying it after a
+    // refresh counted a second failed password attempt.
+    '/api/users/me/change-password',
+  };
+
+  /// The gate's message for a missing/expired/invalid access token (verified
+  /// against the backend; a rejected code says "Invalid verification code").
+  static bool _isTokenRejection(Object? body) {
+    final data = body is String ? _tryDecode(body) : body;
+    return data is Map && data['message'] == 'Access token missing or invalid';
+  }
+
+  static Object? _tryDecode(String body) {
+    try {
+      return jsonDecode(body);
+    } on FormatException {
+      return null;
+    }
+  }
+
   @override
   Future<void> onRequest(
     RequestOptions options,
@@ -138,6 +163,16 @@ class AuthInterceptor extends Interceptor {
 
     // Login/refresh rejection must never refresh or erase a different session.
     if (unauthenticatedPaths.contains(err.requestOptions.uri.path)) {
+      handler.next(err);
+      return;
+    }
+    // DEF-22: on a code-checking endpoint a 401 usually means the CODE was
+    // rejected ("Invalid verification code"), not that the token expired.
+    // Refreshing and replaying it re-submitted the same wrong code, counting a
+    // second failure toward the MFA lockout. Only a genuine token rejection is
+    // refreshed and retried here.
+    if (codeCheckPaths.contains(err.requestOptions.uri.path) &&
+        !_isTokenRejection(response?.data)) {
       handler.next(err);
       return;
     }

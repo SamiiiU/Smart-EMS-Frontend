@@ -23,6 +23,9 @@ import 'academy_child_summary.dart';
 import 'child_progress_details.dart';
 import '../domain/parent_models.dart';
 import 'child_attendance_screen.dart';
+import 'class_timetable_screen.dart';
+import '../../academics/data/subject_resources_repository.dart';
+import '../../academics/presentation/learner_resources_screen.dart';
 
 /// The parent's landing tab: "is my child marked present today?".
 ///
@@ -279,7 +282,7 @@ class ParentHomeScreenState extends State<ParentHomeScreen> {
               // Touch convenience only: assistive tech gets the one
               // "View <name> only" button, not a second identical action.
               excludeFromSemantics: true,
-              child: _TodayCard(
+              child: ChildTodayCard(
                 child: c,
                 state:
                     _overview[c.studentId] ??
@@ -304,7 +307,7 @@ class ParentHomeScreenState extends State<ParentHomeScreen> {
             duration: AppMotion.heroReveal,
             scaleFrom: AppMotion.heroScaleFrom,
             offset: 0,
-            child: _TodayCard(
+            child: ChildTodayCard(
               child: selected,
               state: _today,
               onRetry: () => _loadToday(selected),
@@ -320,7 +323,7 @@ class ParentHomeScreenState extends State<ParentHomeScreen> {
           // after an error.
           if (_today.data?.school != null ||
               (_today.data == null && widget.academy == null))
-            _HistoryLink(
+            HistoryLink(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => ChildAttendanceScreen(
@@ -331,6 +334,55 @@ class ParentHomeScreenState extends State<ParentHomeScreen> {
                 ),
               ),
             ),
+          // The child's class week: guardians/me supplies the section and
+          // year, and the server allows it only for an enrolled child.
+          if (selected.sectionId != null &&
+              selected.academicYearId != null) ...[
+            const SizedBox(height: AppSpacing.space4),
+            HistoryLink(
+              key: const Key('child-timetable'),
+              title: 'Class timetable',
+              semanticsLabel:
+                  'View the class timetable of ${selected.fullName}',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ClassTimetableScreen(
+                    title: selected.classLabel == null
+                        ? selected.fullName
+                        : '${selected.fullName} · ${selected.classLabel}',
+                    now: widget.now,
+                    load: () => widget.repository.loadWeek(
+                      sectionId: selected.sectionId!,
+                      academicYearId: selected.academicYearId!,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // D-21: read-only class resources for THIS child. The server
+            // checks the approved academic link and derives the class itself.
+            // School/College only.
+            if (widget.academy == null) ...[
+              const SizedBox(height: AppSpacing.space4),
+              HistoryLink(
+                key: const Key('child-resources'),
+                title: 'Subject resources',
+                semanticsLabel:
+                    'View the subject resources of ${selected.fullName}',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => LearnerResourcesScreen(
+                      repository: SubjectResourcesRepository(
+                        widget.repository.dio,
+                      ),
+                      studentId: selected.studentId,
+                      title: '${selected.fullName} · Resources',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ],
       ],
     );
@@ -449,8 +501,9 @@ class _ChildChip extends StatelessWidget {
 }
 
 /// The answer to the question the parent opened the app to ask.
-class _TodayCard extends StatelessWidget {
-  const _TodayCard({
+class ChildTodayCard extends StatelessWidget {
+  const ChildTodayCard({
+    super.key,
     required this.child,
     required this.state,
     required this.onRetry,
@@ -615,17 +668,24 @@ class LoadingSkeletonLine extends StatelessWidget {
   }
 }
 
-class _HistoryLink extends StatelessWidget {
-  const _HistoryLink({required this.onTap});
+class HistoryLink extends StatelessWidget {
+  const HistoryLink({
+    required this.onTap,
+    this.title = 'Attendance history',
+    this.semanticsLabel = 'View attendance history',
+    super.key,
+  });
 
   final VoidCallback onTap;
+  final String title;
+  final String semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
 
     return KeyboardTapTarget(
-      label: 'View attendance history',
+      label: semanticsLabel,
       onTap: onTap,
       borderRadius: AppRadius.lg,
       child: Container(
@@ -642,7 +702,7 @@ class _HistoryLink extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Attendance history',
+                title,
                 style: AppTypography.cardHeading.copyWith(color: t.textPrimary),
               ),
             ),

@@ -133,10 +133,7 @@ class AuthRepository {
   /// server was unreachable would be the wrong failure mode.
   Future<void> _cleanupDevice() async {
     try {
-      final cleanup = _beforeLogout;
-      if (cleanup != null) {
-        await cleanup().timeout(const Duration(seconds: 2));
-      }
+      await _beforeLogout?.call();
     } catch (_) {
       // Device/provider cleanup must never prevent local sign-out.
     }

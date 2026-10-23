@@ -4,7 +4,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
-import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_text_area.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
@@ -63,12 +65,48 @@ class RemarksScreenState extends State<RemarksScreen> {
   String? _studentId;
   String _type = remarkTypes.first;
   String _body = '';
+  final TextEditingController _bodyController = TextEditingController();
   bool _parentVisible = false;
+
+  /// A delete the server refused (e.g. not the author), shown above the list.
+  String? _actionError;
 
   @override
   void initState() {
     super.initState();
     load();
+  }
+
+  @override
+  void dispose() {
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  /// Remarks are the one record here that may be removed after saving
+  /// (`DELETE /api/remarks/{id}`; the server decides who may). Confirmed first.
+  Future<void> _delete(Remark remark) async {
+    final ok = await confirmAction(
+      context,
+      title: 'Delete this remark?',
+      message:
+          'The remark about ${remark.studentName} will be removed for '
+          'staff, the student and the parent.',
+      confirmLabel: 'Delete',
+      irreversible: true,
+    );
+    if (!ok || !mounted) return;
+    try {
+      await widget.repository.deleteRemark(remark.id);
+      if (!mounted) return;
+      setState(() => _actionError = null);
+      await load();
+    } on LoadFailure catch (f) {
+      if (!mounted) return;
+      setState(
+        () => _actionError = f.message ?? 'The remark could not be deleted.',
+      );
+    }
   }
 
   Future<void> load() async {
@@ -114,6 +152,7 @@ class RemarksScreenState extends State<RemarksScreen> {
       if (!mounted) return null;
       setState(() {
         _body = '';
+        _bodyController.clear();
         _parentVisible = false;
       });
       await load();
@@ -197,11 +236,26 @@ class RemarksScreenState extends State<RemarksScreen> {
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.space4),
-              child: AppTextField(
-                label: 'Remark',
-                value: _body,
-                placeholder: 'What you want recorded about this student',
-                onChanged: (v) => setState(() => _body = v),
+              // Remarks can run to several lines; a single-line field drops
+              // text typed after Enter (same class of defect as DEF-28).
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Remark',
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.space2),
+                  AppTextArea(
+                    controller: _bodyController,
+                    semanticsLabel: 'Remark',
+                    placeholder: 'What you want recorded about this student',
+                    minHeight: AppSizing.diaryFieldMinHeight,
+                    onChanged: (v) => setState(() => _body = v),
+                  ),
+                ],
               ),
             ),
             ParentVisibilityControl(
@@ -210,6 +264,14 @@ class RemarksScreenState extends State<RemarksScreen> {
             ),
           ],
         ),
+        if (_actionError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.space4),
+            child: InlineAlert(
+              tone: InlineAlertTone.danger,
+              message: _actionError!,
+            ),
+          ),
         SizedBox(
           height: setupListHeight(context),
           child: ScreenStateBuilder<List<Remark>>(
@@ -222,7 +284,8 @@ class RemarksScreenState extends State<RemarksScreen> {
             emptyIcon: Icons.sticky_note_2_outlined,
             data: (context, remarks) => ListView(
               children: [
-                for (final remark in remarks) _RemarkRow(remark: remark),
+                for (final remark in remarks)
+                  _RemarkRow(remark: remark, onDelete: () => _delete(remark)),
               ],
             ),
           ),
@@ -309,9 +372,10 @@ class ParentVisibilityControl extends StatelessWidget {
 }
 
 class _RemarkRow extends StatelessWidget {
-  const _RemarkRow({required this.remark});
+  const _RemarkRow({required this.remark, required this.onDelete});
 
   final Remark remark;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -363,9 +427,24 @@ class _RemarkRow extends StatelessWidget {
             style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
           ),
           const SizedBox(height: AppSpacing.space2),
-          Text(
-            '${remark.authorName} · ${remark.remarkDate}',
-            style: AppTypography.timestamp.copyWith(color: t.textSecondary),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${remark.authorName} · ${remark.remarkDate}',
+                  style: AppTypography.timestamp.copyWith(
+                    color: t.textSecondary,
+                  ),
+                ),
+              ),
+              AppButton(
+                label: 'Delete',
+                variant: AppButtonVariant.ghost,
+                size: AppButtonSize.sm,
+                semanticsLabel: 'Delete remark about ${remark.studentName}',
+                onPressed: onDelete,
+              ),
+            ],
           ),
         ],
       ),

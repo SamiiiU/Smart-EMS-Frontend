@@ -38,11 +38,15 @@ class AppTextField extends StatefulWidget {
     this.textInputAction,
     this.onSubmitted,
     this.required = false,
+    this.keyboardType,
     super.key,
   });
 
   final String label;
   final String value;
+
+  /// Optional platform keyboard (e.g. decimal amounts). Null keeps the default.
+  final TextInputType? keyboardType;
   final String? placeholder;
   final bool obscure;
   final Widget? trailing;
@@ -204,7 +208,10 @@ class _AppTextFieldState extends State<AppTextField> {
               child: Row(
                 children: [
                   Expanded(
+                    // DEF-16: its own node, so nearby headings and help text are not
+                    // merged into the field's accessible name.
                     child: Semantics(
+                      container: true,
                       label: widget.label,
                       hint: _semanticHint(state),
                       child: TextField(
@@ -212,6 +219,7 @@ class _AppTextFieldState extends State<AppTextField> {
                         focusNode: _focusNode,
                         enabled: !disabled,
                         obscureText: widget.obscure,
+                        keyboardType: widget.keyboardType,
                         onChanged: widget.onChanged,
                         autofocus: widget.autofocus,
                         textInputAction: widget.textInputAction,

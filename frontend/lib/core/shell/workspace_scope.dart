@@ -19,6 +19,5 @@ class WorkspaceScope extends InheritedWidget {
       context.dependOnInheritedWidgetOfExactType<WorkspaceScope>();
 
   @override
-  bool updateShouldNotify(WorkspaceScope oldWidget) =>
-      switchLabel != oldWidget.switchLabel;
+  bool updateShouldNotify(WorkspaceScope oldWidget) => switchLabel != oldWidget.switchLabel;
 }

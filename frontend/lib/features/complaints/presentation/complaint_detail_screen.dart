@@ -5,7 +5,7 @@ import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/app_text_area.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
@@ -56,6 +56,7 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   List<ComplaintComment> _comments = const [];
 
   String _reply = '';
+  final TextEditingController _replyController = TextEditingController();
   bool _internal = false;
   bool _busy = false;
   String? _error;
@@ -66,6 +67,12 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   void initState() {
     super.initState();
     load();
+  }
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -110,6 +117,7 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
       setState(() {
         _busy = false;
         _reply = '';
+        _replyController.clear();
         _internal = false;
       });
       await load();
@@ -278,9 +286,18 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         ],
 
         if (!complaint.status.isFinished) ...[
-          AppTextField(
-            label: 'Write a reply',
-            value: _reply,
+          // Multi-line: a single-line field dropped text after Enter (DEF-28
+          // class). The reply keeps its paragraphs.
+          Text(
+            'Write a reply',
+            style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.space2),
+          AppTextArea(
+            controller: _replyController,
+            semanticsLabel: 'Write a reply',
+            minHeight: AppSizing.diaryFieldMinHeight,
+            enabled: !_busy,
             onChanged: (v) => setState(() => _reply = v),
           ),
           if (widget.staffControls) ...[

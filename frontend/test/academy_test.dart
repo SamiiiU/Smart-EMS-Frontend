@@ -14,6 +14,7 @@ import 'package:smartems/core/widgets/app_button.dart';
 import 'package:smartems/core/widgets/states/screen_state.dart';
 import 'package:smartems/features/academy/data/academy_repository.dart';
 import 'package:smartems/features/academy/domain/academy_models.dart';
+import 'package:smartems/features/academy/presentation/academy_home_screen.dart';
 import 'package:smartems/features/academy/presentation/academy_navigation.dart';
 import 'package:smartems/features/academy/presentation/assessment_screen.dart';
 import 'package:smartems/features/academy/presentation/batch_fee_panel.dart';
@@ -612,6 +613,47 @@ void main() {
       },
     );
 
+    for (final saved in [false, true]) {
+      testWidgets(
+        'Decision A/B: publish ${saved ? 'enabled with a saved mark' : 'disabled with reason, no saved mark'}; marks field is labelled',
+        (tester) async {
+          final handle = tester.ensureSemantics();
+          final marks = saved
+              ? '[{"student_id":"b","first_name":"Bilal","last_name":"L","marks":"12.00","absent":false,"remarks":null}]'
+              : '[]';
+          final s = _Server({
+            'GET /api/academy/assessments/a1/marks': (_) =>
+                '{"id":"a1","batch_id":"b1","title":"Unit 1","max_marks":25,"assessed_on":"2026-10-01","status":"draft","marks":$marks}',
+            'GET /api/academy/batches/b1/roster': (_) => [
+              {
+                'enrollment_id': 'e',
+                'student_id': 'b',
+                'first_name': 'Bilal',
+                'last_name': 'L',
+                'admission_number': 'A',
+                'enrolled_on': '2026-09-01',
+              },
+            ],
+          });
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.light(role: AppRole.admin),
+              home: MarksScreen(repository: _repo(s), assessmentId: 'a1', canPublish: true),
+            ),
+          );
+          await tester.pumpAndSettle();
+          // Decision B: the input has an accessible name naming the learner and the maximum.
+          final label = tester.getSemantics(find.byKey(const ValueKey('marks-b'))).label;
+          expect(label, contains('Marks'), reason: 'input is named for its field, not just the 0–25 hint');
+          expect(label, contains('Bilal L'), reason: 'input names the learner it belongs to');
+          final publish = tester.widget<AppButton>(find.widgetWithText(AppButton, 'Publish'));
+          expect(publish.onPressed == null, !saved, reason: 'Publish gated on a saved valid mark');
+          expect(find.text("Save at least one learner's marks before publishing."), saved ? findsNothing : findsOneWidget);
+          handle.dispose();
+        },
+      );
+    }
+
     testWidgets(
       'learners see published results only, even if a draft row slipped through',
       (tester) async {
@@ -854,6 +896,37 @@ void main() {
         findsOneWidget,
       );
     });
+  });
+
+  testWidgets('DEF-08: selected Academy tab survives the desktop/phone shell rebuild', (tester) async {
+    AcademyHomeScreen.selectedTab.value = 0;
+    final campus = await _campus(tester, [
+      {'id': 'c1', 'name': 'Main', 'permissions': ['academy.manage']},
+    ]);
+    final repo = AcademyRepository(Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))..httpClientAdapter = _Server({}));
+    Widget shell(bool phone) => MaterialApp(
+          theme: AppTheme.light(role: AppRole.admin),
+          // Different parent widget types model the shell swapping layouts: the subtree is rebuilt.
+          home: Scaffold(
+            body: CampusScope(
+              campus: campus,
+              child: phone
+                  ? SizedBox(width: 360, child: AcademyHomeScreen(repository: repo))
+                  : Padding(padding: EdgeInsets.zero, child: AcademyHomeScreen(repository: repo)),
+            ),
+          ),
+        );
+    await tester.pumpWidget(shell(false));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Offerings'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(shell(true)); // layout switch rebuilds the hub
+    await tester.pumpAndSettle();
+    expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 2, reason: 'Offerings stays selected');
+    await tester.pumpWidget(shell(false)); // and back again (tablet rotation)
+    await tester.pumpAndSettle();
+    expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 2);
+    AcademyHomeScreen.selectedTab.value = 0;
   });
 }
 

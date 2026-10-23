@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smartems/core/theme/app_theme.dart';
 import 'package:smartems/core/theme/typography.dart';
+import 'package:smartems/core/widgets/app_button.dart';
 import 'package:smartems/features/admin/presentation/workflow_jobs_screen.dart';
 
 class JobsAdapter implements HttpClientAdapter {
@@ -52,6 +53,16 @@ class JobsAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class _InputChanged extends JobsAdapter {
+  @override
+  Future<ResponseBody> fetch(RequestOptions request, Stream<List<int>>? stream, Future<void>? cancel) async {
+    final r = await super.fetch(request, stream, cancel);
+    final text = await utf8.decodeStream(r.stream);
+    return ResponseBody.fromString(text.replaceAll('processing_failed', 'input_changed'), 200,
+        headers: {'content-type': ['application/json']});
+  }
+}
+
 void main() {
   setUpAll(() async {
     for (final name in ['PlusJakartaSans', 'Roboto']) {
@@ -94,11 +105,73 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(screen());
       await tester.pumpAndSettle();
-      expect(find.textContaining('pending'), findsOneWidget);
+      expect(find.textContaining('Pending'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       dio.close();
     },
   );
+  testWidgets('short recovery reason shows an error and sends nothing', (tester) async {
+    final adapter = JobsAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.light(role: AppRole.admin), home: WorkflowJobsScreen(dio: dio)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('INVOICES'));
+    await tester.pumpAndSettle();
+    expect(find.text('Invoice generation: Failed'), findsNWidgets(2)); // detail heading + list row
+    await tester.tap(find.text('Retry reviewed job'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'ok');
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter at least 5 characters.'), findsOneWidget);
+    expect(adapter.requests.where((r) => r.method == 'POST'), isEmpty);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(adapter.requests.where((r) => r.method == 'POST'), isEmpty);
+    await tester.pumpWidget(const SizedBox());
+    dio.close();
+  });
+  testWidgets('keyboard: Tab to a job, Enter opens detail with focus, Close details restores focus, Space reopens', (tester) async {
+    final adapter = JobsAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.light(role: AppRole.admin), home: WorkflowJobsScreen(dio: dio)));
+    await tester.pumpAndSettle();
+    String? focused() => FocusManager.instance.primaryFocus?.debugLabel;
+    for (var i = 0; i < 12 && !(focused() ?? '').startsWith('job-0190'); i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    expect(focused(), 'job-01900000-0000-7000-8000-000000000001');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('Close details'), findsOneWidget);
+    expect(focused(), 'job-detail');
+    await tester.ensureVisible(find.text('Close details'));
+    await tester.tap(find.text('Close details'));
+    await tester.pumpAndSettle();
+    expect(find.text('Close details'), findsNothing);
+    expect(focused(), 'job-01900000-0000-7000-8000-000000000001');
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(find.text('Close details'), findsOneWidget);
+    expect(adapter.requests.where((r) => r.method == 'POST'), isEmpty);
+    await tester.pumpWidget(const SizedBox());
+    dio.close();
+  });
+  testWidgets('input_changed: retry disabled with the explanation; close still offered', (tester) async {
+    final adapter = _InputChanged();
+    final dio = Dio()..httpClientAdapter = adapter;
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.light(role: AppRole.admin), home: WorkflowJobsScreen(dio: dio)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('INVOICES'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Retry is unavailable because'), findsOneWidget);
+    final retry = tester.widget<AppButton>(find.widgetWithText(AppButton, 'Retry reviewed job'));
+    expect(retry.onPressed, isNull);
+    expect(find.text('Close job'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    dio.close();
+  });
   testWidgets(
     'job history renders at phone and desktop widths without overflow',
     (tester) async {

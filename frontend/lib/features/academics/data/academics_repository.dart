@@ -110,6 +110,62 @@ class AcademicsRepository {
   /// `academicYearId` is honoured (bogus-id control → empty), and is always
   /// passed: the backend's `current` flag points at an EXPIRED year, so a
   /// year-less list would quietly show last year's exams.
+  /// Teacher marks list: every exam in the campuses the server lets this user
+  /// see, without a year (a teacher has no year picker). The caller keeps only
+  /// exams whose marks are still editable; the server still enforces the
+  /// writable year and the teaching assignment on every mark.
+  Future<List<Exam>> loadExamsForMarking() async {
+    final rows = await _array('/api/exams');
+    return rows
+        .map(Exam.fromJson)
+        .where((e) => e.status.marksEditable)
+        .toList();
+  }
+
+  /// D-24: the saved marks of one paper, `GET /api/exams/subjects/{id}/marks`
+  /// (studentId → saved mark). Read-only. Returns null on ANY failure: an older
+  /// backend without the endpoint, or a caller who may not read it (404), so the
+  /// screen keeps its previous behaviour instead of guessing.
+  Future<Map<String, SavedMark>?> loadPaperMarks(String examSubjectId) async {
+    try {
+      final rows = await _array('/api/exams/subjects/$examSubjectId/marks');
+      return {
+        for (final r in rows)
+          r['studentId'] as String: SavedMark(
+            marks: r['marksObtained'] as String?,
+            isAbsent: r['isAbsent'] == true,
+          ),
+      };
+    } on Object {
+      return null;
+    }
+  }
+
+  /// D-13: an exam's papers, `GET /api/exams/{id}/subjects` (dev candidate
+  /// be3; owner approval pending). A teacher receives only papers they may
+  /// enter marks for. Throws on any failure, including an older backend that
+  /// answers 405, so callers fall back to their previous behaviour.
+  Future<List<ExamPaper>> loadPapers(String examId) async {
+    final rows = await _array('/api/exams/$examId/subjects');
+    return rows
+        .map(
+          (r) => ExamPaper(
+            id: r['id'] as String,
+            examId: r['examId'] as String? ?? examId,
+            sectionId: r['sectionId'] as String? ?? '',
+            subjectId: r['subjectId'] as String? ?? '',
+            maxMarks: Marks.fromJson(r['maxMarks']),
+            passingMarks: Marks.fromJson(r['passingMarks']),
+            subjectName: r['subjectName'] as String? ?? '',
+            sectionName: [
+              r['className'],
+              r['sectionName'],
+            ].whereType<String>().join(' · '),
+          ),
+        )
+        .toList();
+  }
+
   Future<List<Exam>> loadExams({required String academicYearId}) async {
     final rows = await _array('/api/exams', {'academicYearId': academicYearId});
     return rows.map(Exam.fromJson).toList();
@@ -473,6 +529,41 @@ class AcademicsRepository {
       await dio.delete<void>('/api/remarks/$id');
     } on DioException catch (err) {
       throw mapDioError(decodeErrorBody(err));
+    }
+  }
+
+  /// D-20 (approved for development; be3): the institution's default grade
+  /// scheme, `GET /api/grade-schemes/default`, read-only. Percentages and
+  /// grade points stay as the server's exact decimal strings (NUMERIC);
+  /// nothing is parsed to double.
+  ///
+  /// Each outcome is reported as itself, never folded into one fallback:
+  /// [GradeSchemeLoad.notConfigured] (404 GRADE_SCHEME_NOT_CONFIGURED),
+  /// [GradeSchemeLoad.notPermitted] (403), [GradeSchemeLoad.unsupported]
+  /// (an older backend: 404/405 with no code). Network and server failures
+  /// throw a [LoadFailure] so the screen offers Retry.
+  Future<GradeSchemeLoad> loadDefaultGradeScheme() async {
+    try {
+      final res = await dio.get<Map<String, dynamic>>(
+        '/api/grade-schemes/default',
+      );
+      return GradeSchemeLoad.loaded(
+        GradeSchemeView.fromJson(res.data ?? const {}),
+      );
+    } on DioException catch (err) {
+      final decoded = decodeErrorBody(err);
+      final status = decoded.response?.statusCode;
+      final body = decoded.response?.data;
+      final details = body is Map ? body['details'] : null;
+      final code = details is Map ? details['code'] : null;
+      if (status == 404 && code == 'GRADE_SCHEME_NOT_CONFIGURED') {
+        return const GradeSchemeLoad.notConfigured();
+      }
+      if (status == 403) return const GradeSchemeLoad.notPermitted();
+      if ((status == 404 || status == 405) && code == null) {
+        return const GradeSchemeLoad.unsupported();
+      }
+      throw mapDioError(decoded);
     }
   }
 

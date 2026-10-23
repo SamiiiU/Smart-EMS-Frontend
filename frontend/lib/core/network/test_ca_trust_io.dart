@@ -19,7 +19,5 @@ HttpClientAdapter? testCaAdapter() {
   if (kReleaseMode || kIsWeb || _testCaPemB64.isEmpty) return null;
   final context = SecurityContext(withTrustedRoots: false)
     ..setTrustedCertificatesBytes(base64Decode(_testCaPemB64));
-  return IOHttpClientAdapter(
-    createHttpClient: () => HttpClient(context: context),
-  );
+  return IOHttpClientAdapter(createHttpClient: () => HttpClient(context: context));
 }

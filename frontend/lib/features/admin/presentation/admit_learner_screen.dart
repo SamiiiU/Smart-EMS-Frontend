@@ -59,8 +59,9 @@ class _AdmitLearnerScreenState extends State<AdmitLearnerScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_draft.campusId == null && _campuses.length == 1)
+    if (_draft.campusId == null && _campuses.length == 1) {
       _draft.campusId = _campuses.single.id;
+    }
     if (!_setupLoaded) _loadSetup();
   }
 
@@ -78,11 +79,12 @@ class _AdmitLearnerScreenState extends State<AdmitLearnerScreen> {
         _preselectYear();
       });
     } on LoadFailure catch (f) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _setupError =
               f.message ?? 'Years and sections could not be loaded.',
         );
+      }
     }
   }
 
@@ -311,10 +313,11 @@ class _AdmitLearnerScreenState extends State<AdmitLearnerScreen> {
           ),
         ];
       case 1:
-        if (_setupError != null)
+        if (_setupError != null) {
           return [
             InlineAlert(tone: InlineAlertTone.danger, message: _setupError!),
           ];
+        }
         final years = _campusYears;
         final sections = _yearSections;
         return [

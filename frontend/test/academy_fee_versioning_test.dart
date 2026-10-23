@@ -142,14 +142,8 @@ void main() {
       });
       await tester.tap(find.text('Schedule price change'));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('unless you apply an adjustment'),
-        findsOneWidget,
-      );
-      final fields = find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.byType(TextField),
-      );
+      expect(find.textContaining('unless you apply an adjustment'), findsOneWidget);
+      final fields = find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField));
       await tester.enterText(fields.at(0), '3600.00');
       await tester.enterText(fields.at(1), '2026-11');
       await tester.enterText(fields.at(2), 'Annual revision');

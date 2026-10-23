@@ -157,7 +157,8 @@ class Exam {
 
 /// One paper: a subject, for one section, within an exam.
 ///
-/// 🔴 **A paper cannot be read back.** `GET /api/exams/{id}/subjects` is 405
+/// D-13 (dev backend be3, approval pending) adds `GET /api/exams/{id}/subjects`;
+/// on older backends: 🔴 **a paper cannot be read back** — that call is 405
 /// and re-creating the same paper answers 409 WITHOUT returning the existing
 /// id. So the only moment its id is knowable is when it is created, which is
 /// why the exam screen holds the papers it made for the session and marks
@@ -200,6 +201,15 @@ class ExamPaper {
 }
 
 // --- Marks -------------------------------------------------------------------
+
+/// D-24: a mark already saved on the server, as read back for one paper.
+class SavedMark {
+  const SavedMark({required this.marks, required this.isAbsent});
+
+  /// Exact text from the server (e.g. "42.50"), or null when not entered.
+  final String? marks;
+  final bool isAbsent;
+}
 
 /// One student's entry on the marks screen, before it is sent.
 class MarkEntry {
@@ -751,4 +761,71 @@ String? validateBands(List<GradeBand> bands) {
   }
 
   return null;
+}
+
+/// D-20 (proposed contract): a grade scheme and its bands, read-only.
+/// Decimal values are kept as the server's strings (NUMERIC, rule #4).
+class GradeSchemeView {
+  const GradeSchemeView({required this.name, required this.bands});
+
+  factory GradeSchemeView.fromJson(Map<String, dynamic> json) =>
+      GradeSchemeView(
+        name: json['name'] as String? ?? 'Grade scheme',
+        bands:
+            (json['bands'] as List? ?? const [])
+                .whereType<Map>()
+                .map((b) => GradeBandView.fromJson(b.cast<String, dynamic>()))
+                .toList()
+              ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)),
+      );
+
+  final String name;
+  final List<GradeBandView> bands;
+}
+
+class GradeBandView {
+  const GradeBandView({
+    required this.grade,
+    required this.minPercentage,
+    required this.maxPercentage,
+    required this.gradePoint,
+    this.remark,
+    this.sortOrder = 0,
+  });
+
+  factory GradeBandView.fromJson(Map<String, dynamic> json) => GradeBandView(
+    grade: json['grade'] as String? ?? '',
+    minPercentage: '${json['minPercentage'] ?? ''}',
+    maxPercentage: '${json['maxPercentage'] ?? ''}',
+    gradePoint: '${json['gradePoint'] ?? ''}',
+    remark: json['remark'] as String?,
+    sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+  );
+
+  final String grade;
+  final String minPercentage;
+  final String maxPercentage;
+  final String gradePoint;
+  final String? remark;
+  final int sortOrder;
+}
+
+/// The outcome of reading the grade scheme (D-20), each case distinct.
+enum GradeSchemeOutcome { loaded, notConfigured, notPermitted, unsupported }
+
+class GradeSchemeLoad {
+  const GradeSchemeLoad.loaded(GradeSchemeView this.scheme)
+    : outcome = GradeSchemeOutcome.loaded;
+  const GradeSchemeLoad.notConfigured()
+    : outcome = GradeSchemeOutcome.notConfigured,
+      scheme = null;
+  const GradeSchemeLoad.notPermitted()
+    : outcome = GradeSchemeOutcome.notPermitted,
+      scheme = null;
+  const GradeSchemeLoad.unsupported()
+    : outcome = GradeSchemeOutcome.unsupported,
+      scheme = null;
+
+  final GradeSchemeOutcome outcome;
+  final GradeSchemeView? scheme;
 }

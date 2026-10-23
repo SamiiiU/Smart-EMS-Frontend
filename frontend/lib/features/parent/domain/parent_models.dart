@@ -273,3 +273,76 @@ class AttendanceDay {
   final String date;
   final AttendanceStatus status;
 }
+
+/// One lesson in a section's week, as `GET /api/timetable/section/{id}`
+/// returns it (names included, so no further lookups are needed).
+class WeekLesson {
+  const WeekLesson({
+    required this.dayOfWeek,
+    required this.periodName,
+    required this.subjectName,
+    this.startTime,
+    this.endTime,
+    this.sortOrder = 0,
+    this.teacherName,
+    this.roomName,
+  });
+
+  factory WeekLesson.fromJson(Map<String, dynamic> json) => WeekLesson(
+    dayOfWeek: (json['dayOfWeek'] as num?)?.toInt() ?? 0,
+    periodName: json['periodName'] as String? ?? '',
+    subjectName: json['subjectName'] as String? ?? 'Lesson',
+    startTime: _hhmm(json['startTime']),
+    endTime: _hhmm(json['endTime']),
+    sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+    teacherName: (json['teacherName'] as String?)?.trim(),
+    roomName: json['roomName'] as String?,
+  );
+
+  /// 1 = Monday … 6 = Saturday (the builder's numbering).
+  final int dayOfWeek;
+  final String periodName;
+  final String subjectName;
+  final String? startTime;
+  final String? endTime;
+  final int sortOrder;
+  final String? teacherName;
+  final String? roomName;
+
+  /// "08:00:00" → "08:00"; anything else is shown as sent.
+  static String? _hhmm(Object? v) {
+    final s = v?.toString();
+    if (s == null || s.isEmpty) return null;
+    return s.length >= 5 ? s.substring(0, 5) : s;
+  }
+}
+
+/// D-19 (proposed contract): the student's own current class placement.
+class OwnEnrollment {
+  const OwnEnrollment({
+    required this.sectionId,
+    required this.academicYearId,
+    this.className,
+    this.sectionName,
+    this.academicYearName,
+  });
+
+  factory OwnEnrollment.fromJson(Map<String, dynamic> json) => OwnEnrollment(
+    sectionId: json['sectionId'] as String,
+    academicYearId: json['academicYearId'] as String,
+    className: json['className'] as String?,
+    sectionName: json['sectionName'] as String?,
+    academicYearName: json['academicYearName'] as String?,
+  );
+
+  final String sectionId;
+  final String academicYearId;
+  final String? className;
+  final String? sectionName;
+  final String? academicYearName;
+
+  String get label => [
+    className,
+    sectionName,
+  ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+}

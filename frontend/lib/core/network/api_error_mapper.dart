@@ -18,9 +18,7 @@ LoadFailure mapDioError(DioException err) {
   final response = err.response;
   final status = response?.statusCode;
   final body = response?.data;
-  final message = withoutInternalIds(
-    body is Map ? body['message'] as String? : null,
-  );
+  final message = withoutInternalIds(body is Map ? body['message'] as String? : null);
   final requestedPath = err.requestOptions.uri.path;
 
   // A 404 from a PERSON-RECORD endpoint is the D-17 orphan case (row 9 of
@@ -46,9 +44,19 @@ LoadFailure mapDioError(DioException err) {
   return LoadFailure(
     message: message ?? _fallbackMessage(err, status),
     kind: LoadFailureKind.transient,
-    unreachable: response == null && _unreachableTypes.contains(err.type),
+    unreachable: response == null &&
+        (_unreachableTypes.contains(err.type) || _isTransportFailure(err)),
   );
 }
+
+/// DEF-26: on Android a refused/reset connection arrives as
+/// [DioExceptionType.unknown] wrapping a socket/TLS error, with no response.
+/// It must read as "could not reach the server", never fall through to a
+/// screen's own fallback such as "That code was not accepted".
+bool _isTransportFailure(DioException err) =>
+    err.response == null &&
+    err.type == DioExceptionType.unknown &&
+    err.error != null;
 
 /// Server messages are shown verbatim (they name the real problem), but some
 /// end with an internal record id, e.g. "Campus not found: 23d08841-…" (hard-QA
@@ -58,12 +66,7 @@ LoadFailure mapDioError(DioException err) {
 String? withoutInternalIds(String? message) {
   if (message == null) return null;
   final cleaned = message
-      .replaceAll(
-        RegExp(
-          r':?\s*\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b',
-        ),
-        '',
-      )
+      .replaceAll(RegExp(r':?\s*\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b'), '')
       .trim();
   return cleaned.isEmpty ? null : cleaned;
 }
@@ -91,6 +94,6 @@ String? _fallbackMessage(DioException err, int? status) {
     case DioExceptionType.connectionError:
       return 'Could not reach the server.';
     default:
-      return null;
+      return _isTransportFailure(err) ? 'Could not reach the server.' : null;
   }
 }

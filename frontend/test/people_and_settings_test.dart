@@ -50,68 +50,65 @@ Map<String, dynamic> _page(List<Map<String, dynamic>> rows) => {
 
 /// Stands in for the three list endpoints `loadPeople` reads.
 _Adapter _peopleServer({bool guardiansFail = false}) => _Adapter((o) {
-  final path = o.uri.path;
-  if (path == '/api/staff') {
-    return _json(
-      200,
-      _page([
-        {
-          'id': 's1',
-          'firstName': 'Ayesha',
-          'lastName': 'Khan',
-          'employeeCode': 'EMP-002',
-          'designation': 'Teacher',
-          'userId': 'u-1',
-        },
-        {
-          'id': 's2',
-          'firstName': 'Bilal',
-          'lastName': 'Ahmed',
-          'employeeCode': 'EMP-003',
-          'userId': null,
-        },
-      ]),
-    );
-  }
-  if (path == '/api/students') {
-    return _json(
-      200,
-      _page([
-        {
-          'id': 'st1',
-          'firstName': 'Ali',
-          'lastName': 'Khan',
-          'admissionNumber': 'STU-001',
-          'status': 'active',
-          'userId': 'u-9',
-        },
-      ]),
-    );
-  }
-  if (path == '/api/guardians') {
-    if (guardiansFail) return _json(500, {'message': 'boom'});
-    return _json(
-      200,
-      _page([
-        {
-          'id': 'g1',
-          'firstName': 'Imran',
-          'lastName': 'Khan',
-          'userId': null,
-          'students': [
-            {
-              'studentId': 'st1',
-              'firstName': 'Ali',
-              'lastName': 'Khan',
-              'relationship': 'father',
-            },
-          ],
-        },
-      ]),
-    );
-  }
-  return _json(404, {'message': 'no route'});
-});
+      final path = o.uri.path;
+      if (path == '/api/staff') {
+        return _json(
+            200,
+            _page([
+              {
+                'id': 's1',
+                'firstName': 'Ayesha',
+                'lastName': 'Khan',
+                'employeeCode': 'EMP-002',
+                'designation': 'Teacher',
+                'userId': 'u-1',
+              },
+              {
+                'id': 's2',
+                'firstName': 'Bilal',
+                'lastName': 'Ahmed',
+                'employeeCode': 'EMP-003',
+                'userId': null,
+              },
+            ]));
+      }
+      if (path == '/api/students') {
+        return _json(
+            200,
+            _page([
+              {
+                'id': 'st1',
+                'firstName': 'Ali',
+                'lastName': 'Khan',
+                'admissionNumber': 'STU-001',
+                'status': 'active',
+                'userId': 'u-9',
+              },
+            ]));
+      }
+      if (path == '/api/guardians') {
+        if (guardiansFail) return _json(500, {'message': 'boom'});
+        return _json(
+            200,
+            _page([
+              {
+                'id': 'g1',
+                'firstName': 'Imran',
+                'lastName': 'Khan',
+                'userId': null,
+                'students': [
+                  {
+                    'studentId': 'st1',
+                    'firstName': 'Ali',
+                    'lastName': 'Khan',
+                    'relationship': 'father',
+                  },
+                ],
+              },
+            ]));
+      }
+      return _json(404, {'message': 'no route'});
+    });
 
 AdminRepository _repo(_Adapter a) => AdminRepository(
   Dio(BaseOptions(baseUrl: 'http://test'))..httpClientAdapter = a,
@@ -163,12 +160,10 @@ void main() {
       );
     });
 
-    testWidgets('switching group shows parents with their children', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _host(PeopleScreen(repository: _repo(_peopleServer()))),
-      );
+    testWidgets('switching group shows parents with their children',
+        (tester) async {
+      await tester
+          .pumpWidget(_host(PeopleScreen(repository: _repo(_peopleServer()))));
       await tester.pumpAndSettle();
 
       await tester.tap(find.bySemanticsLabel('Parents'));

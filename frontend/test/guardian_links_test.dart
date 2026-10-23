@@ -73,7 +73,9 @@ void main() {
     (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      expect(find.text('Synthetic Contact - unreviewed'), findsOneWidget);
+      expect(find.text('Synthetic Contact'), findsOneWidget);
+      expect(find.text('Status: Awaiting review'), findsOneWidget);
+      expect(find.textContaining('unreviewed'), findsNothing);
       expect(find.text('Verified: Not verified'), findsOneWidget);
       expect(find.text('Emergency contact'), findsOneWidget);
       expect(reviews, isEmpty);
@@ -90,7 +92,8 @@ void main() {
     row['link_status'] = 'revoked';
     await tester.tap(find.text('Refresh relationships'));
     await tester.pumpAndSettle();
-    expect(find.text('Synthetic Contact - revoked'), findsOneWidget);
+    expect(find.text('Synthetic Contact'), findsOneWidget);
+    expect(find.text('Status: Revoked'), findsOneWidget);
     expect(find.text('Review relationship'), findsNothing);
   });
   testWidgets('denied staff cannot see relationship names or review actions', (
@@ -100,13 +103,15 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
     expect(find.text('Access denied'), findsOneWidget);
-    expect(find.text('Synthetic Contact - unreviewed'), findsNothing);
+    expect(find.text('Synthetic Contact'), findsNothing);
     expect(find.text('Review relationship'), findsNothing);
   });
   testWidgets(
     'review collects evidence and sends explicit false grants rather than blanket access',
     (tester) async {
       await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Review relationship'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Review relationship'));
       await tester.pumpAndSettle();
@@ -124,4 +129,38 @@ void main() {
       );
     },
   );
+  testWidgets('blank reason shows an error; cancel sends nothing', (tester) async {
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Review relationship'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Review relationship'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('guardian-review-record')));
+    await tester.tap(find.byKey(const Key('guardian-review-record')));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a verification evidence reference to record this review.'), findsOneWidget);
+    expect(reviews, isEmpty);
+    await tester.tap(find.byKey(const Key('guardian-review-cancel')));
+    await tester.pumpAndSettle();
+    expect(reviews, isEmpty);
+  });
+  testWidgets('verified relationship shows readable date and allowed categories', (tester) async {
+    row['link_status'] = 'active';
+    row['verified_at'] = '2026-10-16T12:00:00Z';
+    row['can_view_academic'] = true;
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    expect(find.text('Status: Verified'), findsOneWidget);
+    expect(find.textContaining('2026-10-16T'), findsNothing);
+    expect(find.text('Allowed: View academic'), findsOneWidget);
+  });
+  testWidgets('meets tap-target, labelling and contrast guidelines', (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+    handle.dispose();
+  });
 }

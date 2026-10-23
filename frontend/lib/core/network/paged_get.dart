@@ -22,9 +22,10 @@ extension PagedGet on Dio {
     String path, {
     Map<String, dynamic> queryParameters = const {},
   }) {
-    final key =
-        '${identityHashCode(this)} $path ${Uri(queryParameters: {for (final e in queryParameters.entries)
-          if (e.value != null) e.key: '${e.value}'}).query}';
+    final key = '${identityHashCode(this)} $path ${Uri(queryParameters: {
+          for (final e in queryParameters.entries)
+            if (e.value != null) e.key: '${e.value}',
+        }).query}';
     final existing = _inFlight[key];
     if (existing != null) return existing;
     // Block body on purpose: `=> _inFlight.remove(key)` would return the
@@ -47,15 +48,14 @@ extension PagedGet on Dio {
         queryParameters: {...queryParameters, 'page': page, 'size': pageSize},
       );
       final body = res.data;
-      final content = (body?['content'] as List? ?? const [])
-          .cast<Map<String, dynamic>>();
+      final content =
+          (body?['content'] as List? ?? const []).cast<Map<String, dynamic>>();
       rows.addAll(content);
       // Two envelopes exist: Spring's Page (has `last`) and a hand-built
       // {content, page, size, totalElements} with no `last`. Decide from
       // totalElements when present, else a short page means the end.
       final total = (body?['totalElements'] as num?)?.toInt();
-      final done =
-          body?['last'] == true ||
+      final done = body?['last'] == true ||
           (total != null && rows.length >= total) ||
           content.length < pageSize;
       if (content.isEmpty || done) break;

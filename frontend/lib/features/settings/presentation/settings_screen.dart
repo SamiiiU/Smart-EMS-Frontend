@@ -11,6 +11,7 @@ import '../../admin/data/institution_admin_repository.dart';
 import '../../admin/data/ownership_repository.dart';
 import '../../admin/presentation/institution_admins_screen.dart';
 import '../../admin/presentation/ownership_transfer_screen.dart';
+import '../../auth/presentation/change_password_screen.dart';
 import '../../auth/presentation/mfa_screen.dart';
 import '../../../core/shell/campus_context.dart';
 import '../../../core/shell/workspace_scope.dart';
@@ -135,6 +136,29 @@ class SettingsScreen extends StatelessWidget {
                           fullWidth: true,
                           icon: Icons.swap_horiz_outlined,
                           onPressed: ws.onSwitch,
+                        ),
+                        const SizedBox(height: AppSpacing.space3),
+                      ],
+                      if (PasswordScope.maybeOf(context) case final pw?) ...[
+                        AppButton(
+                          key: const Key('settings-change-password'),
+                          label: 'Change password',
+                          variant: AppButtonVariant.secondary,
+                          fullWidth: true,
+                          icon: Icons.password_outlined,
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (route) => ChangePasswordScreen(
+                                repository: pw.repository,
+                                // Every session was revoked: leave this page, then
+                                // drop the identity so the router lands on login.
+                                onChanged: () {
+                                  Navigator.of(route).pop();
+                                  pw.onChanged();
+                                },
+                              ),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.space3),
                       ],

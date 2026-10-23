@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
+import '../../../core/widgets/keyboard_tap_target.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/motion_reveal.dart';
@@ -73,6 +74,9 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
   String? _error;
   MarksSaveResult? _saved;
 
+  /// D-24: true once saved marks were read back from the server.
+  bool _readBack = false;
+
   @override
   void initState() {
     super.initState();
@@ -112,6 +116,7 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
         }
         _roster = ScreenState<List<RosterStudent>>.data(students);
       });
+      await _loadSaved();
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
@@ -125,6 +130,27 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
         ),
       );
     }
+  }
+
+  /// D-24: fills in what is already saved, without overwriting anything the
+  /// teacher has typed since the screen opened.
+  Future<void> _loadSaved() async {
+    final saved = await widget.repository.loadPaperMarks(widget.paper.id);
+    if (saved == null || !mounted) return;
+    setState(() {
+      _readBack = true;
+      saved.forEach((studentId, mark) {
+        final entry = _entries[studentId];
+        if (entry == null || entry.text.isNotEmpty || entry.isAbsent) return;
+        _entries[studentId] = entry.copyWith(
+          text: mark.isAbsent ? '' : (mark.marks ?? ''),
+          isAbsent: mark.isAbsent,
+        );
+        if (!mark.isAbsent && mark.marks != null) {
+          _controllers[studentId]?.text = mark.marks!;
+        }
+      });
+    });
   }
 
   List<RosterStudent> get _students => _roster.data ?? const [];
@@ -150,8 +176,8 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
     });
   }
 
-  /// Moves to the next student's field. Bound to both Tab and Enter, so the
-  /// two keys a teacher reaches for do the same, safe thing.
+  /// Moves to the next student's field. Bound to Enter (Tab follows the normal
+  /// order so the Absent toggle stays reachable, DEF-24); never submits.
   void _focusNext(String studentId) {
     final order = _students;
     final i = order.indexWhere((s) => s.studentId == studentId);
@@ -214,19 +240,22 @@ class MarksEntryScreenState extends State<MarksEntryScreen> {
                 ),
               )
             else
-              const Padding(
-                padding: EdgeInsets.symmetric(
+              Padding(
+                padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.space6,
                   vertical: AppSpacing.space3,
                 ),
                 // Two facts a teacher needs BEFORE typing forty numbers.
                 child: InlineAlert(
                   tone: InlineAlertTone.info,
-                  message:
-                      'Marks already saved cannot be shown — this system '
-                      'has no way to read them back. Saving again replaces '
-                      'whatever is stored. Once the exam is published, marks '
-                      'are locked for good.',
+                  message: _readBack
+                      ? 'Marks already saved are filled in below. Saving '
+                            'replaces what is stored. Once the exam is '
+                            'published, marks are locked for good.'
+                      : 'Marks already saved cannot be shown — this system '
+                            'has no way to read them back. Saving again replaces '
+                            'whatever is stored. Once the exam is published, marks '
+                            'are locked for good.',
                 ),
               ),
 
@@ -497,13 +526,16 @@ class MarkRow extends StatelessWidget {
               SizedBox(
                 width: AppSizing.marksFieldWidth,
                 child: Focus(
-                  // Tab and Enter both move on, and neither submits. A
-                  // stray Enter halfway down a class must never save.
+                  // Enter moves to the next learner's marks and never
+                  // submits: a stray Enter halfway down a class must never
+                  // save. DEF-24: Tab is NOT intercepted any more — it used to
+                  // jump field-to-field too, so keyboard focus could never
+                  // reach a learner's Absent toggle. Tab now follows the
+                  // normal order (marks → Absent → next learner).
                   onKeyEvent: (node, event) {
                     if (event is! KeyDownEvent) return KeyEventResult.ignored;
                     if (event.logicalKey == LogicalKeyboardKey.enter ||
-                        event.logicalKey == LogicalKeyboardKey.numpadEnter ||
-                        event.logicalKey == LogicalKeyboardKey.tab) {
+                        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
                       onNext();
                       return KeyEventResult.handled;
                     }
@@ -580,33 +612,31 @@ class _AbsentToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return Semantics(
-      button: true,
-      toggled: absent,
+    // DEF-24 (same class as DEF-18): was a bare GestureDetector, so a
+    // keyboard-only teacher could not mark a learner absent.
+    return KeyboardTapTarget(
       label: '$studentName absent',
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.space4,
-              vertical: AppSpacing.space2,
-            ),
-            decoration: BoxDecoration(
-              color: absent ? t.warningBg : t.surfaceSunken,
-              borderRadius: BorderRadius.circular(AppRadius.full),
-              border: Border.all(
-                color: absent ? t.warning : t.border,
-                width: AppSizing.borderThin,
-              ),
-            ),
-            child: Text(
-              'Absent',
-              style: AppTypography.fieldLabel.copyWith(
-                color: absent ? t.warningTextOnBg : t.textSecondary,
-              ),
-            ),
+      toggled: absent,
+      enabled: enabled,
+      onTap: onTap,
+      borderRadius: AppRadius.full,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.space4,
+          vertical: AppSpacing.space2,
+        ),
+        decoration: BoxDecoration(
+          color: absent ? t.warningBg : t.surfaceSunken,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          border: Border.all(
+            color: absent ? t.warning : t.border,
+            width: AppSizing.borderThin,
+          ),
+        ),
+        child: Text(
+          'Absent',
+          style: AppTypography.fieldLabel.copyWith(
+            color: absent ? t.warningTextOnBg : t.textSecondary,
           ),
         ),
       ),

@@ -194,6 +194,8 @@ class _ClassifyDialogState extends State<_ClassifyDialog> {
   Widget build(BuildContext context) {
     final ok = _status != null && _reason.trim().length >= 3;
     return AlertDialog(
+      // Fields stay reachable above the phone keyboard.
+      scrollable: true,
       title: Text('Classify “${widget.yearName}”'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -225,15 +227,16 @@ class _ClassifyDialogState extends State<_ClassifyDialog> {
         ],
       ),
       actions: [
-        TextButton(
+        AppButton(
+          label: 'Cancel',
+          variant: AppButtonVariant.secondary,
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
         ),
-        TextButton(
+        AppButton(
+          label: 'Classify',
           onPressed: ok
               ? () => Navigator.of(context).pop((_status!, _reason.trim()))
               : null,
-          child: const Text('Classify'),
         ),
       ],
     );

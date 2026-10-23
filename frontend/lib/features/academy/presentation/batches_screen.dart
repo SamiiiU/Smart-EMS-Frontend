@@ -130,8 +130,8 @@ class _BatchesScreenState extends State<BatchesScreen> {
             runSpacing: AppSpacing.space5,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              SizedBox(
-                width: 320,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
                 child: SearchField(
                   label: 'Search batches',
                   value: _query,

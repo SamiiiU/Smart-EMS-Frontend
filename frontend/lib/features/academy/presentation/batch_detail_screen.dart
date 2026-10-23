@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -36,80 +38,85 @@ class BatchDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.tokens.page,
       body: SafeArea(
-        child: AcademyLoader<BatchDetail>(
-          load: () => repository.batch(batchId),
-          emptyTitle: 'Batch not available',
-          emptyMessage: 'This batch does not exist or is not available to you.',
-          builder: (context, detail, reload) {
-            final b = detail.batch;
-            final manager = canOnCampus(context, academyManage, b.campusId);
-            final finance =
-                feesAvailable && canOnCampus(context, 'fee.manage', b.campusId);
-            final tabs = <(String, Widget)>[
-              (
-                'Overview',
-                _Overview(
-                  repository: repository,
-                  detail: detail,
-                  manager: manager,
-                  reload: reload,
+        child: ResultBannerHost(
+          child: AcademyLoader<BatchDetail>(
+            load: () => repository.batch(batchId),
+            emptyTitle: 'Batch not available',
+            emptyMessage:
+                'This batch does not exist or is not available to you.',
+            builder: (context, detail, reload) {
+              final b = detail.batch;
+              final manager = canOnCampus(context, academyManage, b.campusId);
+              final finance =
+                  feesAvailable &&
+                  canOnCampus(context, 'fee.manage', b.campusId);
+              final tabs = <(String, Widget)>[
+                (
+                  'Overview',
+                  _Overview(
+                    repository: repository,
+                    detail: detail,
+                    manager: manager,
+                    reload: reload,
+                  ),
                 ),
-              ),
-              (
-                'Learners',
-                _Learners(repository: repository, batch: b, manager: manager),
-              ),
-              (
-                'Sessions',
-                _Sessions(
-                  repository: repository,
-                  detail: detail,
-                  manager: manager,
-                  reload: reload,
+                (
+                  'Learners',
+                  _Learners(repository: repository, batch: b, manager: manager),
                 ),
-              ),
-              (
-                'Assessments',
-                AssessmentsTab(
-                  repository: repository,
-                  batch: b,
-                  canPublish:
-                      manager &&
-                      canOnCampus(context, 'exam.manage', b.campusId),
+                (
+                  'Sessions',
+                  _Sessions(
+                    repository: repository,
+                    detail: detail,
+                    manager: manager,
+                    reload: reload,
+                  ),
                 ),
-              ),
-              if (finance)
-                ('Fees', BatchFeePanel(repository: repository, batch: b)),
-            ];
-            return DefaultTabController(
-              length: tabs.length,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      const BackButton(),
-                      Expanded(
-                        child: PageHeader(
-                          title: '${b.courseName} · ${b.name}',
-                          subtitle:
-                              '${campusName(context, b.campusId)} · ${b.startDate} → ${b.endDate}',
+                (
+                  'Assessments',
+                  AssessmentsTab(
+                    repository: repository,
+                    batch: b,
+                    canPublish:
+                        manager &&
+                        canOnCampus(context, 'exam.manage', b.campusId),
+                  ),
+                ),
+                if (finance)
+                  ('Fees', BatchFeePanel(repository: repository, batch: b)),
+              ];
+              return DefaultTabController(
+                length: tabs.length,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const BackButton(),
+                        Expanded(
+                          child: PageHeader(
+                            title: '${b.courseName} · ${b.name}',
+                            subtitle:
+                                '${campusName(context, b.campusId)} · ${b.startDate} → ${b.endDate}',
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  TabBar(
-                    isScrollable: true,
-                    tabs: [for (final t in tabs) Tab(text: t.$1)],
-                  ),
-                  Expanded(
-                    child: TabBarView(children: [for (final t in tabs) t.$2]),
-                  ),
-                ],
-              ),
-            );
-          },
+                      ],
+                    ),
+                    TabBar(
+                      isScrollable: true,
+                      tabs: [for (final t in tabs) Tab(text: t.$1)],
+                    ),
+                    Expanded(
+                      child: TabBarView(children: [for (final t in tabs) t.$2]),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -445,7 +452,7 @@ class _LearnersState extends State<_Learners> {
     builder: (context) => AlertDialog(
       title: const Text('Membership history'),
       content: SizedBox(
-        width: 520,
+        width: math.min(520.0, MediaQuery.sizeOf(context).width - 80),
         height: 420,
         child: AcademyLoader<List<Enrollment>>(
           load: () => widget.repository.enrollmentHistory(widget.batch.id),
@@ -468,9 +475,10 @@ class _LearnersState extends State<_Learners> {
         ),
       ),
       actions: [
-        TextButton(
+        AppButton(
+          label: 'Close',
+          variant: AppButtonVariant.secondary,
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
         ),
       ],
     ),

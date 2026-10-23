@@ -22,4 +22,5 @@ frontend/test/failures/
 
 .DS_Store
 
+# Firebase Android config: supplied locally, never committed
 frontend/android/app/google-services.json

@@ -22,6 +22,7 @@ class KeyboardTapTarget extends StatefulWidget {
     required this.onTap,
     required this.child,
     this.selected,
+    this.toggled,
     this.enabled = true,
     this.borderRadius = 8,
     this.ringOutside = false,
@@ -34,6 +35,9 @@ class KeyboardTapTarget extends StatefulWidget {
 
   /// For navigation destinations: announced as the current/selected item.
   final bool? selected;
+
+  /// For on/off controls (e.g. Absent): announced as a toggle with its state.
+  final bool? toggled;
   final bool enabled;
   final double borderRadius;
 
@@ -64,6 +68,7 @@ class _KeyboardTapTargetState extends State<KeyboardTapTarget> {
       button: true,
       enabled: enabled,
       selected: widget.selected,
+      toggled: widget.toggled,
       label: widget.label,
       excludeSemantics: true,
       focusable: enabled ? true : null,

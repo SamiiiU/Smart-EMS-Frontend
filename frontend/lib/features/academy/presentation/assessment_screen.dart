@@ -176,6 +176,9 @@ class _MarksScreenState extends State<MarksScreen> {
   final Map<String, String> _marks = {};
   final Map<String, bool> _absent = {};
   bool _saving = false;
+
+  /// Owner decision (17 Oct 2026): publishing needs at least one SAVED valid mark (value, not absent).
+  bool _hasSavedMark = false;
   String? _message;
   bool _error = false;
 
@@ -188,6 +191,9 @@ class _MarksScreenState extends State<MarksScreen> {
       _marks[e.studentId] = e.marks ?? '';
       _absent[e.studentId] = e.absent;
     }
+    _hasSavedMark = m.marks.any(
+      (e) => !e.absent && (e.marks?.trim().isNotEmpty ?? false),
+    );
     return _MarksData(m.assessment, roster);
   }
 
@@ -263,6 +269,7 @@ class _MarksScreenState extends State<MarksScreen> {
   Widget build(BuildContext context) {
     final t = context.tokens;
     return Scaffold(
+      backgroundColor: context.tokens.page,
       body: SafeArea(
         child: AcademyLoader<_MarksData>(
           key: _loader,
@@ -353,25 +360,32 @@ class _MarksScreenState extends State<MarksScreen> {
                                       )
                                     : SizedBox(
                                         width: 120,
-                                        child: TextFormField(
-                                          key: ValueKey('marks-${r.studentId}'),
-                                          initialValue:
-                                              _marks[r.studentId] ?? '',
-                                          enabled: _absent[r.studentId] != true,
-                                          keyboardType:
-                                              const TextInputType.numberWithOptions(
-                                                decimal: true,
-                                              ),
-                                          decoration: InputDecoration(
-                                            isDense: true,
-                                            errorText: _rowError(
-                                              r.studentId,
-                                              a.maxMarks,
+                                        child: Semantics(
+                                          label:
+                                              'Marks for ${r.name}, out of ${a.maxMarks}',
+                                          child: TextFormField(
+                                            key: ValueKey(
+                                              'marks-${r.studentId}',
                                             ),
-                                            hintText: '0–${a.maxMarks}',
-                                          ),
-                                          onChanged: (v) => setState(
-                                            () => _marks[r.studentId] = v,
+                                            initialValue:
+                                                _marks[r.studentId] ?? '',
+                                            enabled:
+                                                _absent[r.studentId] != true,
+                                            keyboardType:
+                                                const TextInputType.numberWithOptions(
+                                                  decimal: true,
+                                                ),
+                                            decoration: InputDecoration(
+                                              isDense: true,
+                                              errorText: _rowError(
+                                                r.studentId,
+                                                a.maxMarks,
+                                              ),
+                                              hintText: '0–${a.maxMarks}',
+                                            ),
+                                            onChanged: (v) => setState(
+                                              () => _marks[r.studentId] = v,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -406,13 +420,22 @@ class _MarksScreenState extends State<MarksScreen> {
                           label: _saving ? 'Saving…' : 'Save marks',
                           onPressed: _saving ? null : () => _save(d),
                         ),
-                        if (widget.canPublish)
+                        if (widget.canPublish) ...[
                           AppButton(
                             label: 'Publish',
                             variant: AppButtonVariant.secondary,
-                            onPressed: _saving ? null : _publish,
-                          )
-                        else
+                            onPressed: _saving || !_hasSavedMark
+                                ? null
+                                : _publish,
+                          ),
+                          if (!_hasSavedMark)
+                            Text(
+                              "Save at least one learner's marks before publishing.",
+                              style: AppTypography.bodyAdminMeta.copyWith(
+                                color: t.textSecondary,
+                              ),
+                            ),
+                        ] else
                           Text(
                             'Publishing needs an administrator with exam management on this campus.',
                             style: AppTypography.bodyAdminMeta.copyWith(

@@ -65,8 +65,9 @@ class PeopleScreen extends StatefulWidget {
 ({Set<String>? roles, Set<String>? campusIds}) campusRolePolicy(
   IdentityResult? identity,
 ) {
-  if (identity == null || !identity.permissionsKnown)
+  if (identity == null || !identity.permissionsKnown) {
     return (roles: null, campusIds: null);
+  }
   const institutionWideRoles = {
     'owner',
     'institution_owner',

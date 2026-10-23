@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/states/loading_skeleton.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
@@ -115,7 +116,7 @@ class _OwnershipTransferScreenState extends State<OwnershipTransferScreen> {
     );
 
     if (_loading) {
-      children.add(const Center(child: CircularProgressIndicator()));
+      children.add(const LoadingSkeleton.cards(count: 1));
     } else if (pending != null && pending.targetUserId == _me) {
       children
         ..add(

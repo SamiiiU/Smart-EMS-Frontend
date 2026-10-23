@@ -15,8 +15,7 @@ class _WriteFails implements PaymentIntentStore {
   @override
   Future<PaymentIntent?> read(String owner, String invoice) async => null;
   @override
-  Future<void> write(String owner, PaymentIntent intent) async =>
-      throw StateError('storage full');
+  Future<void> write(String owner, PaymentIntent intent) async => throw StateError('storage full');
   @override
   Future<void> remove(String owner, String invoice) async {}
 }
@@ -29,31 +28,17 @@ void main() {
   setUp(() {
     sent = [];
     dio = Dio(BaseOptions(baseUrl: 'https://fixture.invalid'))
-      ..interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (r, h) {
-            sent.add(r.data);
-            h.reject(
-              DioException(
-                requestOptions: r,
-                type: DioExceptionType.receiveTimeout,
-              ),
-            );
-          },
-        ),
-      );
+      ..interceptors.add(InterceptorsWrapper(onRequest: (r, h) {
+        sent.add(r.data);
+        h.reject(DioException(requestOptions: r, type: DioExceptionType.receiveTimeout));
+      }));
   });
 
-  Future<({String? paymentId, String? error})> pay(PaymentIntentStore store) =>
-      FinanceRepository(
+  Future<({String? paymentId, String? error})> pay(PaymentIntentStore store) => FinanceRepository(
         dio,
         intents: store,
         owner: () => 'tenant:user',
-      ).recordPayment(
-        invoiceId: 'invoice',
-        amount: Money.parse('25.50'),
-        source: PaymentSource.cash,
-      );
+      ).recordPayment(invoiceId: 'invoice', amount: Money.parse('25.50'), source: PaymentSource.cash);
 
   test('a failed storage WRITE prevents submission (nothing sent)', () async {
     final r = await pay(_WriteFails());
@@ -61,76 +46,38 @@ void main() {
     expect(sent, isEmpty);
   });
 
-  test(
-    'a corrupted stored record blocks submission and is not overwritten',
-    () async {
-      FlutterSecureStorage.setMockInitialValues({
-        'finance.intent.v1:tenant:user:invoice': '{not json',
-      });
-      final store = SecurePaymentIntentStore();
-      final r = await pay(store);
-      expect(r.error, contains('storage'));
-      expect(sent, isEmpty);
-      // Still the corrupted value: recovery is never silently replaced.
-      expect(
-        await const FlutterSecureStorage().read(
-          key: 'finance.intent.v1:tenant:user:invoice',
-        ),
-        '{not json',
-      );
-    },
-  );
+  test('a corrupted stored record blocks submission and is not overwritten', () async {
+    FlutterSecureStorage.setMockInitialValues({'finance.intent.v1:tenant:user:invoice': '{not json'});
+    final store = SecurePaymentIntentStore();
+    final r = await pay(store);
+    expect(r.error, contains('storage'));
+    expect(sent, isEmpty);
+    // Still the corrupted value: recovery is never silently replaced.
+    expect(await const FlutterSecureStorage().read(key: 'finance.intent.v1:tenant:user:invoice'), '{not json');
+  });
 
-  test(
-    'records written in the existing v1 format stay readable after the fix',
-    () async {
-      const existing = PaymentIntent(
-        key: 'k-1',
-        invoiceId: 'invoice',
-        amount: '25.50',
-        source: 'MANUAL_CASH',
-      );
-      FlutterSecureStorage.setMockInitialValues({
-        'finance.intent.v1:tenant:user:invoice': existing.encode(),
-      });
-      final read = await SecurePaymentIntentStore().read(
-        'tenant:user',
-        'invoice',
-      );
-      expect(read?.encode(), existing.encode());
-      expect(
-        await SecurePaymentIntentStore().read('tenant:other', 'invoice'),
-        isNull,
-        reason: 'account isolation',
-      );
-    },
-  );
+  test('records written in the existing v1 format stay readable after the fix', () async {
+    const existing = PaymentIntent(key: 'k-1', invoiceId: 'invoice', amount: '25.50', source: 'MANUAL_CASH');
+    FlutterSecureStorage.setMockInitialValues({'finance.intent.v1:tenant:user:invoice': existing.encode()});
+    final read = await SecurePaymentIntentStore().read('tenant:user', 'invoice');
+    expect(read?.encode(), existing.encode());
+    expect(await SecurePaymentIntentStore().read('tenant:other', 'invoice'), isNull, reason: 'account isolation');
+  });
 
-  test(
-    'pending record survives a "reload" and the retry reuses its key',
-    () async {
-      FlutterSecureStorage.setMockInitialValues({});
-      final first = await pay(
-        SecurePaymentIntentStore(),
-      ); // timeout -> uncertain
-      expect(first.paymentId, isNull);
-      // New store instance = app reload.
-      final second = await pay(SecurePaymentIntentStore());
-      expect(second.paymentId, isNull);
-      expect(sent, hasLength(2));
-      expect(
-        (sent[0] as Map)['idempotencyKey'],
-        (sent[1] as Map)['idempotencyKey'],
-      );
-    },
-  );
+  test('pending record survives a "reload" and the retry reuses its key', () async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final first = await pay(SecurePaymentIntentStore()); // timeout -> uncertain
+    expect(first.paymentId, isNull);
+    // New store instance = app reload.
+    final second = await pay(SecurePaymentIntentStore());
+    expect(second.paymentId, isNull);
+    expect(sent, hasLength(2));
+    expect((sent[0] as Map)['idempotencyKey'], (sent[1] as Map)['idempotencyKey']);
+  });
 
-  test(
-    'the web guard is a no-op off web (the mobile/test platform stays in place)',
-    () async {
-      FlutterSecureStorage.setMockInitialValues({'x': 'y'});
-      ensureSecureStorageWebPlatform();
-      expect(await const FlutterSecureStorage().read(key: 'x'), 'y');
-    },
-  );
+  test('the web guard is a no-op off web (the mobile/test platform stays in place)', () async {
+    FlutterSecureStorage.setMockInitialValues({'x': 'y'});
+    ensureSecureStorageWebPlatform();
+    expect(await const FlutterSecureStorage().read(key: 'x'), 'y');
+  });
 }

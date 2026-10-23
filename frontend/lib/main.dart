@@ -50,6 +50,7 @@ import 'core/network/web_session.dart';
 import 'core/network/campus_filter_interceptor.dart';
 import 'core/network/browser/browser_bridge.dart';
 import 'features/attendance/data/attendance_review_repository.dart';
+import 'features/auth/presentation/change_password_screen.dart';
 import 'features/auth/presentation/mfa_screen.dart';
 import 'core/network/step_up_interceptor.dart';
 
@@ -236,6 +237,7 @@ class _SmartEmsAppState extends State<SmartEmsApp> with WidgetsBindingObserver {
           complaints: _complaintsRepository,
           notifications: _notificationsRepository,
           academy: _authState.academyEnabled ? _academyRepository : null,
+          academics: _academicsRepository,
           campusChanges: _campus,
         ),
     parentDestinations: (onSignOut) => buildParentDestinations(
@@ -253,6 +255,8 @@ class _SmartEmsAppState extends State<SmartEmsApp> with WidgetsBindingObserver {
       themeController: _themeController,
       complaints: _complaintsRepository,
       notifications: _notificationsRepository,
+      parent: _parentRepository,
+      academy: _authState.academyEnabled ? _academyRepository : null,
     ),
     academy: _academyRepository,
     adminDestinations: (onSignOut) => buildAdminDestinations(
@@ -358,7 +362,14 @@ class _SmartEmsAppState extends State<SmartEmsApp> with WidgetsBindingObserver {
         routerConfig: _router,
         builder: (context, child) => MfaScope(
           repository: _mfaRepository,
-          child: CampusScope(campus: _campus, child: child ?? const SizedBox()),
+          child: PasswordScope(
+            repository: _repository,
+            onChanged: _authState.clear,
+            child: CampusScope(
+              campus: _campus,
+              child: child ?? const SizedBox(),
+            ),
+          ),
         ),
       ),
     );

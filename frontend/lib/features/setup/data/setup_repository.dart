@@ -301,6 +301,43 @@ class SetupRepository {
     }
   }
 
+  /// Changes one filled cell (PUT, same body and same clash handling as
+  /// [createSlot]). The server re-checks teacher and room clashes, excluding
+  /// this slot itself.
+  Future<(TimetableSlot?, SlotFailure?)> updateSlot({
+    required String slotId,
+    required String sectionId,
+    required String academicYearId,
+    required String periodId,
+    required int dayOfWeek,
+    required String subjectId,
+    required String teacherStaffId,
+    String? roomId,
+  }) async {
+    try {
+      final res = await dio.put<Map<String, dynamic>>(
+        ApiConfig.timetableSlotPath(slotId),
+        data: {
+          'sectionId': sectionId,
+          'academicYearId': academicYearId,
+          'periodId': periodId,
+          'dayOfWeek': dayOfWeek,
+          'subjectId': subjectId,
+          'teacherStaffId': teacherStaffId,
+          'roomId': ?roomId,
+        },
+      );
+      return (TimetableSlot.fromJson(res.data!), null);
+    } on DioException catch (err) {
+      final body = err.response?.data;
+      final message = body is Map ? body['message'] as String? : null;
+      return (
+        null,
+        SlotFailure.fromMessage(message ?? mapDioError(err).message),
+      );
+    }
+  }
+
   Future<void> deleteSlot(String slotId) => _mapped(() async {
     await dio.delete<void>(ApiConfig.timetableSlotPath(slotId));
   });

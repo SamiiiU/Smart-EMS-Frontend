@@ -78,6 +78,26 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
     super.initState();
     _sectionId = widget.sections.isEmpty ? null : widget.sections.first.id;
     _subjectId = widget.subjects.isEmpty ? null : widget.subjects.first.id;
+    _loadExisting();
+  }
+
+  /// True once D-13 returned this exam's existing papers.
+  bool _readBack = false;
+
+  /// D-13: read back papers created earlier (any session). An older backend
+  /// without the endpoint fails; the screen then keeps its session-only list.
+  Future<void> _loadExisting() async {
+    try {
+      final existing = await widget.repository.loadPapers(widget.exam.id);
+      if (!mounted) return;
+      setState(() {
+        final known = _papers.map((p) => p.id).toSet();
+        _papers.addAll(existing.where((p) => !known.contains(p.id)));
+        _readBack = true;
+      });
+    } on Object catch (_) {
+      // Not available on this backend: session-created papers only.
+    }
   }
 
   String _sectionLabel(String id) {
@@ -128,7 +148,13 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
         sectionName: _sectionLabel(_sectionId!),
       );
       if (!mounted) return null;
-      setState(() => _papers.add(paper));
+      setState(() {
+        _papers.add(paper);
+        // DEF-25: the server moves a draft exam to marking when its first paper
+        // is added. Mirror that, so the panel no longer offers "Start marking"
+        // (which the server would refuse with 409).
+        if (_status == ExamStatus.draft) _status = ExamStatus.marking;
+      });
       return null;
     } on LoadFailure catch (f) {
       // 409 here means this section/subject pair already has a paper — and
@@ -156,6 +182,9 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
                   'This exam is ${_status.label.toLowerCase()}. No further papers '
                   'can be added${_status.marksEditable ? '' : ', and marks are locked'}.',
             )
+          // Only an older backend without D-13 read-back loses papers on leave.
+          : _readBack
+          ? null
           : const InlineAlert(
               tone: InlineAlertTone.warning,
               message:
@@ -217,7 +246,7 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
           ),
 
         Text(
-          'Papers added now',
+          _readBack ? 'Papers' : 'Papers added now',
           style: AppTypography.sectionHeading.copyWith(color: t.textPrimary),
         ),
         const SizedBox(height: AppSpacing.space2),
@@ -225,6 +254,8 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
           _papers.isEmpty
               ? 'Nothing yet. Papers you add appear here with a link to '
                     'enter their marks.'
+              : _readBack
+              ? 'Every paper of this exam, with a link to enter its marks.'
               : 'These are the papers created in this session — the only '
                     'ones whose marks can still be entered.',
           style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),

@@ -2,10 +2,40 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
+import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/job_progress.dart';
+import '../../../core/widgets/section_card.dart';
+import '../../../core/widgets/states/empty_state.dart';
+
+/// Human wording for job statuses; unknown values are shown as received.
+String workflowStatusLabel(Object? s) => switch (s) {
+  'pending' => 'Pending',
+  'processing' => 'Running',
+  'completed' => 'Completed',
+  'failed' => 'Failed',
+  'closed' => 'Closed',
+  null => 'Unknown',
+  _ => '$s',
+};
+
+/// Human wording for job kinds; the raw code stays visible as a caption for support.
+String workflowKindLabel(Object? kind) => switch (kind) {
+  null => 'Report PDF',
+  'INVOICES' => 'Invoice generation',
+  // Values from the workflow_job_kind_check constraint (V1–V62).
+  'IMPORT' => 'Data import',
+  'TIMETABLE' => 'Timetable generation',
+  'AI_ASSIGNMENT' => 'AI assignment draft',
+  'AI_SYLLABUS' => 'AI syllabus draft',
+  'AI_GRADING' => 'AI grading suggestions',
+  'MAILBOX_VERIFY' => 'Mailbox verification',
+  _ => '$kind',
+};
 
 /// Server-backed history survives browser reload without storing another user's jobs locally.
 class WorkflowJobsScreen extends StatefulWidget {
@@ -16,6 +46,13 @@ class WorkflowJobsScreen extends StatefulWidget {
 }
 
 class _WorkflowJobsScreenState extends State<WorkflowJobsScreen> {
+  final _scroll = ScrollController();
+  // Keyboard users land on the opened detail, and return to the row they came from.
+  final _detailFocus = FocusNode(debugLabel: 'job-detail');
+  final _rowFocus = <String, FocusNode>{};
+  String? _openedFrom;
+  FocusNode _rowNode(String id) =>
+      _rowFocus.putIfAbsent(id, () => FocusNode(debugLabel: 'job-$id'));
   List<Map<String, dynamic>> _rows = [];
   Map<String, dynamic>? _selected;
   List<dynamic> _history = [];
@@ -28,6 +65,16 @@ class _WorkflowJobsScreenState extends State<WorkflowJobsScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    _detailFocus.dispose();
+    for (final node in _rowFocus.values) {
+      node.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -80,11 +127,29 @@ class _WorkflowJobsScreenState extends State<WorkflowJobsScreen> {
           _selected = detail;
           _history = history.data ?? [];
           _error = null;
+          _openedFrom = row['id'] as String?;
         });
+        // The detail renders above the list: bring it into view where the user is.
+        if (_scroll.hasClients) {
+          await _scroll.animateTo(
+            0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+        if (mounted) _detailFocus.requestFocus();
       }
     } on Object {
       if (mounted) setState(() => _error = 'Job details could not be loaded.');
     }
+  }
+
+  void _closeDetails() {
+    final from = _openedFrom;
+    setState(() => _selected = null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && from != null) _rowFocus[from]?.requestFocus();
+    });
   }
 
   Future<void> _action(String action) async {
@@ -124,98 +189,237 @@ class _WorkflowJobsScreenState extends State<WorkflowJobsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     final job = _selected;
+    const gap = SizedBox(height: AppSpacing.space5);
+    final caption = AppTypography.caption.copyWith(color: t.textSecondary);
     return Scaffold(
+      backgroundColor: t.page,
       appBar: AppBar(title: const Text('Background jobs')),
       body: ListView(
+        controller: _scroll,
         padding: const EdgeInsets.all(AppSpacing.space5),
         children: [
-          SwitchListTile(
-            title: const Text('Failed report PDFs'),
-            value: _reports,
-            onChanged: _loading
-                ? null
-                : (value) {
-                    setState(() {
-                      _reports = value;
-                      _selected = null;
-                      _page = 0;
-                    });
-                    _load();
-                  },
-          ),
-          AppButton(
-            label: _loading ? 'Loading…' : 'Refresh jobs',
-            onPressed: _loading ? null : _load,
-          ),
-          if (_error != null)
-            InlineAlert(tone: InlineAlertTone.warning, message: _error!),
-          if (job != null) ...[
-            const SizedBox(height: AppSpacing.space5),
-            SelectableText('Job ${job['id']} — ${job['status']}'),
-            if (!_reports &&
-                const ['pending', 'processing'].contains(job['status']))
-              JobProgress(
-                key: ValueKey(job['id']),
-                jobId: job['id'] as String,
-                load: (token) => _detail(job['id'] as String, token),
-                onFinished: (value) {
-                  setState(() => _selected = value);
-                  _load();
-                },
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'Failed report PDFs',
+                style: AppTypography.bodyTeacher,
               ),
-            if (job['result'] != null)
-              SelectableText(
-                const JsonEncoder.withIndent('  ').convert(job['result']),
+              subtitle: Text(
+                _reports
+                    ? 'Showing report-card PDF deliveries'
+                    : 'Showing background jobs',
+                style: caption,
               ),
-            if (job['error_code'] != null) Text('Reason: ${job['error_code']}'),
-            if (job['status'] == 'failed') ...[
-              AppButton(
-                label: 'Retry reviewed job',
-                onPressed: job['error_code'] == 'input_changed'
-                    ? null
-                    : () => _action('retry'),
-              ),
-              AppButton(
-                label: 'Close job',
-                variant: AppButtonVariant.secondary,
-                onPressed: () => _action('close'),
-              ),
-            ],
-            const Text('Recent recovery history'),
-            for (final entry in _history)
-              Text(
-                '${entry['action']} — ${entry['reason']} — ${entry['result_status']}',
-              ),
-          ],
-          const SizedBox(height: AppSpacing.space5),
-          if (_rows.isEmpty && !_loading) const Text('No jobs on this page.'),
-          for (final row in _rows)
-            ListTile(
-              title: Text('${row['kind'] ?? 'Report PDF'} — ${row['status']}'),
-              subtitle: Text('${row['id']}'),
-              onTap: () => _select(row),
+              value: _reports,
+              onChanged: _loading
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _reports = value;
+                        _selected = null;
+                        _page = 0;
+                      });
+                      _load();
+                    },
             ),
-          Row(
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: AppButton(
+              label: _loading ? 'Loading…' : 'Refresh jobs',
+              icon: Icons.refresh,
+              variant: AppButtonVariant.secondary,
+              onPressed: _loading ? null : _load,
+            ),
+          ),
+          gap,
+          if (_loading) ...[
+            Semantics(
+              liveRegion: true,
+              label: 'Loading jobs',
+              child: const LinearProgressIndicator(),
+            ),
+            gap,
+          ],
+          if (_error != null) ...[
+            InlineAlert(tone: InlineAlertTone.danger, message: _error!),
+            gap,
+          ],
+          if (job != null) ...[
+            SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Focus(
+                    focusNode: _detailFocus,
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        '${workflowKindLabel(job['kind'])}: ${workflowStatusLabel(job['status'])}',
+                        style: AppTypography.cardHeading.copyWith(
+                          color: t.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.space2),
+                  SelectableText('Job ${job['id']}', style: caption),
+                  if (!_reports &&
+                      const ['pending', 'processing'].contains(job['status']))
+                    JobProgress(
+                      key: ValueKey(job['id']),
+                      jobId: job['id'] as String,
+                      load: (token) => _detail(job['id'] as String, token),
+                      onFinished: (value) {
+                        setState(() => _selected = value);
+                        _load();
+                      },
+                    ),
+                  if (job['result'] is Map) ...[
+                    const SizedBox(height: AppSpacing.space4),
+                    Text('Result', style: AppTypography.fieldLabel),
+                    for (final e in (job['result'] as Map).entries)
+                      Text(
+                        '${e.key}: ${e.value}',
+                        style: AppTypography.bodyTeacher,
+                      ),
+                  ] else if (job['result'] != null)
+                    SelectableText(
+                      const JsonEncoder.withIndent('  ').convert(job['result']),
+                    ),
+                  if (job['error_code'] != null) ...[
+                    const SizedBox(height: AppSpacing.space4),
+                    Text(
+                      'Reason: ${job['error_code']}',
+                      style: AppTypography.bodyTeacher,
+                    ),
+                  ],
+                  if (job['status'] == 'failed') ...[
+                    const SizedBox(height: AppSpacing.space5),
+                    if (job['error_code'] == 'input_changed') ...[
+                      const InlineAlert(
+                        tone: InlineAlertTone.info,
+                        message:
+                            'Retry is unavailable because the job\'s inputs changed after it ran. '
+                            'Close this job and start a new one.',
+                      ),
+                      const SizedBox(height: AppSpacing.space4),
+                    ],
+                    Wrap(
+                      spacing: AppSpacing.space4,
+                      runSpacing: AppSpacing.space4,
+                      children: [
+                        AppButton(
+                          label: 'Retry reviewed job',
+                          onPressed: job['error_code'] == 'input_changed'
+                              ? null
+                              : () => _action('retry'),
+                        ),
+                        AppButton(
+                          label: 'Close job',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: () => _action('close'),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.space5),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'Recent recovery history',
+                      style: AppTypography.fieldLabel,
+                    ),
+                  ),
+                  if (_history.isEmpty)
+                    Text('No recovery actions yet.', style: caption),
+                  for (final entry in _history)
+                    Text(
+                      '${entry['action']}: ${entry['reason']} (result: ${workflowStatusLabel(entry['result_status'])})',
+                      style: AppTypography.bodyTeacher,
+                    ),
+                  const SizedBox(height: AppSpacing.space4),
+                  // Close sits below the detail so the job title keeps the full width on phones.
+                  AppButton(
+                    label: 'Close details',
+                    variant: AppButtonVariant.secondary,
+                    size: AppButtonSize.sm,
+                    onPressed: _closeDetails,
+                  ),
+                ],
+              ),
+            ),
+            gap,
+          ],
+          if (_rows.isEmpty && !_loading)
+            const EmptyState(
+              icon: Icons.work_history_outlined,
+              title: 'No jobs on this page',
+              message: 'Background jobs and failed report PDFs appear here.',
+            ),
+          if (_rows.isNotEmpty)
+            SectionCard(
+              padded: false,
+              child: Material(
+                type: MaterialType.transparency,
+                child: Column(
+                  children: [
+                    for (final row in _rows)
+                      ListTile(
+                        focusNode: _rowNode(row['id'] as String),
+                        title: Text(
+                          '${workflowKindLabel(row['kind'])}: ${workflowStatusLabel(row['status'])}',
+                          style: AppTypography.bodyTeacher,
+                        ),
+                        subtitle: Text(
+                          '${row['kind'] ?? 'REPORT_PDF'} · ${row['id']}',
+                          style: caption,
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _select(row),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          gap,
+          Wrap(
+            // Wraps rather than overflowing at 320px with large text.
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              TextButton(
+              AppButton(
+                label: 'Previous',
+                variant: AppButtonVariant.ghost,
                 onPressed: _page == 0 || _loading
                     ? null
                     : () {
                         _page--;
                         _load();
                       },
-                child: const Text('Previous'),
               ),
-              Text('Page ${_page + 1}'),
-              TextButton(
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.space5,
+                ),
+                child: Text(
+                  'Page ${_page + 1}',
+                  style: AppTypography.bodyTeacher,
+                ),
+              ),
+              AppButton(
+                label: 'Next',
+                variant: AppButtonVariant.ghost,
                 onPressed: _rows.length < 20 || _loading
                     ? null
                     : () {
                         _page++;
                         _load();
                       },
-                child: const Text('Next'),
               ),
             ],
           ),
@@ -233,48 +437,71 @@ class _RecoveryReasonDialog extends StatefulWidget {
 }
 
 class _RecoveryReasonDialogState extends State<_RecoveryReasonDialog> {
-  final controller = TextEditingController();
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
+  String _reason = '';
+  bool _attempted = false;
+
+  void _confirm() {
+    final reason = _reason.trim();
+    if (reason.length >= 5) {
+      Navigator.pop(context, reason);
+    } else {
+      setState(() => _attempted = true);
+    }
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(
-      widget.action == 'retry' ? 'Retry reviewed job?' : 'Close this job?',
-    ),
-    content: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Previously completed work remains saved. Record why this action is appropriate.',
-          ),
-          TextField(
-            controller: controller,
-            maxLength: 500,
-            decoration: const InputDecoration(
-              labelText: 'Reason (at least 5 characters)',
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final short = _attempted && _reason.trim().length < 5;
+    return AlertDialog(
+      title: Text(
+        widget.action == 'retry' ? 'Retry reviewed job?' : 'Close this job?',
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Previously completed work remains saved. Record why this action is appropriate.',
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.space5),
+            AppTextField(
+              key: const Key('job-action-reason'),
+              label: 'Reason (at least 5 characters)',
+              required: true,
+              autofocus: true,
+              value: _reason,
+              state: short ? AppTextFieldState.error : AppTextFieldState.normal,
+              errorText: short ? 'Enter at least 5 characters.' : null,
+              onChanged: (v) => setState(
+                () => _reason = v.length > 500 ? v.substring(0, 500) : v,
+              ),
+              onSubmitted: (_) => _confirm(),
+            ),
+            const SizedBox(height: AppSpacing.space2),
+            Text(
+              'Up to 500 characters. Saved in the recovery history.',
+              style: AppTypography.caption.copyWith(color: t.textSecondary),
+            ),
+          ],
+        ),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      TextButton(
-        onPressed: () {
-          if (controller.text.trim().length >= 5) {
-            Navigator.pop(context, controller.text.trim());
-          }
-        },
-        child: const Text('Confirm'),
-      ),
-    ],
-  );
+      actions: [
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: AppSpacing.space3,
+          runSpacing: AppSpacing.space3,
+          children: [
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.pop(context),
+            ),
+            AppButton(label: 'Confirm', onPressed: _confirm),
+          ],
+        ),
+      ],
+    );
+  }
 }

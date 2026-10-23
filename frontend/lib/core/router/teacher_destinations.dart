@@ -1,3 +1,9 @@
+import '../../features/academics/data/academics_repository.dart';
+import '../../features/academics/data/subject_resources_repository.dart';
+import '../../features/academics/presentation/learner_resources_screen.dart';
+import '../../features/academics/presentation/subject_resources_screen.dart';
+import '../../features/academics/presentation/teacher_marks_flow.dart';
+import '../../features/academics/presentation/teacher_syllabus_flow.dart';
 import '../../features/academy/data/academy_repository.dart';
 import '../../features/academy/presentation/academy_today_panel.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +23,8 @@ import '../../features/parent/presentation/parent_home_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../theme/theme_controller.dart';
 import '../../features/student/presentation/student_timetable_unavailable.dart';
+import '../../features/student/presentation/student_timetable_screen.dart';
+import '../../features/student/presentation/student_today_screen.dart';
 import '../../features/timetable/data/timetable_repository.dart';
 import '../../features/timetable/presentation/today_screen.dart';
 import '../shell/nav_destination.dart';
@@ -44,6 +52,7 @@ List<NavDestination> buildTeacherDestinations({
   // ACADEMY profile only: Today also lists the teacher's dated course
   // sessions (report 11 A-2). [campusChanges] reloads them on a campus switch.
   AcademyRepository? academy,
+  AcademicsRepository? academics,
   Listenable? campusChanges,
 }) {
   return [
@@ -75,6 +84,39 @@ List<NavDestination> buildTeacherDestinations({
               staffName: staffName,
             ),
     ),
+    // Owner decision (18 Oct 2026): teachers reach Syllabus and coverage for
+    // their own assigned sections/subjects. School/College only — the Academy
+    // profile has no School syllabus. Null in tests that do not wire it.
+    if (academics != null && academy == null)
+      NavDestination(
+        id: 'syllabus',
+        label: 'Syllabus',
+        icon: Icons.library_books_outlined,
+        route: '/syllabus',
+        builder: (context) =>
+            TeacherSyllabusFlow(repository: academics, staffId: staffId),
+      ),
+    // OBS-06 (owner-approved route), served by D-13: the teacher's own exam
+    // papers → Marks Entry. School/College only.
+    if (academics != null && academy == null)
+      NavDestination(
+        id: 'marks',
+        label: 'Marks',
+        icon: Icons.edit_note_outlined,
+        route: '/marks',
+        builder: (context) => TeacherMarksFlow(repository: academics),
+      ),
+    // D-21: the teacher's assigned subjects/classes → subject resources.
+    // School/College only (the approved scope).
+    if (academics != null && academy == null)
+      NavDestination(
+        id: 'resources',
+        label: 'Resources',
+        icon: Icons.folder_outlined,
+        route: '/resources',
+        builder: (context) =>
+            TeacherResourcesFlow(academics: academics, staffId: staffId),
+      ),
     // T16. Optional so the many tests that build these lists without a
     // network layer keep working — a null repository means the
     // destination simply is not offered, rather than a tab that throws.
@@ -181,6 +223,8 @@ List<NavDestination> buildStudentDestinations({
   ThemeController? themeController,
   ComplaintsRepository? complaints,
   NotificationsRepository? notifications,
+  ParentRepository? parent,
+  AcademyRepository? academy,
 }) {
   return [
     NavDestination(
@@ -188,16 +232,39 @@ List<NavDestination> buildStudentDestinations({
       label: 'Today',
       icon: Icons.today_outlined,
       route: '/today',
-      builder: (context) => const StudentTimetableUnavailable(title: 'Today'),
+      // Real Today from the student's own progress (approved reads). Without
+      // a repository (tests that build lists offline) the honest placeholder.
+      builder: (context) => parent == null
+          ? const StudentTimetableUnavailable(title: 'Today')
+          : StudentTodayScreen(repository: parent, academy: academy),
     ),
     NavDestination(
       id: 'timetable',
       label: 'Timetable',
       icon: Icons.schedule_outlined,
       route: '/timetable',
-      builder: (context) =>
-          const StudentTimetableUnavailable(title: 'Timetable'),
+      // D-19: shows the real week once the proposed self-enrollment read
+      // exists; until then (or offline in tests) the honest placeholder.
+      builder: (context) => parent == null
+          ? const StudentTimetableUnavailable(title: 'Timetable')
+          : StudentTimetableScreen(
+              repository: parent,
+              academyInstitution: academy != null,
+            ),
     ),
+    // D-21: read-only resources of the student's own current class.
+    // School/College only (the approved scope).
+    if (parent != null && academy == null)
+      NavDestination(
+        id: 'resources',
+        label: 'Resources',
+        icon: Icons.folder_outlined,
+        route: '/resources',
+        builder: (context) => StudentResourcesFlow(
+          parent: parent,
+          repository: SubjectResourcesRepository(parent.dio),
+        ),
+      ),
     // T16. Optional so the many tests that build these lists without a
     // network layer keep working — a null repository means the
     // destination simply is not offered, rather than a tab that throws.

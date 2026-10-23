@@ -13,6 +13,7 @@ import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/academics_repository.dart';
 import 'curriculum_review_screen.dart';
+import '../../../core/widgets/app_button.dart';
 import '../domain/academic_models.dart';
 
 /// Screen 7: syllabus coverage.
@@ -433,9 +434,11 @@ class _ChapterBlock extends StatelessWidget {
                 chapter.name,
                 style: AppTypography.personName.copyWith(color: t.textPrimary),
               ),
-              TextButton(
+              AppButton(
+                label: 'Review and versions',
+                variant: AppButtonVariant.ghost,
+                size: AppButtonSize.sm,
                 onPressed: onReview,
-                child: const Text('Review and versions'),
               ),
               if (chapterProgress != null)
                 Text(

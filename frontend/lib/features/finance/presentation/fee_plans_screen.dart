@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/states/loading_skeleton.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/typography.dart';
@@ -311,7 +312,7 @@ class _PlanSheet extends StatelessWidget {
             }
             final plan = snapshot.data;
             if (plan == null) {
-              return const Center(child: CircularProgressIndicator());
+              return const LoadingSkeleton.listRows(count: 4);
             }
             return Column(
               mainAxisSize: MainAxisSize.min,

@@ -72,7 +72,6 @@ GoRouter buildRouter({
   /// The student role's screens (T11). Same null-means-placeholders rule.
   List<NavDestination> Function(Future<void> Function() onSignOut)?
   studentDestinations,
-
   /// Academy (Phase B). Null in tests and builds without it: no Academy or
   /// institution-profile destinations are added.
   AcademyRepository? academy,
@@ -203,178 +202,152 @@ GoRouter buildRouter({
         builder: (context, state) => ListenableBuilder(
           listenable: authState,
           builder: (context, _) {
-            final identity =
-                authState.identity ??
-                const IdentityResult(IdentityResultKind.linked);
+          final identity =
+              authState.identity ??
+              const IdentityResult(IdentityResultKind.linked);
 
-            Future<void> signOut() async {
-              if (attendanceQueue != null &&
-                  !await confirmAttendanceSignOut(context, attendanceQueue)) {
-                return;
-              }
-              await repository.logout();
-              authState.clear();
+          Future<void> signOut() async {
+            if (attendanceQueue != null &&
+                !await confirmAttendanceSignOut(context, attendanceQueue)) {
+              return;
             }
+            await repository.logout();
+            authState.clear();
+          }
 
-            // Role decides which real screens are wired.
-            //
-            // The ORDER here deliberately mirrors `RoleDestinations.forRoles`
-            // (D-41): most task-oriented shell first. So a user holding both a
-            // staff role and an admin role keeps the teacher shell, exactly as
-            // the placeholder mapping already decided — this switch must not
-            // quietly disagree with it. `isAdminShell` is that mapping's own
-            // admin case, asked directly rather than re-guessed here.
-            //
-            // The placeholder data lists are used only when no live builder is
-            // supplied, which is what tests that do not care about screens
-            // want.
-            // ADR-011: the active WORKSPACE decides first (one login, separate
-            // school and personal authorization contexts), then the role. An
-            // unknown role set gets no data screens — never the admin shell.
-            final roles = identity.roles;
-            final personal = authState.workspace == Workspace.personal;
-            final adminShell =
-                !personal &&
-                !roles.any(RoleDestinations.teacherRoles.contains) &&
-                roles.any(RoleDestinations.adminRoles.contains);
-            final List<NavDestination> destinations;
-            if (personal) {
-              destinations = roles.contains('student')
-                  ? studentDestinations?.call(signOut) ??
-                        RoleDestinations.student
-                  : parentDestinations?.call(signOut) ??
-                        RoleDestinations.parent;
-            } else if (roles.any(RoleDestinations.teacherRoles.contains)) {
-              final teaching =
-                  attendanceDestinations?.call(
-                    signOut,
-                    identity.staffId,
-                    identity.staffName,
-                  ) ??
-                  RoleDestinations.teacher;
-              // BUG-QA-08: a teacher who ALSO holds finance on some campus
-              // (e.g. Teacher@A + Finance@B) reaches the same Fees hub the admin
-              // shell uses, inserted before More. The hub scopes itself to
-              // campuses where this account holds fee.manage; the server
-              // still authorizes every request per grant.
-              final fees =
-                  identity.permissionsKnown &&
-                      (identity.can('fee.view') || identity.can('fee.manage'))
-                  ? adminDestinations
-                        ?.call(signOut)
-                        .where((d) => d.id == 'fees')
-                        .firstOrNull
-                  : null;
-              destinations = fees == null || teaching.any((d) => d.id == 'fees')
-                  ? teaching
-                  : [
-                      for (final d in teaching)
-                        if (d.id == 'more') ...[fees, d] else d,
-                      if (!teaching.any((d) => d.id == 'more')) fees,
-                    ];
-            } else if (adminShell) {
-              final all =
-                  adminDestinations?.call(signOut) ?? RoleDestinations.admin;
-              // Capability-driven: hide what current server permissions refuse.
-              destinations = identity.permissionsKnown
-                  ? RoleDestinations.visibleFor(
-                      all,
-                      identity.permissions.toSet(),
-                      institutionWide: identity.grants.isEmpty
-                          ? null
-                          : {
-                              for (final g in identity.grants.where(
-                                (g) => g.campusId == null,
-                              ))
-                                ...g.permissions,
-                            },
-                    )
-                  : all;
-            } else {
-              // BUG-QA-21: a real screen (explain, check again, sign out), not the
-              // placeholder. Same id/label as RoleDestinations.none.
-              destinations = [
-                NavDestination(
-                  id: 'no_access',
-                  label: 'No access',
-                  icon: Icons.lock_outline,
-                  route: '/no_access',
-                  builder: (ctx) => NoAccessScreen(
-                    onSignOut: signOut,
-                    // Re-resolve from the server, then restart at the root so the
-                    // router lands on the first destination the account now has
-                    // (staying on /no_access would keep showing this screen).
-                    // The home page listens to authState (see above), so a
-                    // restored role rebuilds the shell with no navigation trick.
-                    onCheckAgain: authState.refreshIdentity,
-                  ),
+          // Role decides which real screens are wired.
+          //
+          // The ORDER here deliberately mirrors `RoleDestinations.forRoles`
+          // (D-41): most task-oriented shell first. So a user holding both a
+          // staff role and an admin role keeps the teacher shell, exactly as
+          // the placeholder mapping already decided — this switch must not
+          // quietly disagree with it. `isAdminShell` is that mapping's own
+          // admin case, asked directly rather than re-guessed here.
+          //
+          // The placeholder data lists are used only when no live builder is
+          // supplied, which is what tests that do not care about screens
+          // want.
+          // ADR-011: the active WORKSPACE decides first (one login, separate
+          // school and personal authorization contexts), then the role. An
+          // unknown role set gets no data screens — never the admin shell.
+          final roles = identity.roles;
+          final personal = authState.workspace == Workspace.personal;
+          final adminShell = !personal &&
+              !roles.any(RoleDestinations.teacherRoles.contains) &&
+              roles.any(RoleDestinations.adminRoles.contains);
+          final List<NavDestination> destinations;
+          if (personal) {
+            destinations = roles.contains('student')
+                ? studentDestinations?.call(signOut) ?? RoleDestinations.student
+                : parentDestinations?.call(signOut) ?? RoleDestinations.parent;
+          } else if (roles.any(RoleDestinations.teacherRoles.contains)) {
+            final teaching = attendanceDestinations?.call(
+                  signOut,
+                  identity.staffId,
+                  identity.staffName,
+                ) ??
+                RoleDestinations.teacher;
+            // BUG-QA-08: a teacher who ALSO holds finance on some campus
+            // (e.g. Teacher@A + Finance@B) reaches the same Fees hub the admin
+            // shell uses, inserted before More. The hub scopes itself to
+            // campuses where this account holds fee.manage; the server
+            // still authorizes every request per grant.
+            final fees = identity.permissionsKnown &&
+                    (identity.can('fee.view') || identity.can('fee.manage'))
+                ? adminDestinations?.call(signOut).where((d) => d.id == 'fees').firstOrNull
+                : null;
+            destinations = fees == null || teaching.any((d) => d.id == 'fees')
+                ? teaching
+                : [
+                    for (final d in teaching)
+                      if (d.id == 'more') ...[fees, d] else d,
+                    if (!teaching.any((d) => d.id == 'more')) fees,
+                  ];
+          } else if (adminShell) {
+            final all = adminDestinations?.call(signOut) ?? RoleDestinations.admin;
+            // Capability-driven: hide what current server permissions refuse.
+            destinations = identity.permissionsKnown
+                ? RoleDestinations.visibleFor(all, identity.permissions.toSet(),
+                    institutionWide: identity.grants.isEmpty
+                        ? null
+                        : {for (final g in identity.grants.where((g) => g.campusId == null)) ...g.permissions})
+                : all;
+          } else {
+            // BUG-QA-21: a real screen (explain, check again, sign out), not the
+            // placeholder. Same id/label as RoleDestinations.none.
+            destinations = [
+              NavDestination(
+                id: 'no_access',
+                label: 'No access',
+                icon: Icons.lock_outline,
+                route: '/no_access',
+                builder: (ctx) => NoAccessScreen(
+                  onSignOut: signOut,
+                  // Re-resolve from the server, then restart at the root so the
+                  // router lands on the first destination the account now has
+                  // (staying on /no_access would keep showing this screen).
+                  // The home page listens to authState (see above), so a
+                  // restored role rebuilds the shell with no navigation trick.
+                  onCheckAgain: authState.refreshIdentity,
                 ),
-              ];
-            }
-
-            // Academy Phase B: added only for an ACADEMY-profile institution (plus the
-            // institution-profile screen for institution-wide structure admins).
-            final academyRepository = academy;
-            final shellDestinations = academyRepository == null
-                ? destinations
-                : withDestinations(
-                    destinations,
-                    academyDestinations(
-                      repository: academyRepository,
-                      identity: identity,
-                      academyEnabled: authState.academyEnabled,
-                      personal: personal,
-                      adminShell: adminShell,
-                      teacherShell:
-                          !personal &&
-                          roles.any(RoleDestinations.teacherRoles.contains),
-                      onProfileChanged: authState.reloadInstitutionProfile,
-                      profileFailed:
-                          authState.profileLookup == ProfileLookup.failed,
-                      profileLoading:
-                          authState.profileLookup == ProfileLookup.loading,
-                    ),
-                  );
-
-            final shell = AppShell(
-              key: ValueKey(
-                'shell:${authState.workspace.name}:${identity.roles.join(',')}:'
-                'academy=${authState.academyEnabled}:${authState.profileLookup.name}:'
-                '${identity.grants.map((g) => '${g.role}@${g.campusId}').join(',')}',
               ),
-              // D-27 amendment (T16): admin alone gets a drawer on a phone.
-              // Nine destinations turned More into a second nav surface,
-              // which is what D-27 exists to prevent. The other three roles
-              // are unchanged.
-              usePhoneDrawer: adminShell,
-              // The institution's real display name from /api/institution/me,
-              // falling back to the code until it loads (T5 cosmetic gap closed).
-              institutionName: authState.institutionLabel,
-              destinations: shellDestinations,
-              entitledIds: RoleDestinations.allIdsFor(shellDestinations),
-              // Already resolved by AuthState — passing it in avoids making
-              // the same /auth/me call twice on every launch.
-              identityResolver: StaticIdentityResolver(identity),
-              // Queue-backed when attendance is wired, so the indicator shows
-              // the REAL pending count (T6's stub is gone); connectivity-only
-              // otherwise.
-              syncStatusSource:
-                  syncStatusSource ?? ConnectivitySyncStatusSource(),
-              // Desktop keeps sign-out in the sidebar; mobile gets it from the
-              // More tab, which is the gap T8 closed.
-              sidebarFooter: _SignOutButton(onSignOut: signOut),
-              onSignOut: signOut,
-            );
-            if (!authState.canSwitchWorkspace) return shell;
-            return WorkspaceScope(
-              switchLabel: personal
-                  ? 'Switch to institution workspace'
-                  : 'Switch to personal workspace',
-              onSwitch: () => authState.switchWorkspace(
-                personal ? Workspace.school : Workspace.personal,
-              ),
-              child: shell,
-            );
+            ];
+          }
+
+          // Academy Phase B: added only for an ACADEMY-profile institution (plus the
+          // institution-profile screen for institution-wide structure admins).
+          final academyRepository = academy;
+          final shellDestinations = academyRepository == null
+              ? destinations
+              : withDestinations(destinations, academyDestinations(
+                  repository: academyRepository,
+                  identity: identity,
+                  academyEnabled: authState.academyEnabled,
+                  personal: personal,
+                  adminShell: adminShell,
+                  teacherShell: !personal && roles.any(RoleDestinations.teacherRoles.contains),
+                  onProfileChanged: authState.reloadInstitutionProfile,
+                  profileFailed: authState.profileLookup == ProfileLookup.failed,
+                  profileLoading: authState.profileLookup == ProfileLookup.loading,
+                ));
+
+          final shell = AppShell(
+            key: ValueKey('shell:${authState.workspace.name}:${identity.roles.join(',')}:'
+            'academy=${authState.academyEnabled}:${authState.profileLookup.name}:'
+                '${identity.grants.map((g) => '${g.role}@${g.campusId}').join(',')}'),
+            // D-27 amendment (T16): admin alone gets a drawer on a phone.
+            // Nine destinations turned More into a second nav surface,
+            // which is what D-27 exists to prevent. The other three roles
+            // are unchanged.
+            usePhoneDrawer: adminShell,
+            // The institution's real display name from /api/institution/me,
+            // falling back to the code until it loads (T5 cosmetic gap closed).
+            institutionName: authState.institutionLabel,
+            destinations: shellDestinations,
+            entitledIds: RoleDestinations.allIdsFor(shellDestinations),
+            // Already resolved by AuthState — passing it in avoids making
+            // the same /auth/me call twice on every launch.
+            identityResolver: StaticIdentityResolver(identity),
+            // Queue-backed when attendance is wired, so the indicator shows
+            // the REAL pending count (T6's stub is gone); connectivity-only
+            // otherwise.
+            syncStatusSource:
+                syncStatusSource ?? ConnectivitySyncStatusSource(),
+            // Desktop keeps sign-out in the sidebar; mobile gets it from the
+            // More tab, which is the gap T8 closed.
+            sidebarFooter: _SignOutButton(onSignOut: signOut),
+            onSignOut: signOut,
+          );
+          if (!authState.canSwitchWorkspace) return shell;
+          return WorkspaceScope(
+            switchLabel: personal
+                ? 'Switch to institution workspace'
+                : 'Switch to personal workspace',
+            onSwitch: () => authState.switchWorkspace(
+              personal ? Workspace.school : Workspace.personal,
+            ),
+            child: shell,
+          );
           },
         ),
       ),

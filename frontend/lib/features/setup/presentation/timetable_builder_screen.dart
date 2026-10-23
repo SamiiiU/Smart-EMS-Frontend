@@ -6,7 +6,10 @@ import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/inline_alert.dart';
+import '../../../core/widgets/keyboard_tap_target.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../admin/data/admin_repository.dart';
@@ -72,6 +75,11 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
   ScreenState<_Week> _state = const ScreenState<_Week>.loading();
 
   List<PersonAccount> _staff = const [];
+
+  /// D-25: this section's teaching assignments, to offer only teachers the
+  /// server will accept. Null when they could not be loaded (then every teacher
+  /// is listed and the server's refusal explains).
+  List<TeachingAssignment>? _assignments;
   bool _generating = false;
   late Section _section = _sectionsThisYear.first;
   int _day = DateTime.now().weekday.clamp(1, 6);
@@ -113,6 +121,11 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
           _staff = const [];
         }
       }
+      try {
+        _assignments = await widget.repository.loadAssignments(_section.id);
+      } on Object {
+        _assignments = null;
+      }
       if (!mounted) return;
       setState(
         () => _state = ScreenState<_Week>.data(
@@ -137,6 +150,11 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
 
   String _cellKey(int day, String periodId) => '$day-$periodId';
 
+  String _sectionName(Section s) {
+    final cls = widget.classes.where((c) => c.id == s.classId).firstOrNull;
+    return cls == null ? s.name : '${cls.name} ${s.name}';
+  }
+
   String _subjectName(String id) => widget.subjects
       .firstWhere(
         (s) => s.id == id,
@@ -155,16 +173,23 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
       )
       .fullName;
 
+  /// D-25 retry from the slot sheet; also refreshes the builder's own copy.
+  Future<List<TeachingAssignment>> _reloadAssignments() async {
+    final loaded = await widget.repository.loadAssignments(_section.id);
+    if (mounted) setState(() => _assignments = loaded);
+    return loaded;
+  }
+
   Future<void> _fill(SchoolPeriod period, int day, _Week week) async {
     if (_generating) return;
-    final choice = await showModalBottomSheet<_SlotChoice>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: context.tokens.surface,
+    final choice = await showAppSheet<_SlotChoice>(
+      context,
+      title: '${_dayLabel(day)} · ${period.name}',
       builder: (_) => _SlotSheet(
-        title: '${_dayLabel(day)} · ${period.name}',
         subjects: widget.subjects,
         staff: _staff,
+        assignments: _assignments,
+        reloadAssignments: _reloadAssignments,
         rooms: week.rooms,
       ),
     );
@@ -189,6 +214,89 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
         _cellErrors.remove(key);
         if (slot != null) {
           _state = ScreenState<_Week>.data(week.withSlot(slot), isEmpty: false);
+        }
+      }
+    });
+  }
+
+  /// A filled cell: change its subject/teacher/room (PUT) or remove it
+  /// (DELETE, after a confirmation). Clashes land on the cell exactly as
+  /// when filling it.
+  Future<void> _edit(
+    TimetableSlot slot,
+    SchoolPeriod period,
+    int day,
+    _Week week,
+  ) async {
+    if (_generating) return;
+    final choice = await showAppSheet<_SlotChoice>(
+      context,
+      title: '${_dayLabel(day)} · ${period.name}',
+      builder: (_) => _SlotSheet(
+        subjects: widget.subjects,
+        staff: _staff,
+        assignments: _assignments,
+        reloadAssignments: _reloadAssignments,
+        rooms: week.rooms,
+        existing: slot,
+      ),
+    );
+    if (choice == null || !mounted) return;
+    final key = _cellKey(day, period.id);
+
+    if (choice.remove) {
+      final ok = await confirmAction(
+        context,
+        title: 'Remove this lesson?',
+        message:
+            '${_subjectName(slot.subjectId)} with '
+            '${_staffName(slot.teacherStaffId)} will be removed from '
+            '${_dayLabel(day)}, ${period.name}.',
+        confirmLabel: 'Remove',
+      );
+      if (!ok || !mounted) return;
+      try {
+        await widget.repository.deleteSlot(slot.id);
+        if (!mounted) return;
+        setState(() {
+          _cellErrors.remove(key);
+          _state = ScreenState<_Week>.data(
+            week.withoutSlot(slot.id),
+            isEmpty: false,
+          );
+        });
+      } on LoadFailure catch (f) {
+        if (!mounted) return;
+        setState(
+          () => _cellErrors[key] = SlotFailure.fromMessage(
+            f.message ?? 'The lesson could not be removed.',
+          ),
+        );
+      }
+      return;
+    }
+
+    final (updated, failure) = await widget.repository.updateSlot(
+      slotId: slot.id,
+      sectionId: _section.id,
+      academicYearId: widget.year.id,
+      periodId: period.id,
+      dayOfWeek: day,
+      subjectId: choice.subjectId,
+      teacherStaffId: choice.staffId,
+      roomId: choice.roomId,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (failure != null) {
+        _cellErrors[key] = failure;
+      } else {
+        _cellErrors.remove(key);
+        if (updated != null) {
+          _state = ScreenState<_Week>.data(
+            week.withoutSlot(slot.id).withSlot(updated),
+            isEmpty: false,
+          );
         }
       }
     });
@@ -222,7 +330,8 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
           children: [
             for (final s in sections)
               PickerChip(
-                label: s.name,
+                // "A" alone is ambiguous when several classes have an A.
+                label: _sectionName(s),
                 selected: s.id == _section.id,
                 onTap: () {
                   if (_generating) return;
@@ -319,15 +428,24 @@ class TimetableBuilderScreenState extends State<TimetableBuilderScreen> {
       ),
     );
 
-    if (slot != null) return body;
-    return Semantics(
-      button: true,
-      label: '${_dayLabel(day)} ${p.name}, empty',
-      child: GestureDetector(
-        onTap: () => _fill(p, day, week),
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(child: body),
-      ),
+    // Keyboard-operable (Tab + Enter/Space) and the clash message is part of
+    // the announced label, not only painted on the cell.
+    final problem = error == null ? '' : '. ${_cellMessage(error)}';
+    if (slot != null) {
+      return KeyboardTapTarget(
+        label:
+            '${_dayLabel(day)} ${p.name}, ${_subjectName(slot.subjectId)} '
+            'with ${_staffName(slot.teacherStaffId)}. Change or remove$problem',
+        borderRadius: AppRadius.md,
+        onTap: () => _edit(slot, p, day, week),
+        child: body,
+      );
+    }
+    return KeyboardTapTarget(
+      label: '${_dayLabel(day)} ${p.name}, empty$problem',
+      borderRadius: AppRadius.md,
+      onTap: () => _fill(p, day, week),
+      child: body,
     );
   }
 
@@ -640,79 +758,179 @@ class _SlotChoice {
     required this.subjectId,
     required this.staffId,
     this.roomId,
-  });
+  }) : remove = false;
+
+  /// The admin chose "Remove from timetable" on a filled cell.
+  const _SlotChoice.remove()
+    : subjectId = '',
+      staffId = '',
+      roomId = null,
+      remove = true;
 
   final String subjectId;
   final String staffId;
   final String? roomId;
+  final bool remove;
 }
 
 class _SlotSheet extends StatefulWidget {
   const _SlotSheet({
-    required this.title,
     required this.subjects,
     required this.staff,
     required this.rooms,
+    this.assignments,
+    this.reloadAssignments,
+    this.existing,
   });
 
-  final String title;
   final List<Subject> subjects;
   final List<PersonAccount> staff;
   final List<Room> rooms;
+
+  /// D-25: the section's assignments. Null = they could not be loaded: then
+  /// no teacher is offered and nothing can be saved until a retry succeeds.
+  final List<TeachingAssignment>? assignments;
+
+  /// Retries loading the assignments (null when unavailable).
+  final Future<List<TeachingAssignment>> Function()? reloadAssignments;
+
+  /// A filled cell being changed: its values are preselected and the sheet
+  /// also offers removal.
+  final TimetableSlot? existing;
 
   @override
   State<_SlotSheet> createState() => _SlotSheetState();
 }
 
 class _SlotSheetState extends State<_SlotSheet> {
-  String? _subjectId;
-  String? _staffId;
-  String? _roomId;
+  late String? _subjectId = widget.existing?.subjectId;
+  late String? _staffId = widget.existing?.teacherStaffId;
+  late String? _roomId = widget.existing?.roomId;
+  late List<TeachingAssignment>? _assignments = widget.assignments;
+  bool _retrying = false;
+  bool _retryFailed = false;
+
+  Future<void> _retry() async {
+    final reload = widget.reloadAssignments;
+    if (reload == null || _retrying) return;
+    setState(() {
+      _retrying = true;
+      _retryFailed = false;
+    });
+    try {
+      final loaded = await reload();
+      if (!mounted) return;
+      setState(() {
+        _assignments = loaded;
+        _retrying = false;
+        // Keep the chosen teacher only if they are eligible.
+        if (!_eligible.any((p) => p.id == _staffId)) _staffId = null;
+      });
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _retrying = false;
+          _retryFailed = true;
+        });
+      }
+    }
+  }
+
+  /// D-25: teachers the server will accept for the chosen subject in this
+  /// section (an active or scheduled assignment, primary or co-teacher).
+  /// Unknown assignments → nobody (fail closed; the server stays authoritative).
+  List<PersonAccount> get _eligible {
+    final all = _assignments;
+    if (all == null) return const [];
+    if (_subjectId == null) return const [];
+    final ids = {
+      for (final a in all)
+        if (a.subjectId == _subjectId &&
+            (a.status == 'active' || a.status == 'scheduled'))
+          a.staffId,
+    };
+    return widget.staff.where((s) => ids.contains(s.id)).toList();
+  }
+
+  bool get _unchanged =>
+      widget.existing != null &&
+      _subjectId == widget.existing!.subjectId &&
+      _staffId == widget.existing!.teacherStaffId &&
+      _roomId == widget.existing!.roomId;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.space6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.title,
-              style: AppTypography.cardHeading.copyWith(color: t.textPrimary),
+    // The title, Close button, safe area, keyboard lift and scrolling come
+    // from AppSheetFrame (showAppSheet).
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Subject',
+            style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.space3),
+          Wrap(
+            spacing: AppSpacing.space3,
+            runSpacing: AppSpacing.space3,
+            children: [
+              for (final s in widget.subjects)
+                PickerChip(
+                  label: s.name,
+                  selected: s.id == _subjectId,
+                  onTap: () => setState(() {
+                    _subjectId = s.id;
+                    // A teacher not assigned to the new subject cannot stay chosen.
+                    if (!_eligible.any((p) => p.id == _staffId)) _staffId = null;
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.space5),
+          Text(
+            'Teacher',
+            style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.space3),
+          if (_assignments == null) ...[
+            InlineAlert(
+              tone: InlineAlertTone.danger,
+              message: _retryFailed
+                  ? 'Still could not check which teachers are assigned to this '
+                        'section. No teacher can be chosen until this works.'
+                  : 'Could not check which teachers are assigned to this '
+                        'section, so no teacher can be chosen yet.',
             ),
-            const SizedBox(height: AppSpacing.space5),
+            if (widget.reloadAssignments != null) ...[
+              const SizedBox(height: AppSpacing.space3),
+              AppButton(
+                key: const Key('slot-assignments-retry'),
+                label: _retrying ? 'Checking…' : 'Retry',
+                variant: AppButtonVariant.secondary,
+                onPressed: _retrying ? null : _retry,
+              ),
+            ],
+          ] else if (_eligible.isEmpty)
             Text(
-              'Subject',
-              style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.space3),
+              _subjectId == null
+                  ? 'Choose a subject to see the teachers assigned to it.'
+                  : 'Nobody is assigned to teach this subject in this section. '
+                        'Assign a teacher under Who teaches what first.',
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
+            )
+          else
             Wrap(
               spacing: AppSpacing.space3,
               runSpacing: AppSpacing.space3,
               children: [
-                for (final s in widget.subjects)
-                  PickerChip(
-                    label: s.name,
-                    selected: s.id == _subjectId,
-                    onTap: () => setState(() => _subjectId = s.id),
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.space5),
-            Text(
-              'Teacher',
-              style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.space3),
-            Wrap(
-              spacing: AppSpacing.space3,
-              runSpacing: AppSpacing.space3,
-              children: [
-                for (final s in widget.staff)
+                for (final s in _eligible)
                   PickerChip(
                     label: s.fullName,
                     selected: s.id == _staffId,
@@ -720,49 +938,59 @@ class _SlotSheetState extends State<_SlotSheet> {
                   ),
               ],
             ),
-            if (widget.rooms.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.space5),
-              Text(
-                'Room (optional)',
-                style: AppTypography.fieldLabel.copyWith(
-                  color: t.textSecondary,
+          if (widget.rooms.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.space5),
+            Text(
+              'Room (optional)',
+              style: AppTypography.fieldLabel.copyWith(color: t.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.space3),
+            Wrap(
+              spacing: AppSpacing.space3,
+              runSpacing: AppSpacing.space3,
+              children: [
+                PickerChip(
+                  label: 'None',
+                  selected: _roomId == null,
+                  onTap: () => setState(() => _roomId = null),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.space3),
-              Wrap(
-                spacing: AppSpacing.space3,
-                runSpacing: AppSpacing.space3,
-                children: [
+                for (final r in widget.rooms)
                   PickerChip(
-                    label: 'None',
-                    selected: _roomId == null,
-                    onTap: () => setState(() => _roomId = null),
+                    label: r.name,
+                    selected: r.id == _roomId,
+                    onTap: () => setState(() => _roomId = r.id),
                   ),
-                  for (final r in widget.rooms)
-                    PickerChip(
-                      label: r.name,
-                      selected: r.id == _roomId,
-                      onTap: () => setState(() => _roomId = r.id),
-                    ),
-                ],
-              ),
-            ],
-            const SizedBox(height: AppSpacing.space6),
-            AppButton(
-              label: 'Add to timetable',
-              fullWidth: true,
-              onPressed: _subjectId == null || _staffId == null
-                  ? null
-                  : () => Navigator.of(context).pop(
-                      _SlotChoice(
-                        subjectId: _subjectId!,
-                        staffId: _staffId!,
-                        roomId: _roomId,
-                      ),
-                    ),
+              ],
             ),
           ],
-        ),
+          const SizedBox(height: AppSpacing.space6),
+          AppButton(
+            label: widget.existing == null
+                ? 'Add to timetable'
+                : 'Save changes',
+            fullWidth: true,
+            onPressed: _assignments == null || _subjectId == null || _staffId == null || _unchanged
+                ? null
+                : () => Navigator.of(context).pop(
+                    _SlotChoice(
+                      subjectId: _subjectId!,
+                      staffId: _staffId!,
+                      roomId: _roomId,
+                    ),
+                  ),
+          ),
+          if (widget.existing != null) ...[
+            const SizedBox(height: AppSpacing.space3),
+            AppButton(
+              key: const Key('slot-remove'),
+              label: 'Remove from timetable',
+              variant: AppButtonVariant.secondary,
+              fullWidth: true,
+              onPressed: () =>
+                  Navigator.of(context).pop(const _SlotChoice.remove()),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -793,4 +1021,13 @@ class _Week {
 
   _Week withSlot(TimetableSlot slot) =>
       _Week(periods: periods, slots: [...slots, slot], rooms: rooms);
+
+  _Week withoutSlot(String slotId) => _Week(
+    periods: periods,
+    slots: [
+      for (final s in slots)
+        if (s.id != slotId) s,
+    ],
+    rooms: rooms,
+  );
 }

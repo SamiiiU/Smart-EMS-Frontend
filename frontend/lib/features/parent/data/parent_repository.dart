@@ -37,6 +37,40 @@ class ParentRepository {
     return GuardianProfile.fromJson(res.data ?? const {});
   });
 
+  /// The signed-in STUDENT's own record (`GET /api/students/me`), shaped as a
+  /// [GuardianChild] so the student's Today reuses the parent's day card.
+  /// The backend lets a student read only their own progress (OwnershipService
+  /// "own" rule). It does not expose their section, so [GuardianChild.sectionId]
+  /// stays null: the student timetable remains blocked (D-19).
+  Future<GuardianChild> loadOwnStudent() => _mapped(() async {
+    final res = await dio.get<Map<String, dynamic>>(ApiConfig.studentMePath);
+    final json = res.data ?? const {};
+    final first = json['firstName'] as String? ?? '';
+    final last = json['lastName'] as String? ?? '';
+    return GuardianChild(
+      studentId: json['id'] as String,
+      fullName: '$first $last'.trim(),
+      sectionId: null,
+      admissionNumber: json['admissionNumber'] as String?,
+    );
+  });
+
+  /// D-19 (PROPOSED, not yet deployed): the signed-in student's current
+  /// School/College enrollment, `GET /api/students/me/enrollment`.
+  ///
+  /// Returns null when the server says the student has no class this year
+  /// (`{"enrollment": null}`). Any failure — including the endpoint not
+  /// existing yet — throws, and the caller shows the honest "not available"
+  /// state. Nothing is guessed from section names.
+  Future<OwnEnrollment?> loadOwnEnrollment() => _mapped(() async {
+    final res = await dio.get<Map<String, dynamic>>(
+      ApiConfig.studentOwnEnrollmentPath,
+    );
+    final e = res.data?['enrollment'];
+    if (e is! Map) return null;
+    return OwnEnrollment.fromJson(e.cast<String, dynamic>());
+  });
+
   /// Today's snapshot for one child — name, class and today's attendance in
   /// a single call, which is exactly the landing screen's question.
   ///
@@ -83,6 +117,24 @@ class ParentRepository {
     // days, not the start of the window.
     rows.sort((a, b) => b.date.compareTo(a.date));
     return rows;
+  });
+
+  /// A child's class week (GET /api/timetable/section/{sectionId}). The
+  /// server allows it only for a parent of a child enrolled in that section
+  /// (OwnershipService.assertCanReadSection); ids come from guardians/me.
+  Future<List<WeekLesson>> loadWeek({
+    required String sectionId,
+    required String academicYearId,
+  }) => _mapped(() async {
+    final res = await dio.get<List<dynamic>>(
+      '${ApiConfig.timetableSectionPath}/$sectionId',
+      queryParameters: {'academicYearId': academicYearId},
+    );
+    return (res.data ?? const [])
+        .whereType<Map>()
+        .map((m) => WeekLesson.fromJson(m.cast<String, dynamic>()))
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   });
 
   static String _iso(DateTime d) => d.toIso8601String().substring(0, 10);

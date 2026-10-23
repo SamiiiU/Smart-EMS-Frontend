@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/widgets/app_text_area.dart';
 import '../../../core/widgets/job_progress.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -331,12 +332,7 @@ class _HeaderHint extends StatelessWidget {
   }
 }
 
-/// A multi-line paste area.
-///
-/// `AppTextField` is deliberately single-line and fixed-height — it is built
-/// for form fields, and forcing many lines through it would distort a shared
-/// component for one screen. So this is a plain field wearing the same
-/// tokens, rather than a component bent out of shape.
+/// A multi-line paste area (the design system's [AppTextArea]).
 class _PasteBox extends StatelessWidget {
   const _PasteBox({required this.controller, required this.enabled});
 
@@ -345,37 +341,17 @@ class _PasteBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-
-    return Container(
-      constraints: const BoxConstraints(minHeight: AppSizing.csvPasteMinHeight),
-      padding: const EdgeInsets.all(AppSpacing.space4),
-      decoration: BoxDecoration(
-        color: enabled ? t.surface : t.surfaceSunken,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: t.border, width: AppSizing.borderThin),
-      ),
-      child: Semantics(
-        label: 'CSV rows to import',
-        hint:
-            'First line is the header: '
-            '${ImportRepository.studentHeaders.join(', ')}',
-        child: TextField(
-          controller: controller,
-          enabled: enabled,
-          maxLines: null,
-          keyboardType: TextInputType.multiline,
-          style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
-          decoration: InputDecoration.collapsed(
-            hintText:
-                '${ImportRepository.studentHeaders.join(',')}\n'
-                'Ayesha,Khan,2026-001',
-            hintStyle: AppTypography.bodyAdminMeta.copyWith(
-              color: t.textDisabled,
-            ),
-          ),
-        ),
-      ),
+    return AppTextArea(
+      controller: controller,
+      enabled: enabled,
+      minHeight: AppSizing.csvPasteMinHeight,
+      semanticsLabel: 'CSV rows to import',
+      semanticsHint:
+          'First line is the header: '
+          '${ImportRepository.studentHeaders.join(', ')}',
+      placeholder:
+          '${ImportRepository.studentHeaders.join(',')}\n'
+          'Ayesha,Khan,2026-001',
     );
   }
 }

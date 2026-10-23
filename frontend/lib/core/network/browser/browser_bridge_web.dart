@@ -28,12 +28,12 @@ Future<T> withCrossTabLock<T>(String name, Future<T> Function() action) async {
   }
   final result = Completer<T>();
   JSPromise<JSAny?> granted(web.Lock? lock) => (() async {
-    try {
-      result.complete(await action());
-    } catch (error, stack) {
-      result.completeError(error, stack);
-    }
-  })().toJS;
+        try {
+          result.complete(await action());
+        } catch (error, stack) {
+          result.completeError(error, stack);
+        }
+      })().toJS;
   await locks.request(name, granted.toJS).toDart;
   return result.future;
 }

@@ -68,6 +68,7 @@ class _FinanceBatchesState extends State<_FinanceBatches> {
       .push(
         MaterialPageRoute<void>(
           builder: (_) => Scaffold(
+            backgroundColor: context.tokens.page,
             body: SafeArea(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -179,8 +180,8 @@ class _AcademyCollectionReportState extends State<AcademyCollectionReport> {
             runSpacing: AppSpacing.space5,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              SizedBox(
-                width: 260,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 260),
                 child: field(
                   'Invoice month (YYYY-MM, blank = all)',
                   _period,

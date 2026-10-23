@@ -22,11 +22,7 @@ class _GatedAdapter extends _Adapter {
   _GatedAdapter(this.asyncResponder) : super((_) => throw UnimplementedError());
   final Future<ResponseBody> Function(RequestOptions o) asyncResponder;
   @override
-  Future<ResponseBody> fetch(
-    RequestOptions o,
-    Stream<List<int>>? s,
-    Future<void>? c,
-  ) {
+  Future<ResponseBody> fetch(RequestOptions o, Stream<List<int>>? s, Future<void>? c) {
     requests.add(o);
     return asyncResponder(o);
   }
@@ -207,10 +203,8 @@ void main() {
       // parent-progress returns the bare section ("C") for the same field;
       // the complete label is the useful one.
       // M1: normalised to the app-wide "Class · Section" separator.
-      expect(
-        GuardianProfile.fromJson(_guardianJson()).children.single.classLabel,
-        'Class 9 · C',
-      );
+      expect(GuardianProfile.fromJson(_guardianJson()).children.single.classLabel,
+          'Class 9 · C');
     });
 
     test('parent-progress: a NULL attendanceStatus means NOT MARKED, not '
@@ -371,14 +365,9 @@ void main() {
           await gate.future; // Bilal's answer arrives late
           return _json(200, _progressJson(status: 'absent'));
         }
-        return _json(
-          200,
-          _progressJson(status: 'present', name: 'Fatima Noor'),
-        );
+        return _json(200, _progressJson(status: 'present', name: 'Fatima Noor'));
       });
-      await tester.pumpWidget(
-        host(ParentHomeScreen(repository: _repo(adapter))),
-      );
+      await tester.pumpWidget(host(ParentHomeScreen(repository: _repo(adapter))));
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 20));
       }
@@ -387,20 +376,13 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Fatima Noor').first);
       for (var i = 0; i < 5; i++) {
-        await tester.pump(
-          const Duration(milliseconds: 20),
-        ); // Fatima's answer lands
+        await tester.pump(const Duration(milliseconds: 20)); // Fatima's answer lands
       }
       gate.complete(); // ...then Bilal's stale answer arrives
       await tester.pumpAndSettle();
-      final pills = tester
-          .widgetList<StatusPill>(find.byType(StatusPill))
-          .map((p) => p.status);
-      expect(
-        pills,
-        [AppStatus.present],
-        reason: 'a late answer for one child must not appear on another child',
-      );
+      final pills = tester.widgetList<StatusPill>(find.byType(StatusPill)).map((p) => p.status);
+      expect(pills, [AppStatus.present],
+          reason: 'a late answer for one child must not appear on another child');
     });
 
     testWidgets('ORPHAN: guardians/me 404 renders UnlinkedProfileState with '

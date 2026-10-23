@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, kReleaseMode, visibleForTesting;
 
 /// Single source for the backend base URL — nothing under `lib/` should
 /// hardcode `smart-ems-backend-production.up.railway.app` anywhere else.
@@ -20,9 +21,39 @@ abstract final class ApiConfig {
   /// Web build talks to the origin it was loaded from (the refresh cookie is
   /// Path=/auth on that origin). Native/dev builds default to the local backend
   /// unless API_BASE_URL is supplied (e.g. 10.0.2.2 for the Android emulator).
-  static String get baseUrl {
-    if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
-    if (kIsWeb) return Uri.base.origin;
+  static String get baseUrl => resolveBaseUrl(
+    configured: _configuredBaseUrl,
+    isWeb: kIsWeb,
+    isRelease: kReleaseMode,
+    webOrigin: kIsWeb ? Uri.base.origin : '',
+  );
+
+  /// DEF-27: a native RELEASE build fails closed. It must be built with an
+  /// explicit `https://` API_BASE_URL. The localhost fallback is for debug and
+  /// profile builds only; a shipped app pointing at the phone's own localhost
+  /// (or at plain http) is a build mistake, so it stops at start-up rather
+  /// than silently failing every request.
+  @visibleForTesting
+  static String resolveBaseUrl({
+    required String configured,
+    required bool isWeb,
+    required bool isRelease,
+    required String webOrigin,
+  }) {
+    if (configured.isNotEmpty) {
+      if (isRelease && !isWeb && !configured.startsWith('https://')) {
+        throw StateError(
+          'API_BASE_URL must be an https:// URL in a release build',
+        );
+      }
+      return configured;
+    }
+    if (isWeb) return webOrigin;
+    if (isRelease) {
+      throw StateError(
+        'API_BASE_URL is required for a release build (--dart-define=API_BASE_URL=https://…)',
+      );
+    }
     return 'http://localhost:8080';
   }
 
@@ -65,6 +96,12 @@ abstract final class ApiConfig {
   /// `404 {"message":"Staff record linked to this login not found: <uuid>"}`.
   static const String staffMePath = '/api/staff/me';
   static const String studentMePath = '/api/students/me';
+
+  /// D-19, PROPOSED: the student's own current enrollment (self only).
+  static const String studentOwnEnrollmentPath = '/api/students/me/enrollment';
+
+  /// D-20, PROPOSED: the institution's default grade scheme, read-only.
+  static const String defaultGradeSchemePath = '/api/grade-schemes/default';
 
   /// Which person-record endpoint (if any) a set of role claims requires.
   ///

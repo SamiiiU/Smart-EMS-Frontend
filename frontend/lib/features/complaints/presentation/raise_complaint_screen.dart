@@ -4,7 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
 import '../../../core/theme/sizing.dart';
 import '../../../core/theme/typography.dart';
-import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/app_text_area.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
@@ -42,7 +42,14 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
   ComplaintPriority _priority = ComplaintPriority.medium;
   String _subject = '';
   String _description = '';
+  final TextEditingController _descriptionController = TextEditingController();
   bool _anonymous = false;
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
 
   bool _busy = false;
   String? _error;
@@ -144,11 +151,27 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.space4),
-              child: AppTextField(
-                label: 'Details',
-                value: _description,
-                placeholder: 'What happened, when, and who was involved',
-                onChanged: (v) => setState(() => _description = v),
+              // DEF-28: complaint details are paragraphs. A single-line field
+              // dropped everything typed after Enter.
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Details',
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: context.tokens.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.space2),
+                  AppTextArea(
+                    controller: _descriptionController,
+                    semanticsLabel: 'Details',
+                    placeholder: 'What happened, when, and who was involved',
+                    minHeight: AppSizing.diaryFieldMinHeight,
+                    enabled: !_busy,
+                    onChanged: (v) => setState(() => _description = v),
+                  ),
+                ],
               ),
             ),
             Padding(

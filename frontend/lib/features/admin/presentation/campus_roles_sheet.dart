@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/states/loading_skeleton.dart';
+
 import '../../../core/widgets/confirm_dialog.dart';
 
 import '../../../core/shell/campus_context.dart';
@@ -22,24 +25,18 @@ Future<void> showCampusRolesSheet(
   required List<CampusOption> campuses,
   Set<String>? allowedRoles,
   Set<String>? allowedCampusIds,
-}) => showModalBottomSheet<void>(
-  context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  // Focus moves INTO the sheet when it opens (as for dialogs, DLG-1): on
-  // web it otherwise stayed on the page behind, so Escape did nothing and
-  // Tab reached controls under the barrier. Not a tab stop itself.
-  builder: (_) => Focus(
-    autofocus: true,
-    skipTraversal: true,
-    child: CampusRolesSheet(
-      repository: repository,
-      userId: userId,
-      personName: personName,
-      campuses: campuses,
-      allowedRoles: allowedRoles,
-      allowedCampusIds: allowedCampusIds,
-    ),
+}) => showAppSheet<void>(
+  context,
+  title: 'Campus roles',
+  // The shared frame moves focus into the sheet (DLG-1), names the Close
+  // button and keeps the actions above the keyboard.
+  builder: (_) => CampusRolesSheet(
+    repository: repository,
+    userId: userId,
+    personName: personName,
+    campuses: campuses,
+    allowedRoles: allowedRoles,
+    allowedCampusIds: allowedCampusIds,
   ),
 );
 
@@ -176,151 +173,130 @@ class _CampusRolesSheetState extends State<CampusRolesSheet> {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final grants = _grants;
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.space6,
-          0,
-          AppSpacing.space6,
-          AppSpacing.space6 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Semantics(
-                header: true,
-                child: Text(
-                  'Campus roles',
-                  style: AppTypography.screenTitle.copyWith(
-                    color: t.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.space2),
-              Text(
-                widget.personName,
-                style: AppTypography.bodyAdminMeta.copyWith(
-                  color: t.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.space6),
-              if (_error != null) ...[
-                InlineAlert(tone: InlineAlertTone.danger, message: _error!),
-                const SizedBox(height: AppSpacing.space4),
-              ],
-              if (_notice != null) ...[
-                InlineAlert(tone: InlineAlertTone.info, message: _notice!),
-                const SizedBox(height: AppSpacing.space4),
-              ],
-              if (grants == null && _error == null)
-                const Center(child: CircularProgressIndicator())
-              else if (grants != null && grants.isEmpty)
-                Text(
-                  'No campus roles yet.',
-                  style: AppTypography.bodyAdminMeta.copyWith(
-                    color: t.textSecondary,
-                  ),
-                )
-              else if (grants != null)
-                for (final g in grants)
-                  ListTile(
-                    key: Key('campus-role-${g.grantId}'),
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(campusRoleLabels[g.role] ?? g.role),
-                    subtitle: Text(g.campusName),
-                    trailing: _protectedTarget
-                        ? null
-                        : IconButton(
-                            tooltip:
-                                'Remove ${campusRoleLabels[g.role] ?? g.role} at ${g.campusName}',
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: _busy ? null : () => _remove(g),
-                          ),
-                  ),
-              if (_protectedTarget) ...[
-                const SizedBox(height: AppSpacing.space4),
-                const InlineAlert(
-                  key: Key('campus-roles-protected'),
-                  tone: InlineAlertTone.info,
-                  message:
-                      'This account holds an administrative role, so its campus roles '
-                      'cannot be changed here.',
-                ),
-              ] else ...[
-                const Divider(height: AppSpacing.space8),
-                Text(
-                  'Add a campus role',
-                  style: AppTypography.sectionHeading.copyWith(
-                    color: t.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.space4),
-                Semantics(
-                  label: 'Campus',
-                  child: DropdownButton<String>(
-                    key: const Key('campus-role-campus'),
-                    isExpanded: true,
-                    value: _campus,
-                    hint: const Text('Choose a campus'),
-                    items: [
-                      for (final c in _campusOptions)
-                        DropdownMenuItem(value: c.id, child: Text(c.name)),
-                    ],
-                    onChanged: _busy
-                        ? null
-                        : (v) => setState(() => _campus = v),
-                  ),
-                ),
-                Semantics(
-                  label: 'Role',
-                  child: DropdownButton<String>(
-                    key: const Key('campus-role-role'),
-                    isExpanded: true,
-                    value: _role,
-                    items: [
-                      for (final e in _roleOptions)
-                        DropdownMenuItem(value: e.key, child: Text(e.value)),
-                    ],
-                    onChanged: _busy
-                        ? null
-                        : (v) => setState(() => _role = v ?? _role),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.space4),
-                AppButton(
-                  key: const Key('campus-role-add'),
-                  label: _busy ? 'Saving…' : 'Add role',
-                  fullWidth: true,
-                  onPressed: _busy || _campus == null
-                      ? null
-                      : () {
-                          final campus = widget.campuses.firstWhere(
-                            (c) => c.id == _campus,
-                          );
-                          _run(
-                            () => widget.repository.grantCampusRole(
-                              widget.userId,
-                              campusId: _campus!,
-                              role: _role,
-                            ),
-                            '${campusRoleLabels[_role]} added at ${campus.name}.',
-                          );
-                        },
-                ),
-                const SizedBox(height: AppSpacing.space3),
-                Text(
-                  'The person must already work at that campus. Campus admins can grant only '
-                  'teacher and attendance roles on their own campus.',
-                  style: AppTypography.bodyAdminMeta.copyWith(
-                    color: t.textSecondary,
-                  ),
-                ),
-              ],
-            ],
+    // Heading ("Campus roles"), named Close, focus, safe area, keyboard lift
+    // and scrolling come from the shared AppSheetFrame (showAppSheet).
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.space6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.personName,
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
           ),
-        ),
+          const SizedBox(height: AppSpacing.space6),
+          if (_error != null) ...[
+            InlineAlert(tone: InlineAlertTone.danger, message: _error!),
+            const SizedBox(height: AppSpacing.space4),
+          ],
+          if (_notice != null) ...[
+            InlineAlert(tone: InlineAlertTone.info, message: _notice!),
+            const SizedBox(height: AppSpacing.space4),
+          ],
+          if (grants == null && _error == null)
+            const LoadingSkeleton.listRows(count: 3)
+          else if (grants != null && grants.isEmpty)
+            Text(
+              'No campus roles yet.',
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
+            )
+          else if (grants != null)
+            for (final g in grants)
+              ListTile(
+                key: Key('campus-role-${g.grantId}'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(campusRoleLabels[g.role] ?? g.role),
+                subtitle: Text(g.campusName),
+                trailing: _protectedTarget
+                    ? null
+                    : IconButton(
+                        tooltip:
+                            'Remove ${campusRoleLabels[g.role] ?? g.role} at ${g.campusName}',
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: _busy ? null : () => _remove(g),
+                      ),
+              ),
+          if (_protectedTarget) ...[
+            const SizedBox(height: AppSpacing.space4),
+            const InlineAlert(
+              key: Key('campus-roles-protected'),
+              tone: InlineAlertTone.info,
+              message:
+                  'This account holds an administrative role, so its campus roles '
+                  'cannot be changed here.',
+            ),
+          ] else ...[
+            const Divider(height: AppSpacing.space8),
+            Text(
+              'Add a campus role',
+              style: AppTypography.sectionHeading.copyWith(
+                color: t.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.space4),
+            Semantics(
+              label: 'Campus',
+              child: DropdownButton<String>(
+                key: const Key('campus-role-campus'),
+                isExpanded: true,
+                value: _campus,
+                hint: const Text('Choose a campus'),
+                items: [
+                  for (final c in _campusOptions)
+                    DropdownMenuItem(value: c.id, child: Text(c.name)),
+                ],
+                onChanged: _busy ? null : (v) => setState(() => _campus = v),
+              ),
+            ),
+            Semantics(
+              label: 'Role',
+              child: DropdownButton<String>(
+                key: const Key('campus-role-role'),
+                isExpanded: true,
+                value: _role,
+                items: [
+                  for (final e in _roleOptions)
+                    DropdownMenuItem(value: e.key, child: Text(e.value)),
+                ],
+                onChanged: _busy
+                    ? null
+                    : (v) => setState(() => _role = v ?? _role),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.space4),
+            AppButton(
+              key: const Key('campus-role-add'),
+              label: _busy ? 'Saving…' : 'Add role',
+              fullWidth: true,
+              onPressed: _busy || _campus == null
+                  ? null
+                  : () {
+                      final campus = widget.campuses.firstWhere(
+                        (c) => c.id == _campus,
+                      );
+                      _run(
+                        () => widget.repository.grantCampusRole(
+                          widget.userId,
+                          campusId: _campus!,
+                          role: _role,
+                        ),
+                        '${campusRoleLabels[_role]} added at ${campus.name}.',
+                      );
+                    },
+            ),
+            const SizedBox(height: AppSpacing.space3),
+            Text(
+              'The person must already work at that campus. Campus admins can grant only '
+              'teacher and attendance roles on their own campus.',
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

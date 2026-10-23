@@ -3,6 +3,7 @@ import 'academic_ai_screen.dart';
 import '../../admin/presentation/workflow_jobs_screen.dart';
 import '../../../core/shell/campus_context.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_sheet.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
@@ -18,6 +19,8 @@ import '../data/academics_repository.dart';
 import 'exam_setup_screen.dart';
 import 'remarks_screen.dart';
 import 'syllabus_screen.dart';
+import '../data/subject_resources_repository.dart';
+import 'subject_resources_screen.dart';
 import 'unavailable_screens.dart';
 import '../../../core/widgets/page_header.dart';
 
@@ -152,6 +155,46 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
     await load();
   }
 
+  /// Remarks belong to one section. With several sections the admin chooses
+  /// which (previously the first section was always opened). The server still
+  /// authorizes every section on its own.
+  Future<void> _openRemarks(AcademicsContext ctx) async {
+    var section = ctx.sections.first;
+    if (ctx.sections.length > 1) {
+      final chosen = await showAppSheet<Section>(
+        context,
+        title: 'Remarks for which section?',
+        builder: (sheet) => Padding(
+          padding: const EdgeInsets.all(AppSpacing.space6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final s in ctx.sections) ...[
+                AppButton(
+                  label: _sectionLabel(ctx, s),
+                  variant: AppButtonVariant.secondary,
+                  fullWidth: true,
+                  onPressed: () => Navigator.of(sheet).pop(s),
+                ),
+                const SizedBox(height: AppSpacing.space2),
+              ],
+            ],
+          ),
+        ),
+      );
+      if (chosen == null || !mounted) return;
+      section = chosen;
+    }
+    await _open(
+      RemarksScreen(
+        repository: widget.academics,
+        sectionId: section.id,
+        sectionName: _sectionLabel(ctx, section),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -237,7 +280,7 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
           number: 1,
           title: 'Grade scheme',
           detail: 'How percentages become grades.',
-          onTap: () => _open(const GradeSchemesScreen()),
+          onTap: () => _open(GradeSchemesScreen(repository: widget.academics)),
         ),
         StepRow(
           number: 2,
@@ -270,13 +313,7 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
           detail: 'Notes about a student, and who can see them.',
           onTap: noSections
               ? null
-              : () => _open(
-                  RemarksScreen(
-                    repository: widget.academics,
-                    sectionId: ctx.sections.first.id,
-                    sectionName: _sectionLabel(ctx, ctx.sections.first),
-                  ),
-                ),
+              : () => _openRemarks(ctx),
           blockedReason: noSections ? 'Create a section first' : null,
         ),
         StepRow(
@@ -306,7 +343,25 @@ class AcademicsHomeScreenState extends State<AcademicsHomeScreen> {
           number: 5,
           title: 'Subject resources',
           detail: 'Books, notes and links for a subject.',
-          onTap: () => _open(const SubjectResourcesScreen()),
+          onTap: year == null || ctx.classes.isEmpty || noSubjects
+              ? null
+              : () => _open(
+                  SubjectResourcesScreen(
+                    repository: SubjectResourcesRepository(
+                      widget.academics.dio,
+                    ),
+                    year: year,
+                    classes: ctx.classes,
+                    subjects: ctx.subjects,
+                  ),
+                ),
+          blockedReason: year == null
+              ? 'Create an academic year first'
+              : ctx.classes.isEmpty
+              ? 'Create a class first'
+              : noSubjects
+              ? 'Create a subject first'
+              : null,
         ),
       ],
     );

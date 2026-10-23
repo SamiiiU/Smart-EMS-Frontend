@@ -76,11 +76,12 @@ class AdmissionRepository {
           },
         );
         final id = res.data?['id'] as String?;
-        if (id == null)
+        if (id == null) {
           return const AdmissionFailed(
             'learner',
             LoadFailure(message: 'The server did not return a learner id.'),
           );
+        }
         p.studentId = id;
       } on DioException catch (e) {
         final f = mapDioError(e);
@@ -111,8 +112,9 @@ class AdmissionRepository {
         p.enrolled = true;
       } on DioException catch (e) {
         // 409 = already enrolled for this year (e.g. a retry whose response was lost).
-        if (e.response?.statusCode != 409)
+        if (e.response?.statusCode != 409) {
           return AdmissionFailed('placement', mapDioError(e));
+        }
         p.enrolled = true;
       }
     }
