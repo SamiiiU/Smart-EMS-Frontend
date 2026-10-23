@@ -21,12 +21,12 @@ class StaffAttendanceRepository {
 
   /// The whole day in one call — names, codes, statuses and counts.
   Future<StaffAttendanceDay> loadDay(String date) => _mapped(() async {
-        final res = await dio.get<Map<String, dynamic>>(
-          '/api/staff-attendance/daily',
-          queryParameters: {'date': date},
-        );
-        return StaffAttendanceDay.fromJson(res.data ?? const {});
-      });
+    final res = await dio.get<Map<String, dynamic>>(
+      '/api/staff-attendance/daily',
+      queryParameters: {'date': date},
+    );
+    return StaffAttendanceDay.fromJson(res.data ?? const {});
+  });
 
   /// Marks one staff member.
   ///

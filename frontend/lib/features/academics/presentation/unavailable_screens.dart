@@ -53,14 +53,14 @@ class UnavailableScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.space4),
               Text(
                 headline,
-                style:
-                    AppTypography.cardHeading.copyWith(color: t.textPrimary),
+                style: AppTypography.cardHeading.copyWith(color: t.textPrimary),
               ),
               const SizedBox(height: AppSpacing.space3),
               Text(
                 body,
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
             ],
           ),
@@ -80,15 +80,16 @@ class GradeSchemesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const UnavailableScreen(
-        title: 'Grade scheme',
-        icon: Icons.workspace_premium_outlined,
-        headline: 'Grades are applied automatically',
-        body: 'Marks are turned into grades and grade points by the system, '
-            'and results show them straight away. The bands behind that — '
-            'which percentage earns which grade — cannot be viewed or '
-            'changed from the app yet, so a change to them has to go '
-            'through your system administrator.',
-      );
+    title: 'Grade scheme',
+    icon: Icons.workspace_premium_outlined,
+    headline: 'Grades are applied automatically',
+    body:
+        'Marks are turned into grades and grade points by the system, '
+        'and results show them straight away. The bands behind that — '
+        'which percentage earns which grade — cannot be viewed or '
+        'changed from the app yet, so a change to them has to go '
+        'through your system administrator.',
+  );
 }
 
 /// Screen 8 of the batch — subject resources.
@@ -97,10 +98,11 @@ class SubjectResourcesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const UnavailableScreen(
-        title: 'Subject resources',
-        icon: Icons.folder_outlined,
-        headline: 'Not available yet',
-        body: 'A subject library for books, notes and links is not available yet. '
-            'Share class material through the diary for now.',
-      );
+    title: 'Subject resources',
+    icon: Icons.folder_outlined,
+    headline: 'Not available yet',
+    body:
+        'A subject library for books, notes and links is not available yet. '
+        'Share class material through the diary for now.',
+  );
 }

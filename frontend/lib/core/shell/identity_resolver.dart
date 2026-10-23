@@ -102,7 +102,11 @@ class IdentityResult {
 }
 
 class GrantScope {
-  const GrantScope({required this.role, required this.campusId, required this.permissions});
+  const GrantScope({
+    required this.role,
+    required this.campusId,
+    required this.permissions,
+  });
 
   factory GrantScope.fromJson(Map json) => GrantScope(
     role: json['role'] as String? ?? '',

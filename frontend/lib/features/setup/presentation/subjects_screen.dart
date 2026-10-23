@@ -32,8 +32,9 @@ class SubjectsScreenState extends State<SubjectsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() =>
-        _state = ScreenState<List<Subject>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<Subject>>.loading(previous: _state.data),
+    );
     try {
       final subjects = await widget.repository.loadSubjects();
       if (!mounted) return;
@@ -41,12 +42,15 @@ class SubjectsScreenState extends State<SubjectsScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Subject>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Subject>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 

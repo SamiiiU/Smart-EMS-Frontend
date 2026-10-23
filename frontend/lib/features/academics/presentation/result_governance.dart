@@ -28,7 +28,10 @@ Future<String?> askReason(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (hint != null) ...[Text(hint), const SizedBox(height: AppSpacing.space3)],
+              if (hint != null) ...[
+                Text(hint),
+                const SizedBox(height: AppSpacing.space3),
+              ],
               AppTextField(
                 label: 'Reason (required)',
                 value: value,
@@ -39,9 +42,14 @@ Future<String?> askReason(
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
             TextButton(
-              onPressed: ok ? () => Navigator.of(dialogContext).pop(value.trim()) : null,
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: ok
+                  ? () => Navigator.of(dialogContext).pop(value.trim())
+                  : null,
               child: Text(confirmLabel),
             ),
           ],
@@ -69,7 +77,8 @@ class ResultGovernanceActions extends StatefulWidget {
   final VoidCallback onChanged;
 
   @override
-  State<ResultGovernanceActions> createState() => ResultGovernanceActionsState();
+  State<ResultGovernanceActions> createState() =>
+      ResultGovernanceActionsState();
 }
 
 class ResultGovernanceActionsState extends State<ResultGovernanceActions> {
@@ -84,7 +93,8 @@ class ResultGovernanceActionsState extends State<ResultGovernanceActions> {
         context,
         title: 'Withhold ${widget.result.studentName}\'s result?',
         confirmLabel: 'Withhold',
-        hint: 'The learner and guardians will not see this result until it is released.',
+        hint:
+            'The learner and guardians will not see this result until it is released.',
       );
       if (reason == null || !mounted) return;
     }
@@ -150,7 +160,10 @@ class ResultGovernanceActionsState extends State<ResultGovernanceActions> {
                 ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Close')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
@@ -169,7 +182,9 @@ class ResultGovernanceActionsState extends State<ResultGovernanceActions> {
           children: [
             if (status != ExamStatus.archived)
               AppButton(
-                label: widget.result.withheld ? 'Release result' : 'Withhold result',
+                label: widget.result.withheld
+                    ? 'Release result'
+                    : 'Withhold result',
                 variant: AppButtonVariant.secondary,
                 onPressed: _busy ? null : _toggleWithheld,
               ),
@@ -190,7 +205,12 @@ class ResultGovernanceActionsState extends State<ResultGovernanceActions> {
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.space2),
-            child: Text(_error!, style: AppTypography.bodyAdminMeta.copyWith(color: t.dangerTextOnBg)),
+            child: Text(
+              _error!,
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.dangerTextOnBg,
+              ),
+            ),
           ),
       ],
     );
@@ -216,8 +236,9 @@ class CorrectionDialog extends StatefulWidget {
 }
 
 class CorrectionDialogState extends State<CorrectionDialog> {
-  late final List<SubjectResult> _papers =
-      widget.result.subjects.where((s) => s.examSubjectId != null).toList();
+  late final List<SubjectResult> _papers = widget.result.subjects
+      .where((s) => s.examSubjectId != null)
+      .toList();
   String? _paperId;
   String _marks = '';
   bool _absent = false;
@@ -269,7 +290,9 @@ class CorrectionDialogState extends State<CorrectionDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('The published version stays on record; the correction becomes the version in force.'),
+            const Text(
+              'The published version stays on record; the correction becomes the version in force.',
+            ),
             const SizedBox(height: AppSpacing.space3),
             if (_papers.isEmpty)
               const Text('No paper of this result can be corrected.')
@@ -281,9 +304,11 @@ class CorrectionDialogState extends State<CorrectionDialog> {
                   for (final p in _papers)
                     DropdownMenuItem(
                       value: p.examSubjectId,
-                      child: Text('${p.subjectName} — now '
-                          '${p.isAbsent ? 'absent' : p.marksObtained?.format() ?? 'not entered'}'
-                          ' / ${p.maxMarks.format()}'),
+                      child: Text(
+                        '${p.subjectName} — now '
+                        '${p.isAbsent ? 'absent' : p.marksObtained?.format() ?? 'not entered'}'
+                        ' / ${p.maxMarks.format()}',
+                      ),
                     ),
                 ],
                 onChanged: (v) => setState(() => _paperId = v),
@@ -295,7 +320,11 @@ class CorrectionDialogState extends State<CorrectionDialog> {
               onChanged: (v) => setState(() => _absent = v ?? false),
             ),
             if (!_absent)
-              AppTextField(label: 'Corrected mark', value: _marks, onChanged: (v) => setState(() => _marks = v)),
+              AppTextField(
+                label: 'Corrected mark',
+                value: _marks,
+                onChanged: (v) => setState(() => _marks = v),
+              ),
             const SizedBox(height: AppSpacing.space3),
             AppTextField(
               label: 'Reason (required)',
@@ -311,7 +340,10 @@ class CorrectionDialogState extends State<CorrectionDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
         TextButton(
           onPressed: _valid && !_busy ? _submit : null,
           child: Text(_busy ? 'Saving…' : 'Record correction'),

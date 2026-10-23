@@ -140,9 +140,7 @@ class _WideRow extends StatelessWidget {
     };
 
     final content = Container(
-      constraints: const BoxConstraints(
-        minHeight: AppSizing.listRowMinHeight,
-      ),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       color: bg,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.space5,
@@ -248,9 +246,7 @@ class _StackedCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.space1),
             Text(
               i < row.cells.length ? row.cells[i] : '',
-              style: AppTypography.bodyAdminMeta.copyWith(
-                color: t.textPrimary,
-              ),
+              style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
             ),
           ],
           if (row.status != null) ...[

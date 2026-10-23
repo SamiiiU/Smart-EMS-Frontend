@@ -14,10 +14,8 @@ import '../theme/sizing.dart';
 /// profile, and the student's own screen, and must read identically in all
 /// four. There is no third "danger" tier.
 class ProgressBar extends StatelessWidget {
-  const ProgressBar({
-    required this.percent,
-    super.key,
-  }) : assert(percent >= 0 && percent <= 100, 'percent must be 0..100');
+  const ProgressBar({required this.percent, super.key})
+    : assert(percent >= 0 && percent <= 100, 'percent must be 0..100');
 
   /// 0..100.
   final double percent;

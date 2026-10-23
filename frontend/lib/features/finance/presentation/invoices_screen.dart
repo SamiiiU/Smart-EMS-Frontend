@@ -10,7 +10,8 @@ import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../setup/domain/setup_models.dart';
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/finance_repository.dart';
@@ -52,8 +53,9 @@ class InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   Future<void> load() async {
-    setState(() =>
-        _state = ScreenState<List<Invoice>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<Invoice>>.loading(previous: _state.data),
+    );
     try {
       final page = await widget.repository.loadInvoices(
         classId: _classId,
@@ -65,12 +67,15 @@ class InvoicesScreenState extends State<InvoicesScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Invoice>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Invoice>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -148,10 +153,7 @@ class InvoicesScreenState extends State<InvoicesScreen> {
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: load,
-            child: const Text('Apply period'),
-          ),
+          child: TextButton(onPressed: load, child: const Text('Apply period')),
         ),
         const SizedBox(height: AppSpacing.space4),
         SizedBox(
@@ -160,7 +162,8 @@ class InvoicesScreenState extends State<InvoicesScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'No invoices match',
-            emptyMessage: 'Nothing has been invoiced for this filter yet. '
+            emptyMessage:
+                'Nothing has been invoiced for this filter yet. '
                 'Invoices are created under “Generate invoices”.',
             emptyIcon: Icons.receipt_outlined,
             // M1 adaptive list: a finance table on desktop (money right-aligned),
@@ -181,12 +184,27 @@ class InvoicesScreenState extends State<InvoicesScreen> {
                 await load();
               },
               columns: [
-                DataColumnSpec(label: 'Learner', value: (i) => i.studentName, flex: 3),
-                DataColumnSpec(label: 'Period', value: (i) => i.period, flex: 2),
-                DataColumnSpec(label: 'Total', value: (i) => i.totalAmount.format(), flex: 2, numeric: true),
+                DataColumnSpec(
+                  label: 'Learner',
+                  value: (i) => i.studentName,
+                  flex: 3,
+                ),
+                DataColumnSpec(
+                  label: 'Period',
+                  value: (i) => i.period,
+                  flex: 2,
+                ),
+                DataColumnSpec(
+                  label: 'Total',
+                  value: (i) => i.totalAmount.format(),
+                  flex: 2,
+                  numeric: true,
+                ),
                 DataColumnSpec(
                   label: 'Outstanding',
-                  value: (i) => i.outstanding.isZero ? 'Nothing due' : i.outstanding.format(),
+                  value: (i) => i.outstanding.isZero
+                      ? 'Nothing due'
+                      : i.outstanding.format(),
                   flex: 2,
                   numeric: true,
                 ),
@@ -201,11 +219,16 @@ class InvoicesScreenState extends State<InvoicesScreen> {
                     runSpacing: AppSpacing.space1,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      StatusPill(status: i.status.pill, size: StatusPillSize.sm),
+                      StatusPill(
+                        status: i.status.pill,
+                        size: StatusPillSize.sm,
+                      ),
                       if (i.isOverdue(today))
                         Text(
                           '${i.daysOverdue(today)} days late',
-                          style: AppTypography.bodyAdminMeta.copyWith(color: context.tokens.warningTextOnBg),
+                          style: AppTypography.bodyAdminMeta.copyWith(
+                            color: context.tokens.warningTextOnBg,
+                          ),
                         ),
                     ],
                   ),
@@ -244,8 +267,7 @@ class InvoiceRow extends StatelessWidget {
     final row = Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -267,8 +289,9 @@ class InvoiceRow extends StatelessWidget {
               ),
               Text(
                 invoice.period,
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
               StatusPill(status: invoice.status.pill, size: StatusPillSize.sm),
             ],
@@ -286,8 +309,9 @@ class InvoiceRow extends StatelessWidget {
               if (!invoice.outstanding.isZero)
                 Text(
                   '${invoice.outstanding.format()} outstanding',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               // The backend has no overdue STATUS, so this is said in words
               // next to the pill rather than pretended into one.
@@ -295,8 +319,9 @@ class InvoiceRow extends StatelessWidget {
                 Text(
                   'Due ${invoice.dueDate} · '
                   '${invoice.daysOverdue(today)} days late',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.warningTextOnBg),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.warningTextOnBg,
+                  ),
                 ),
             ],
           ),

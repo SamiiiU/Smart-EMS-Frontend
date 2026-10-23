@@ -38,17 +38,17 @@ class ScreenStateBuilder<T> extends StatelessWidget {
     this.filterDescription,
     this.onClearFilter,
     super.key,
-  })  : assert(
-          (emptyActionLabel == null) == (onEmptyAction == null),
-          'An empty-state action needs both a label and a callback (D-19).',
-        ),
-        assert(
-          // If a screen can filter, it must be able to clear the filter —
-          // otherwise FilteredEmptyState would be a dead end.
-          (filterDescription == null) == (onClearFilter == null),
-          'A filterable screen must supply both filterDescription and '
-          'onClearFilter, so FilteredEmptyState can always offer a way out.',
-        );
+  }) : assert(
+         (emptyActionLabel == null) == (onEmptyAction == null),
+         'An empty-state action needs both a label and a callback (D-19).',
+       ),
+       assert(
+         // If a screen can filter, it must be able to clear the filter —
+         // otherwise FilteredEmptyState would be a dead end.
+         (filterDescription == null) == (onClearFilter == null),
+         'A filterable screen must supply both filterDescription and '
+         'onClearFilter, so FilteredEmptyState can always offer a way out.',
+       );
 
   final ScreenState<T> state;
 
@@ -79,7 +79,9 @@ class ScreenStateBuilder<T> extends StatelessWidget {
 
       case ScreenOutcome.permissionDeniedState:
         final reason = state.failure?.message;
-        return reason == null ? const PermissionDeniedState() : PermissionDeniedState(message: reason);
+        return reason == null
+            ? const PermissionDeniedState()
+            : PermissionDeniedState(message: reason);
 
       case ScreenOutcome.offlineState:
         return const OfflineState();
@@ -88,10 +90,7 @@ class ScreenStateBuilder<T> extends StatelessWidget {
         return skeleton;
 
       case ScreenOutcome.errorState:
-        return ErrorState(
-          message: state.failure?.message,
-          onRetry: onRetry,
-        );
+        return ErrorState(message: state.failure?.message, onRetry: onRetry);
 
       case ScreenOutcome.filteredEmptyState:
         return FilteredEmptyState(
@@ -129,7 +128,8 @@ class ScreenStateBuilder<T> extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: AppSpacing.space4),
                 child: InlineAlert(
                   tone: InlineAlertTone.warning,
-                  message: state.failure?.message ??
+                  message:
+                      state.failure?.message ??
                       'Could not refresh. Showing the last data loaded.',
                 ),
               ),

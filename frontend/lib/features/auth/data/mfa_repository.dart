@@ -56,25 +56,34 @@ class MfaRepository {
     }
   }
 
-  Future<({MfaEnrollment? enrollment, LoadFailure? failure})> beginEnrollment() async {
+  Future<({MfaEnrollment? enrollment, LoadFailure? failure})>
+  beginEnrollment() async {
     try {
-      final res = await dio.post<Map<String, dynamic>>(ApiConfig.mfaEnrollmentPath);
+      final res = await dio.post<Map<String, dynamic>>(
+        ApiConfig.mfaEnrollmentPath,
+      );
       final secret = res.data?['secret'] as String?;
       final url = res.data?['otpauthUrl'] as String?;
       if (secret == null || url == null) {
         return (
           enrollment: null,
-          failure: const LoadFailure(message: 'The server did not return a setup key.'),
+          failure: const LoadFailure(
+            message: 'The server did not return a setup key.',
+          ),
         );
       }
-      return (enrollment: MfaEnrollment(secret: secret, otpauthUrl: url), failure: null);
+      return (
+        enrollment: MfaEnrollment(secret: secret, otpauthUrl: url),
+        failure: null,
+      );
     } on DioException catch (err) {
       return (enrollment: null, failure: mapDioError(err));
     }
   }
 
   /// Returns the one-time recovery codes. They are never retrievable again.
-  Future<({List<String>? recoveryCodes, LoadFailure? failure})> confirmEnrollment(String code) async {
+  Future<({List<String>? recoveryCodes, LoadFailure? failure})>
+  confirmEnrollment(String code) async {
     try {
       final res = await dio.post<Map<String, dynamic>>(
         ApiConfig.mfaEnrollmentConfirmPath,
@@ -108,7 +117,10 @@ class MfaRepository {
   /// Five-minute, session-bound confirmation for sensitive finance actions.
   Future<LoadFailure?> stepUp(String code) async {
     try {
-      await dio.post<dynamic>(ApiConfig.mfaStepUpPath, data: {'code': code.trim()});
+      await dio.post<dynamic>(
+        ApiConfig.mfaStepUpPath,
+        data: {'code': code.trim()},
+      );
       return null;
     } on DioException catch (err) {
       return mapDioError(err);

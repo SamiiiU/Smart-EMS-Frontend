@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/scales.dart';
@@ -48,8 +48,7 @@ class SetupContext {
     return years.isEmpty ? null : years.first;
   }
 
-  bool get usingFallbackYear =>
-      workingYear != null && !workingYear!.current;
+  bool get usingFallbackYear => workingYear != null && !workingYear!.current;
 }
 
 /// The setup hub: the six steps of Batch A, in dependency order.
@@ -60,11 +59,7 @@ class SetupContext {
 /// there yet, so a blocked step explains itself instead of failing when
 /// opened (the "Could not load this" problem).
 class SetupHomeScreen extends StatefulWidget {
-  const SetupHomeScreen({
-    required this.setup,
-    required this.admin,
-    super.key,
-  });
+  const SetupHomeScreen({required this.setup, required this.admin, super.key});
 
   final SetupRepository setup;
 
@@ -86,8 +81,9 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
   }
 
   Future<void> load() async {
-    setState(() =>
-        _state = ScreenState<SetupContext>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<SetupContext>.loading(previous: _state.data),
+    );
     try {
       final campuses = await widget.admin.loadCampusIds();
       final years = await widget.setup.loadYears();
@@ -95,34 +91,38 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
       final sections = await widget.setup.loadSections();
       final subjects = await widget.setup.loadSubjects();
       if (!mounted) return;
-      setState(() => _state = ScreenState<SetupContext>.data(
-            SetupContext(
-              campusId: campuses.isEmpty ? null : campuses.first,
-              years: years,
-              classes: classes,
-              sections: sections,
-              subjects: subjects,
-            ),
-            // A context object is one record, never a collection.
-            isEmpty: false,
-          ));
+      setState(
+        () => _state = ScreenState<SetupContext>.data(
+          SetupContext(
+            campusId: campuses.isEmpty ? null : campuses.first,
+            years: years,
+            classes: classes,
+            sections: sections,
+            subjects: subjects,
+          ),
+          // A context object is one record, never a collection.
+          isEmpty: false,
+        ),
+      );
     } on Object catch (e) {
       if (!mounted) return;
       final failure = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<SetupContext>.failed(
-            failure,
-            cached: _state.data,
-            connection: failure.unreachable
-                ? NetworkStatus.offline
-                : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<SetupContext>.failed(
+          failure,
+          cached: _state.data,
+          connection: failure.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
   Future<void> _open(Widget screen) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => screen),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => screen));
     // Anything created in there changes what the next step can do.
     await load();
   }
@@ -138,7 +138,8 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
           state: _state,
           onRetry: load,
           emptyTitle: 'Setup could not be opened',
-          emptyMessage: 'The institution’s years, classes and sections could not '
+          emptyMessage:
+              'The institution’s years, classes and sections could not '
               'be read. Reopen this tab to try again — if it keeps '
               'happening, tell your system administrator.',
           data: (context, ctx) => _body(context, ctx),
@@ -165,20 +166,23 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
         if (ctx.campusId == null)
           const InlineAlert(
             tone: InlineAlertTone.danger,
-            message: 'This institution has no campus, so nothing can be created '
+            message:
+                'This institution has no campus, so nothing can be created '
                 'yet. A campus is set up when the institution is created — ask '
                 'your system administrator.',
           )
         else if (year == null)
           const InlineAlert(
             tone: InlineAlertTone.info,
-            message: 'Start with an academic year. Sections, timetables and '
+            message:
+                'Start with an academic year. Sections, timetables and '
                 'enrolments all belong to one.',
           )
         else if (ctx.usingFallbackYear)
           InlineAlert(
             tone: InlineAlertTone.warning,
-            message: 'No year is marked as current, so “${year.name}” is '
+            message:
+                'No year is marked as current, so “${year.name}” is '
                 'being used. The current year can only be changed by your '
                 'system administrator.',
           ),
@@ -190,14 +194,16 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
           detail: year == null
               ? 'None yet.'
               : 'Working year: ${year.name}'
-                  '${year.current ? ' (current)' : ''}',
+                    '${year.current ? ' (current)' : ''}',
           count: ctx.years.length,
           onTap: ctx.campusId == null
               ? null
-              : () => _open(AcademicYearsScreen(
+              : () => _open(
+                  AcademicYearsScreen(
                     repository: widget.setup,
                     campusId: ctx.campusId!,
-                  )),
+                  ),
+                ),
         ),
         StepRow(
           number: 2,
@@ -206,10 +212,12 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
           count: ctx.classes.length,
           onTap: ctx.campusId == null
               ? null
-              : () => _open(ClassesScreen(
+              : () => _open(
+                  ClassesScreen(
                     repository: widget.setup,
                     campusId: ctx.campusId!,
-                  )),
+                  ),
+                ),
           blockedReason: ctx.campusId == null ? 'Needs a campus' : null,
         ),
         StepRow(
@@ -219,17 +227,19 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
           count: ctx.sections.length,
           onTap: (ctx.classes.isEmpty || year == null)
               ? null
-              : () => _open(SectionsScreen(
+              : () => _open(
+                  SectionsScreen(
                     repository: widget.setup,
                     admin: widget.admin,
                     classes: ctx.classes,
                     year: year,
-                  )),
+                  ),
+                ),
           blockedReason: year == null
               ? 'Create an academic year first'
               : ctx.classes.isEmpty
-                  ? 'Create a class first'
-                  : null,
+              ? 'Create a class first'
+              : null,
         ),
         StepRow(
           number: 4,
@@ -242,25 +252,25 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
           number: 5,
           title: 'Who teaches what',
           detail: 'A teacher for each subject, in each section.',
-          onTap: (ctx.sections.isEmpty ||
-                  ctx.subjects.isEmpty ||
-                  year == null)
+          onTap: (ctx.sections.isEmpty || ctx.subjects.isEmpty || year == null)
               ? null
-              : () => _open(TeachingAssignmentsScreen(
+              : () => _open(
+                  TeachingAssignmentsScreen(
                     repository: widget.setup,
                     admin: widget.admin,
                     classes: ctx.classes,
                     sections: ctx.sections,
                     subjects: ctx.subjects,
                     year: year,
-                  )),
+                  ),
+                ),
           blockedReason: year == null
               ? 'Create an academic year first'
               : ctx.sections.isEmpty
-                  ? 'Create a section first'
-                  : ctx.subjects.isEmpty
-                      ? 'Create a subject first'
-                      : null,
+              ? 'Create a section first'
+              : ctx.subjects.isEmpty
+              ? 'Create a subject first'
+              : null,
         ),
         StepRow(
           number: 6,
@@ -268,7 +278,8 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
           detail: 'Periods for the institution, then each section’s week.',
           onTap: (ctx.campusId == null || ctx.sections.isEmpty || year == null)
               ? null
-              : () => _open(TimetableBuilderScreen(
+              : () => _open(
+                  TimetableBuilderScreen(
                     repository: widget.setup,
                     admin: widget.admin,
                     campusId: ctx.campusId!,
@@ -276,15 +287,15 @@ class SetupHomeScreenState extends State<SetupHomeScreen> {
                     sections: ctx.sections,
                     subjects: ctx.subjects,
                     year: year,
-                  )),
+                  ),
+                ),
           blockedReason: year == null
               ? 'Create an academic year first'
               : ctx.sections.isEmpty
-                  ? 'Create a section first'
-                  : null,
+              ? 'Create a section first'
+              : null,
         ),
       ],
     );
   }
 }
-

@@ -20,7 +20,10 @@ class _Adapter implements HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(
-      RequestOptions o, Stream<List<int>>? s, Future<void>? c) async {
+    RequestOptions o,
+    Stream<List<int>>? s,
+    Future<void>? c,
+  ) async {
     requests.add(o);
     return responder(o);
   }
@@ -30,29 +33,28 @@ class _Adapter implements HttpClientAdapter {
 }
 
 ResponseBody _json(int status, Object body) => ResponseBody.fromBytes(
-      utf8.encode(jsonEncode(body)),
-      status,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+  utf8.encode(jsonEncode(body)),
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 AuthRepository _repo([_Adapter? adapter]) => AuthRepository(
-      dio: Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
-        ..httpClientAdapter = adapter ??
-            _Adapter((o) => _json(200, {
-                  'accessToken': 'a',
-                  'refreshToken': 'r',
-                  'expiresIn': 900,
-                })),
-      tokenStore: InMemoryTokenStore(),
-    );
+  dio: Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+    ..httpClientAdapter =
+        adapter ??
+        _Adapter(
+          (o) => _json(200, {
+            'accessToken': 'a',
+            'refreshToken': 'r',
+            'expiresIn': 900,
+          }),
+        ),
+  tokenStore: InMemoryTokenStore(),
+);
 
-Widget host(
-  Widget child, {
-  bool reduceMotion = false,
-  double textScale = 1.0,
-}) {
+Widget host(Widget child, {bool reduceMotion = false, double textScale = 1.0}) {
   return MaterialApp(
     theme: AppTheme.light(role: AppRole.admin),
     builder: (context, mqChild) => MediaQuery(
@@ -106,8 +108,9 @@ int _wordmarkCount(WidgetTester tester) =>
 
 void main() {
   group('Password visibility toggle', () {
-    testWidgets('starts hidden, flips obscureText, and flips back',
-        (tester) async {
+    testWidgets('starts hidden, flips obscureText, and flips back', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(_screen()));
       await tester.pumpAndSettle();
 
@@ -122,8 +125,9 @@ void main() {
       expect(_passwordField(tester).obscureText, isTrue);
     });
 
-    testWidgets('the SEMANTIC label changes with state, not just the glyph',
-        (tester) async {
+    testWidgets('the SEMANTIC label changes with state, not just the glyph', (
+      tester,
+    ) async {
       // A screen reader user cannot see which eye is drawn; the label is
       // the only thing telling them what the control will do.
       await tester.pumpWidget(host(_screen()));
@@ -143,10 +147,14 @@ void main() {
       await tester.pumpWidget(host(_screen()));
       await tester.pumpAndSettle();
 
-      expect(tester.widget<TextField>(find.byType(TextField).at(0)).obscureText,
-          isFalse);
-      expect(tester.widget<TextField>(find.byType(TextField).at(1)).obscureText,
-          isFalse);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).at(0)).obscureText,
+        isFalse,
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField).at(1)).obscureText,
+        isFalse,
+      );
     });
   });
 
@@ -168,7 +176,9 @@ void main() {
       await tester.pumpAndSettle();
 
       for (var i = 0; i < 3; i++) {
-        fields.add(tester.widget<AppTextField>(find.byType(AppTextField).at(i)));
+        fields.add(
+          tester.widget<AppTextField>(find.byType(AppTextField).at(i)),
+        );
       }
 
       expect(fields[0].textInputAction, TextInputAction.next);
@@ -180,18 +190,17 @@ void main() {
       );
     });
 
-    testWidgets('pressing done on the password field submits a valid form',
-        (tester) async {
-      final adapter = _Adapter((o) => _json(200, {
-            'accessToken': 'a',
-            'refreshToken': 'r',
-          }));
+    testWidgets('pressing done on the password field submits a valid form', (
+      tester,
+    ) async {
+      final adapter = _Adapter(
+        (o) => _json(200, {'accessToken': 'a', 'refreshToken': 'r'}),
+      );
       var signedIn = 0;
 
-      await tester.pumpWidget(host(_screen(
-        repository: _repo(adapter),
-        onSignedIn: () => signedIn++,
-      )));
+      await tester.pumpWidget(
+        host(_screen(repository: _repo(adapter), onSignedIn: () => signedIn++)),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).at(0), 'test-school');
@@ -222,7 +231,8 @@ void main() {
       expect(
         tester.widget<AppButton>(find.byType(AppButton)).onPressed,
         isNull,
-        reason: 'Part A item 4: the disabled-until-complete rule must survive '
+        reason:
+            'Part A item 4: the disabled-until-complete rule must survive '
             'the polish',
       );
     });
@@ -368,8 +378,9 @@ void main() {
       expect(_wordmarkCount(tester), 1);
     });
 
-    testWidgets('fields are interactive WHILE the intro is still running',
-        (tester) async {
+    testWidgets('fields are interactive WHILE the intro is still running', (
+      tester,
+    ) async {
       // The requirement: animation must never gate interaction. Typing on
       // frame one must land.
       await tester.pumpWidget(host(_screen()));
@@ -387,7 +398,9 @@ void main() {
   });
 
   group('Reduced motion (D-29) — plays NONE of it', () {
-    testWidgets('renders the final state on the very first frame', (tester) async {
+    testWidgets('renders the final state on the very first frame', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(_screen(), reduceMotion: true));
       // Deliberately a single pump: no settling allowed. If any of the
       // sequence were playing, something would still be faded here.
@@ -396,7 +409,8 @@ void main() {
       expect(
         _opacityOf(tester, _subtitle),
         1,
-        reason: 'reduced motion must skip the sequence entirely, not play a '
+        reason:
+            'reduced motion must skip the sequence entirely, not play a '
             'faster version of it',
       );
       expect(_opacityOf(tester, find.text('Institution code')), 1);
@@ -411,8 +425,9 @@ void main() {
       expect(find.byType(AppTextField), findsNWidgets(3));
     });
 
-    testWidgets('no slide displacement remains on the first frame',
-        (tester) async {
+    testWidgets('no slide displacement remains on the first frame', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(_screen(), reduceMotion: true));
       await tester.pump();
 
@@ -424,16 +439,18 @@ void main() {
     });
 
     testWidgets('POSITIVE PAIR: with motion enabled, the first frame IS '
-        'displaced — proving the reduced-motion assertion is meaningful',
-        (tester) async {
+        'displaced — proving the reduced-motion assertion is meaningful', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(_screen()));
       await tester.pump();
 
       expect(_slideOf(tester, _subtitle), greaterThan(0));
     });
 
-    testWidgets('the form is fully usable under reduced motion',
-        (tester) async {
+    testWidgets('the form is fully usable under reduced motion', (
+      tester,
+    ) async {
       var signedIn = 0;
       await tester.pumpWidget(
         host(_screen(onSignedIn: () => signedIn++), reduceMotion: true),
@@ -453,8 +470,9 @@ void main() {
 
   group('No overflow at 360, 768 and 1366px', () {
     for (final width in [360.0, 768.0, 1366.0]) {
-      testWidgets('during AND after the intro at ${width.toInt()}px',
-          (tester) async {
+      testWidgets('during AND after the intro at ${width.toInt()}px', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
@@ -473,8 +491,9 @@ void main() {
       });
     }
 
-    testWidgets('at 2x text scale on a 360px phone, during the intro',
-        (tester) async {
+    testWidgets('at 2x text scale on a 360px phone, during the intro', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(360, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);

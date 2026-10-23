@@ -75,17 +75,24 @@ class SetupRepository {
 
   /// C8: one forward step (draft → active → closing → archived). The server
   /// refuses any other move with 409; its message is surfaced as-is.
-  Future<void> transitionYear(String yearId, YearStatus target, {String? reason}) =>
-      _mapped(() async {
-        await dio.post<dynamic>('${ApiConfig.academicYearsPath}/$yearId/status',
-            data: {'status': target.wire, 'reason': ?reason});
-      });
+  Future<void> transitionYear(
+    String yearId,
+    YearStatus target, {
+    String? reason,
+  }) => _mapped(() async {
+    await dio.post<dynamic>(
+      '${ApiConfig.academicYearsPath}/$yearId/status',
+      data: {'status': target.wire, 'reason': ?reason},
+    );
+  });
 
   /// C8: classify a legacy year V54 could not verify; a reason is required.
   Future<void> classifyYear(String yearId, YearStatus target, String reason) =>
       _mapped(() async {
-        await dio.post<dynamic>('${ApiConfig.academicYearsPath}/$yearId/classification',
-            data: {'status': target.wire, 'reason': reason});
+        await dio.post<dynamic>(
+          '${ApiConfig.academicYearsPath}/$yearId/classification',
+          data: {'status': target.wire, 'reason': reason},
+        );
       });
 
   // --- Classes --------------------------------------------------------------
@@ -193,12 +200,13 @@ class SetupRepository {
   });
 
   /// C10: ends an assignment now; it stops authorizing on the next request.
-  Future<TeachingAssignment> endAssignment(String assignmentId) => _mapped(() async {
-    final res = await dio.post<Map<String, dynamic>>(
-      '${ApiConfig.teachingAssignmentsPath}/$assignmentId/end',
-    );
-    return TeachingAssignment.fromJson(res.data!);
-  });
+  Future<TeachingAssignment> endAssignment(String assignmentId) =>
+      _mapped(() async {
+        final res = await dio.post<Map<String, dynamic>>(
+          '${ApiConfig.teachingAssignmentsPath}/$assignmentId/end',
+        );
+        return TeachingAssignment.fromJson(res.data!);
+      });
 
   // --- Timetable ------------------------------------------------------------
 

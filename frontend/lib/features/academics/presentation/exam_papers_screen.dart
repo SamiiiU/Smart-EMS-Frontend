@@ -64,10 +64,13 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
 
   /// exam.manage on the exam's own campus (ADR-001). The server re-checks.
   bool get _canManage {
-    final options = CampusScope.maybeOf(context)?.options ?? const <CampusOption>[];
-    return options.any((c) =>
-        c.permissions.contains('exam.manage') &&
-        (widget.exam.campusId == null || c.id == widget.exam.campusId));
+    final options =
+        CampusScope.maybeOf(context)?.options ?? const <CampusOption>[];
+    return options.any(
+      (c) =>
+          c.permissions.contains('exam.manage') &&
+          (widget.exam.campusId == null || c.id == widget.exam.campusId),
+    );
   }
 
   @override
@@ -262,7 +265,6 @@ class ExamPapersScreenState extends State<ExamPapersScreen> {
               ),
             ),
           ),
-
       ],
     );
   }
@@ -358,4 +360,3 @@ class _PaperRow extends StatelessWidget {
     );
   }
 }
-

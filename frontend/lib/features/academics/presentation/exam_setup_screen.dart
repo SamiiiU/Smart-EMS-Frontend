@@ -8,7 +8,8 @@ import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../setup/domain/setup_models.dart';
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/academics_repository.dart';
@@ -57,22 +58,27 @@ class ExamSetupScreenState extends State<ExamSetupScreen> {
   }
 
   Future<void> _load() async {
-    setState(() =>
-        _state = ScreenState<List<Exam>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<Exam>>.loading(previous: _state.data),
+    );
     try {
-      final exams =
-          await widget.repository.loadExams(academicYearId: widget.year.id);
+      final exams = await widget.repository.loadExams(
+        academicYearId: widget.year.id,
+      );
       if (!mounted) return;
       setState(() => _state = ScreenState<List<Exam>>.data(exams));
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Exam>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Exam>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -111,7 +117,8 @@ class ExamSetupScreenState extends State<ExamSetupScreen> {
           addLabel: 'Add an exam',
           canSubmit: _name.trim().isNotEmpty,
           onSubmit: _create,
-          confirmNote: 'An exam cannot be renamed or removed afterwards — '
+          confirmNote:
+              'An exam cannot be renamed or removed afterwards — '
               'this system has no edit or delete for one.',
           fields: [
             SetupField(
@@ -127,8 +134,9 @@ class ExamSetupScreenState extends State<ExamSetupScreen> {
                 children: [
                   Text(
                     'Term (optional)',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   // Only the six values the backend accepts. An unlisted
@@ -158,7 +166,8 @@ class ExamSetupScreenState extends State<ExamSetupScreen> {
             state: _state,
             onRetry: _load,
             emptyTitle: 'No exams yet',
-            emptyMessage: 'An exam holds one paper per subject per section. '
+            emptyMessage:
+                'An exam holds one paper per subject per section. '
                 'Marks are entered against those papers.',
             emptyIcon: Icons.assignment_outlined,
             data: (context, exams) => ListView(
@@ -171,7 +180,7 @@ class ExamSetupScreenState extends State<ExamSetupScreen> {
                         MaterialPageRoute<void>(
                           builder: (_) => ExamPapersScreen(
                             repository: widget.repository,
-                                                  exam: exam,
+                            exam: exam,
                             sections: widget.sections,
                             classes: widget.classes,
                             subjects: widget.subjects,
@@ -202,7 +211,8 @@ class _ExamRow extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: '${exam.name}, '
+      label:
+          '${exam.name}, '
           '${exam.status.label}',
       child: GestureDetector(
         onTap: onTap,
@@ -223,21 +233,24 @@ class _ExamRow extends StatelessWidget {
               children: [
                 Text(
                   exam.name,
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 if (exam.term != null)
                   Text(
                     exam.termLabel,
-                    style: AppTypography.bodyAdminMeta
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.bodyAdminMeta.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                 StatusPill(status: exam.status.pill, size: StatusPillSize.sm),
                 if (exam.marksLocked)
                   Text(
                     'Marks locked',
-                    style: AppTypography.bodyAdminMeta
-                        .copyWith(color: t.warningTextOnBg),
+                    style: AppTypography.bodyAdminMeta.copyWith(
+                      color: t.warningTextOnBg,
+                    ),
                   ),
               ],
             ),

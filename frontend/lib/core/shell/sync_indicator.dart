@@ -25,31 +25,36 @@ class SyncIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
 
-    final (IconData icon, Color bg, Color fg, Color iconColour, String label) =
-        switch (status.state) {
+    final (
+      IconData icon,
+      Color bg,
+      Color fg,
+      Color iconColour,
+      String label,
+    ) = switch (status.state) {
       SyncState.synced => (
-          Icons.check_circle_outline,
-          t.successBg,
-          t.successTextOnBg,
-          t.success,
-          'Synced',
-        ),
+        Icons.check_circle_outline,
+        t.successBg,
+        t.successTextOnBg,
+        t.success,
+        'Synced',
+      ),
       SyncState.syncing => (
-          Icons.sync,
-          t.surfaceSunken,
-          t.textSecondary,
-          t.textSecondary,
-          'Syncing…',
-        ),
+        Icons.sync,
+        t.surfaceSunken,
+        t.textSecondary,
+        t.textSecondary,
+        'Syncing…',
+      ),
       SyncState.offline => (
-          Icons.cloud_off_outlined,
-          t.warningBg,
-          t.warningTextOnBg,
-          t.warning,
-          status.pendingCount > 0
-              ? 'Offline · ${status.pendingCount} pending'
-              : 'Offline',
-        ),
+        Icons.cloud_off_outlined,
+        t.warningBg,
+        t.warningTextOnBg,
+        t.warning,
+        status.pendingCount > 0
+            ? 'Offline · ${status.pendingCount} pending'
+            : 'Offline',
+      ),
     };
 
     return Semantics(
@@ -69,10 +74,7 @@ class SyncIndicator extends StatelessWidget {
           children: [
             Icon(icon, size: AppSpacing.space6, color: iconColour),
             const SizedBox(width: AppSpacing.space2),
-            Text(
-              label,
-              style: AppTypography.overline.copyWith(color: fg),
-            ),
+            Text(label, style: AppTypography.overline.copyWith(color: fg)),
           ],
         ),
       ),

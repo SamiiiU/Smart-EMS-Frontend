@@ -84,18 +84,17 @@ enum ComplaintStatus {
   }
 
   /// The statuses a staff member can move a complaint TO.
-  static List<ComplaintStatus> get settable =>
-      [inProgress, resolved, closed];
+  static List<ComplaintStatus> get settable => [inProgress, resolved, closed];
 
   bool get isFinished =>
       this == ComplaintStatus.resolved || this == ComplaintStatus.closed;
 
   AppStatus get pill => switch (this) {
-        ComplaintStatus.open => AppStatus.notStarted,
-        ComplaintStatus.inProgress => AppStatus.partial,
-        ComplaintStatus.resolved => AppStatus.complete,
-        ComplaintStatus.closed => AppStatus.inactive,
-      };
+    ComplaintStatus.open => AppStatus.notStarted,
+    ComplaintStatus.inProgress => AppStatus.partial,
+    ComplaintStatus.resolved => AppStatus.complete,
+    ComplaintStatus.closed => AppStatus.inactive,
+  };
 }
 
 class Complaint {
@@ -117,23 +116,23 @@ class Complaint {
   });
 
   factory Complaint.fromJson(Map<String, dynamic> json) => Complaint(
-        id: json['id'] as String,
-        subject: json['subject'] as String? ?? '',
-        description: json['description'] as String? ?? '',
-        category: json['category'] as String? ?? '',
-        priority: ComplaintPriority.parse(json['priority'] as String?),
-        status: ComplaintStatus.parse(json['status'] as String?),
-        isAnonymous: json['is_anonymous'] as bool? ?? false,
-        createdAt: json['created_at'] as String? ?? '',
-        assignedToStaffId: json['assigned_to_staff_id'] as String?,
-        // Null for an anonymous complaint, at every role's view — the
-        // backend does not store it, so there is nothing to leak.
-        raisedByUserId: json['raised_by_user_id'] as String?,
-        dueBy: json['due_by'] as String?,
-        resolutionNote: json['resolution_note'] as String?,
-        resolvedAt: json['resolved_at'] as String?,
-        satisfactionRating: json['satisfaction_rating'] as int?,
-      );
+    id: json['id'] as String,
+    subject: json['subject'] as String? ?? '',
+    description: json['description'] as String? ?? '',
+    category: json['category'] as String? ?? '',
+    priority: ComplaintPriority.parse(json['priority'] as String?),
+    status: ComplaintStatus.parse(json['status'] as String?),
+    isAnonymous: json['is_anonymous'] as bool? ?? false,
+    createdAt: json['created_at'] as String? ?? '',
+    assignedToStaffId: json['assigned_to_staff_id'] as String?,
+    // Null for an anonymous complaint, at every role's view — the
+    // backend does not store it, so there is nothing to leak.
+    raisedByUserId: json['raised_by_user_id'] as String?,
+    dueBy: json['due_by'] as String?,
+    resolutionNote: json['resolution_note'] as String?,
+    resolvedAt: json['resolved_at'] as String?,
+    satisfactionRating: json['satisfaction_rating'] as int?,
+  );
 
   final String id;
   final String subject;
@@ -165,9 +164,11 @@ class Complaint {
   int ageInDays(DateTime today) {
     final created = DateTime.tryParse(createdAt);
     if (created == null) return 0;
-    final days = DateTime(today.year, today.month, today.day)
-        .difference(DateTime(created.year, created.month, created.day))
-        .inDays;
+    final days = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).difference(DateTime(created.year, created.month, created.day)).inDays;
     return days < 0 ? 0 : days;
   }
 }

@@ -76,8 +76,12 @@ class SecurePaymentIntentStore implements PaymentIntentStore {
   @override
   Future<void> write(String owner, PaymentIntent intent) {
     ensureSecureStorageWebPlatform();
-    return storage.write(key: _key(owner, intent.invoiceId), value: intent.encode());
+    return storage.write(
+      key: _key(owner, intent.invoiceId),
+      value: intent.encode(),
+    );
   }
+
   @override
   Future<void> remove(String owner, String invoice) {
     ensureSecureStorageWebPlatform();

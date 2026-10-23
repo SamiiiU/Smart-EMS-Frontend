@@ -5,12 +5,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// A campus the signed-in user may act in, with permissions from the grants
 /// that cover THAT campus (`GET /api/campuses/mine`, ADR-011).
 class CampusOption {
-  const CampusOption({required this.id, required this.name, required this.permissions});
+  const CampusOption({
+    required this.id,
+    required this.name,
+    required this.permissions,
+  });
 
   factory CampusOption.fromJson(Map json) => CampusOption(
     id: json['id'] as String,
     name: json['name'] as String? ?? '',
-    permissions: ((json['permissions'] as List?) ?? const []).cast<String>().toSet(),
+    permissions: ((json['permissions'] as List?) ?? const [])
+        .cast<String>()
+        .toSet(),
   );
 
   final String id;
@@ -27,8 +33,10 @@ class CampusOption {
 /// Mutations must use [requireCampus], which refuses All Campuses: a
 /// campus-specific write is never inferred from first/last/all.
 class CampusContext extends ChangeNotifier {
-  CampusContext({required this.dio, Future<SharedPreferences> Function()? prefs})
-      : _prefs = prefs ?? SharedPreferences.getInstance;
+  CampusContext({
+    required this.dio,
+    Future<SharedPreferences> Function()? prefs,
+  }) : _prefs = prefs ?? SharedPreferences.getInstance;
 
   final Dio dio;
   final Future<SharedPreferences> Function() _prefs;
@@ -43,17 +51,22 @@ class CampusContext extends ChangeNotifier {
 
   /// Null = All Campuses (only possible when [allowAllCampuses]).
   String? get selectedId => _selected;
-  CampusOption? get selected => _options.where((o) => o.id == _selected).firstOrNull;
+  CampusOption? get selected =>
+      _options.where((o) => o.id == _selected).firstOrNull;
 
   /// The explicit campus a campus-specific mutation must target.
   String requireCampus() {
     final id = _selected;
-    if (id == null) throw StateError('Choose a specific campus before making this change.');
+    if (id == null)
+      throw StateError('Choose a specific campus before making this change.');
     return id;
   }
 
   /// Called at login, restore, resume and workspace switch.
-  Future<void> load({required String? tenantId, required String? userId}) async {
+  Future<void> load({
+    required String? tenantId,
+    required String? userId,
+  }) async {
     if (tenantId == null || userId == null) return clear();
     final key = 'campus:$tenantId:$userId';
     final Response<dynamic> res;
@@ -80,13 +93,17 @@ class CampusContext extends ChangeNotifier {
       if (saved != null) await prefs.remove(key); // revoked: forget it
       // Only an unambiguous single campus is preselected; otherwise the user
       // chooses (never the first/last campus by accident).
-      _selected = !_allowAll && _options.length == 1 ? _options.single.id : null;
+      _selected = !_allowAll && _options.length == 1
+          ? _options.single.id
+          : null;
     }
     notifyListeners();
   }
 
   Future<void> select(String? campusId) async {
-    if (campusId == null ? !_allowAll : !_options.any((o) => o.id == campusId)) {
+    if (campusId == null
+        ? !_allowAll
+        : !_options.any((o) => o.id == campusId)) {
       throw StateError('That campus is not available to this account.');
     }
     _selected = campusId;
@@ -114,8 +131,11 @@ class CampusContext extends ChangeNotifier {
 /// Exposes the campus context to More (switcher) and any screen that needs
 /// the chosen campus, rebuilding them when it changes.
 class CampusScope extends InheritedNotifier<CampusContext> {
-  const CampusScope({required CampusContext campus, required super.child, super.key})
-      : super(notifier: campus);
+  const CampusScope({
+    required CampusContext campus,
+    required super.child,
+    super.key,
+  }) : super(notifier: campus);
 
   static CampusContext? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<CampusScope>()?.notifier;
@@ -129,7 +149,8 @@ String? explicitCampusFor(BuildContext context, List<String> candidateIds) {
   final campus = CampusScope.maybeOf(context);
   final selected = campus?.selectedId;
   if (selected != null && candidateIds.contains(selected)) return selected;
-  if (candidateIds.length == 1 && (campus == null || campus.options.length <= 1)) {
+  if (candidateIds.length == 1 &&
+      (campus == null || campus.options.length <= 1)) {
     return candidateIds.single;
   }
   return null;

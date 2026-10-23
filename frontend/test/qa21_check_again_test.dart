@@ -25,56 +25,105 @@ class _MutableResolver implements IdentityResolver {
   }
 }
 
-const _noRole = IdentityResult(IdentityResultKind.linked, roles: [], userId: 'u', tenantId: 't',
-    permissions: [], permissionsKnown: true);
-const _finance = IdentityResult(IdentityResultKind.linked,
-    roles: ['finance_staff'],
-    userId: 'u',
-    tenantId: 't',
-    permissions: ['fee.view', 'fee.manage'],
-    grants: [GrantScope(role: 'finance_staff', campusId: 'B', permissions: ['fee.view', 'fee.manage'])],
-    permissionsKnown: true);
+const _noRole = IdentityResult(
+  IdentityResultKind.linked,
+  roles: [],
+  userId: 'u',
+  tenantId: 't',
+  permissions: [],
+  permissionsKnown: true,
+);
+const _finance = IdentityResult(
+  IdentityResultKind.linked,
+  roles: ['finance_staff'],
+  userId: 'u',
+  tenantId: 't',
+  permissions: ['fee.view', 'fee.manage'],
+  grants: [
+    GrantScope(
+      role: 'finance_staff',
+      campusId: 'B',
+      permissions: ['fee.view', 'fee.manage'],
+    ),
+  ],
+  permissionsKnown: true,
+);
 
 NavDestination _d(String id, String label) => NavDestination(
-    id: id, label: label, icon: Icons.circle, route: '/$id', builder: (_) => Center(child: Text('$label screen')));
+  id: id,
+  label: label,
+  icon: Icons.circle,
+  route: '/$id',
+  builder: (_) => Center(child: Text('$label screen')),
+);
 
-Future<(AuthState, _MutableResolver)> _app(WidgetTester tester, IdentityResult first) async {
-  final store = InMemoryTokenStore(accessToken: 'a', refreshToken: 'r', institutionCode: 'north');
+Future<(AuthState, _MutableResolver)> _app(
+  WidgetTester tester,
+  IdentityResult first,
+) async {
+  final store = InMemoryTokenStore(
+    accessToken: 'a',
+    refreshToken: 'r',
+    institutionCode: 'north',
+  );
   final resolver = _MutableResolver(first);
   final auth = AuthState(tokenStore: store, identityResolver: resolver);
   final router = buildRouter(
     authState: auth,
     repository: AuthRepository(dio: Dio(), tokenStore: store),
-    adminDestinations: (_) => [_d('dashboard', 'Dashboard'), _d('fees', 'Fees'), _d('more', 'More')],
+    adminDestinations: (_) => [
+      _d('dashboard', 'Dashboard'),
+      _d('fees', 'Fees'),
+      _d('more', 'More'),
+    ],
     syncStatusSource: const StaticSyncStatusSource(),
   );
-  await tester.pumpWidget(MaterialApp.router(theme: AppTheme.light(role: AppRole.admin), routerConfig: router));
+  await tester.pumpWidget(
+    MaterialApp.router(
+      theme: AppTheme.light(role: AppRole.admin),
+      routerConfig: router,
+    ),
+  );
   await auth.restore();
   await tester.pumpAndSettle();
   return (auth, resolver);
 }
 
 void main() {
-  testWidgets('no role → No access; Check again with still no role stays there', (tester) async {
-    final (_, resolver) = await _app(tester, _noRole);
-    expect(find.text('Your account has no access here yet'), findsOneWidget);
-    final before = resolver.calls;
-    await tester.tap(find.byKey(const Key('no-access-check')));
-    await tester.pumpAndSettle();
-    expect(resolver.calls, before + 1, reason: 'Check again asks the server');
-    expect(find.text('Your account has no access here yet'), findsOneWidget);
-  });
+  testWidgets(
+    'no role → No access; Check again with still no role stays there',
+    (tester) async {
+      final (_, resolver) = await _app(tester, _noRole);
+      expect(find.text('Your account has no access here yet'), findsOneWidget);
+      final before = resolver.calls;
+      await tester.tap(find.byKey(const Key('no-access-check')));
+      await tester.pumpAndSettle();
+      expect(resolver.calls, before + 1, reason: 'Check again asks the server');
+      expect(find.text('Your account has no access here yet'), findsOneWidget);
+    },
+  );
 
-  testWidgets('role restored → Check again shows the authorized workspace, no restart', (tester) async {
-    final (_, resolver) = await _app(tester, _noRole);
-    expect(find.text('Your account has no access here yet'), findsOneWidget);
-    resolver.result = _finance;
-    await tester.tap(find.byKey(const Key('no-access-check')));
-    await tester.pumpAndSettle();
-    expect(find.text('Your account has no access here yet'), findsNothing);
-    expect(find.text('Fees screen'), findsOneWidget, reason: 'lands on the first authorized destination');
-    expect(find.text('Dashboard screen'), findsNothing, reason: 'fee.* alone does not unlock the dashboard');
-  });
+  testWidgets(
+    'role restored → Check again shows the authorized workspace, no restart',
+    (tester) async {
+      final (_, resolver) = await _app(tester, _noRole);
+      expect(find.text('Your account has no access here yet'), findsOneWidget);
+      resolver.result = _finance;
+      await tester.tap(find.byKey(const Key('no-access-check')));
+      await tester.pumpAndSettle();
+      expect(find.text('Your account has no access here yet'), findsNothing);
+      expect(
+        find.text('Fees screen'),
+        findsOneWidget,
+        reason: 'lands on the first authorized destination',
+      );
+      expect(
+        find.text('Dashboard screen'),
+        findsNothing,
+        reason: 'fee.* alone does not unlock the dashboard',
+      );
+    },
+  );
 
   testWidgets('repeated taps do not loop or stack screens', (tester) async {
     final (_, resolver) = await _app(tester, _noRole);
@@ -88,18 +137,34 @@ void main() {
     expect(resolver.calls, lessThanOrEqualTo(5));
   });
 
-  testWidgets('server unavailable (503) keeps the session and the screen; it is not a sign-out', (tester) async {
-    final (auth, resolver) = await _app(tester, _noRole);
-    resolver.result = const IdentityResult(IdentityResultKind.error, message: 'down', temporary: true);
-    await tester.tap(find.byKey(const Key('no-access-check')));
-    await tester.pumpAndSettle();
-    expect(auth.isSignedIn, isTrue, reason: 'a temporary outage never signs the user out');
-    expect(find.text('Your account has no access here yet'), findsOneWidget);
-  });
+  testWidgets(
+    'server unavailable (503) keeps the session and the screen; it is not a sign-out',
+    (tester) async {
+      final (auth, resolver) = await _app(tester, _noRole);
+      resolver.result = const IdentityResult(
+        IdentityResultKind.error,
+        message: 'down',
+        temporary: true,
+      );
+      await tester.tap(find.byKey(const Key('no-access-check')));
+      await tester.pumpAndSettle();
+      expect(
+        auth.isSignedIn,
+        isTrue,
+        reason: 'a temporary outage never signs the user out',
+      );
+      expect(find.text('Your account has no access here yet'), findsOneWidget);
+    },
+  );
 
-  testWidgets('revoked session → sign-in, no cached permissions kept', (tester) async {
+  testWidgets('revoked session → sign-in, no cached permissions kept', (
+    tester,
+  ) async {
     final (auth, resolver) = await _app(tester, _noRole);
-    resolver.result = const IdentityResult(IdentityResultKind.error, message: 'expired');
+    resolver.result = const IdentityResult(
+      IdentityResultKind.error,
+      message: 'expired',
+    );
     await tester.tap(find.byKey(const Key('no-access-check')));
     await tester.pumpAndSettle();
     expect(auth.isSignedIn, isFalse);

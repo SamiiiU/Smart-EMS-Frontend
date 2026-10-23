@@ -81,8 +81,9 @@ class ConfirmDialog extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: AppTypography.cardHeading
-                  .copyWith(color: irreversible ? t.danger : t.textPrimary),
+              style: AppTypography.cardHeading.copyWith(
+                color: irreversible ? t.danger : t.textPrimary,
+              ),
             ),
           ),
         ],
@@ -105,7 +106,11 @@ class ConfirmDialog extends StatelessWidget {
         ],
       ),
       actionsPadding: const EdgeInsets.fromLTRB(
-        AppSpacing.space5, 0, AppSpacing.space5, AppSpacing.space5),
+        AppSpacing.space5,
+        0,
+        AppSpacing.space5,
+        AppSpacing.space5,
+      ),
       actions: [
         Wrap(
           alignment: WrapAlignment.end,

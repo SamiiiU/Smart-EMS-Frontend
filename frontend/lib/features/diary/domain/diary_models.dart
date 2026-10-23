@@ -21,16 +21,16 @@ class DiaryEntry {
   });
 
   factory DiaryEntry.fromJson(Map<String, dynamic> json) => DiaryEntry(
-        id: json['id'] as String,
-        sectionId: json['sectionId'] as String? ?? '',
-        diaryDate: json['diaryDate'] as String? ?? '',
-        subjectId: json['subjectId'] as String?,
-        title: json['title'] as String?,
-        homework: json['homework'] as String?,
-        classwork: json['classwork'] as String?,
-        note: json['note'] as String?,
-        authorName: json['authorName'] as String?,
-      );
+    id: json['id'] as String,
+    sectionId: json['sectionId'] as String? ?? '',
+    diaryDate: json['diaryDate'] as String? ?? '',
+    subjectId: json['subjectId'] as String?,
+    title: json['title'] as String?,
+    homework: json['homework'] as String?,
+    classwork: json['classwork'] as String?,
+    note: json['note'] as String?,
+    authorName: json['authorName'] as String?,
+  );
 
   final String id;
   final String sectionId;
@@ -62,11 +62,11 @@ class DiaryDraft {
   });
 
   factory DiaryDraft.fromEntry(DiaryEntry e) => DiaryDraft(
-        title: e.title ?? '',
-        homework: e.homework ?? '',
-        classwork: e.classwork ?? '',
-        note: e.note ?? '',
-      );
+    title: e.title ?? '',
+    homework: e.homework ?? '',
+    classwork: e.classwork ?? '',
+    note: e.note ?? '',
+  );
 
   final String title;
   final String homework;
@@ -84,22 +84,21 @@ class DiaryDraft {
     String? homework,
     String? classwork,
     String? note,
-  }) =>
-      DiaryDraft(
-        title: title ?? this.title,
-        homework: homework ?? this.homework,
-        classwork: classwork ?? this.classwork,
-        note: note ?? this.note,
-      );
+  }) => DiaryDraft(
+    title: title ?? this.title,
+    homework: homework ?? this.homework,
+    classwork: classwork ?? this.classwork,
+    note: note ?? this.note,
+  );
 
   /// Blank → null on the wire, so an emptied field is an explicit clear, and
   /// every key is present on every request.
   Map<String, dynamic> toFields() => {
-        'title': _orNull(title),
-        'homework': _orNull(homework),
-        'classwork': _orNull(classwork),
-        'note': _orNull(note),
-      };
+    'title': _orNull(title),
+    'homework': _orNull(homework),
+    'classwork': _orNull(classwork),
+    'note': _orNull(note),
+  };
 
   static String? _orNull(String s) => s.trim().isEmpty ? null : s.trim();
 }

@@ -85,8 +85,10 @@ void main() {
     final years = await setup.loadYears();
     final year = years.firstWhere((y) => y.current, orElse: () => years.first);
     final sections = await setup.loadSections();
-    final section = sections.firstWhere((s) => s.academicYearId == year.id,
-        orElse: () => sections.first);
+    final section = sections.firstWhere(
+      (s) => s.academicYearId == year.id,
+      orElse: () => sections.first,
+    );
     final subject = (await setup.loadSubjects()).first;
 
     // 1 · Exam
@@ -96,8 +98,11 @@ void main() {
       name: 'E2E Exam $stamp',
       term: ExamTerm.firstTerm,
     );
-    expect(exam.academicYearId, year.id,
-        reason: 'the exam must store the year it was given');
+    expect(
+      exam.academicYearId,
+      year.id,
+      reason: 'the exam must store the year it was given',
+    );
     expect(exam.status, ExamStatus.draft);
     expect(exam.marksLocked, isFalse);
 
@@ -116,8 +121,11 @@ void main() {
 
     // 3 · The roster the marks screen loads
     final roster = await academics.loadRoster(section.id);
-    expect(roster, isNotEmpty,
-        reason: 'the section must have an enrolled student to mark');
+    expect(
+      roster,
+      isNotEmpty,
+      reason: 'the section must have an enrolled student to mark',
+    );
     final student = roster.first;
 
     // 4 · One mark — and the result comes back computed
@@ -133,8 +141,11 @@ void main() {
     expect(result.totalMarks, Marks.parse('85.50'));
     expect(result.totalMarks.hundredths, 8550);
     expect(result.percentage, Marks.parse('85.50'));
-    expect(result.grade, isNotEmpty,
-        reason: 'a grade is assigned even though no scheme can be created');
+    expect(
+      result.grade,
+      isNotEmpty,
+      reason: 'a grade is assigned even though no scheme can be created',
+    );
     expect(result.status, ResultStatus.pass);
 
     // 5 · Over the maximum is refused, with a message worth showing
@@ -172,7 +183,9 @@ void main() {
     // 8 · No report card before publishing — that is "not ready", not an error
     expect(
       await academics.loadReportCard(
-          examId: exam.id, studentId: student.studentId),
+        examId: exam.id,
+        studentId: student.studentId,
+      ),
       isNull,
     );
 
@@ -250,15 +263,17 @@ void main() {
     );
     expect(remark.isParentVisible, isFalse);
     expect(
-      (await academics.loadSectionRemarks(section.id))
-          .any((r) => r.id == remark.id),
+      (await academics.loadSectionRemarks(
+        section.id,
+      )).any((r) => r.id == remark.id),
       isTrue,
     );
 
     await academics.deleteRemark(remark.id);
     expect(
-      (await academics.loadSectionRemarks(section.id))
-          .any((r) => r.id == remark.id),
+      (await academics.loadSectionRemarks(
+        section.id,
+      )).any((r) => r.id == remark.id),
       isFalse,
       reason: 'remarks are the one thing here that can be corrected',
     );

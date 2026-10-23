@@ -8,7 +8,8 @@ import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../../core/widgets/status_pill.dart';
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/academics_repository.dart';
 import '../domain/academic_models.dart';
@@ -60,8 +61,11 @@ class ResultsScreenState extends State<ResultsScreen> {
   }
 
   Future<void> load() async {
-    setState(() => _state =
-        ScreenState<List<StudentResult>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<StudentResult>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final rows = await widget.repository.loadSectionResults(
         examId: widget.exam.id,
@@ -72,12 +76,15 @@ class ResultsScreenState extends State<ResultsScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<StudentResult>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<StudentResult>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -91,7 +98,8 @@ class ResultsScreenState extends State<ResultsScreen> {
           ? null
           : const InlineAlert(
               tone: InlineAlertTone.info,
-              message: 'These results update as marks are entered. A learner '
+              message:
+                  'These results update as marks are entered. A learner '
                   'with a missing mark is shown as incomplete, never as zero. '
                   'Results become visible to learners and guardians only after '
                   'moderation, approval and publication.',
@@ -115,7 +123,8 @@ class ResultsScreenState extends State<ResultsScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'No results yet',
-            emptyMessage: 'Results appear as soon as marks are entered for '
+            emptyMessage:
+                'Results appear as soon as marks are entered for '
                 'this section.',
             emptyIcon: Icons.school_outlined,
             data: (context, rows) => ListView(
@@ -203,18 +212,23 @@ class ResultRow extends StatelessWidget {
               if (result.withheld)
                 Text(
                   'Withheld${result.withheldReason == null ? '' : ': ${result.withheldReason}'}',
-                  style: AppTypography.bodyAdminMeta.copyWith(color: t.warningTextOnBg),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.warningTextOnBg,
+                  ),
                 ),
               if (result.currentVersion != null && result.currentVersion! > 1)
                 Text(
                   'Corrected · version ${result.currentVersion}',
-                  style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
               if (result.isBorderline)
                 Text(
                   'Close to the line',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.warningTextOnBg),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.warningTextOnBg,
+                  ),
                 ),
             ],
           ),
@@ -225,10 +239,14 @@ class ResultRow extends StatelessWidget {
             children: [
               _Figure(
                 label: 'Marks',
-                value: '${result.totalMarks.format()}'
+                value:
+                    '${result.totalMarks.format()}'
                     ' / ${result.totalMax.format()}',
               ),
-              _Figure(label: 'Percent', value: result.percentage.formatPercent()),
+              _Figure(
+                label: 'Percent',
+                value: result.percentage.formatPercent(),
+              ),
               if (result.grade.isNotEmpty)
                 _Figure(label: 'Grade', value: result.grade),
               _Figure(label: 'GPA', value: result.gradePoint.format()),
@@ -241,11 +259,17 @@ class ResultRow extends StatelessWidget {
     );
 
     if (onTap == null) {
-      return actions == null ? row : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [row, actions!]);
+      return actions == null
+          ? row
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [row, actions!],
+            );
     }
     final tappable = Semantics(
       button: true,
-      label: '${result.studentName}, '
+      label:
+          '${result.studentName}, '
           '${result.percentage.formatPercent()}, '
           'grade ${result.grade}, ${result.status.label.toLowerCase()}'
           '${result.withheld ? ', withheld' : ''}',

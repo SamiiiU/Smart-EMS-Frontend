@@ -90,7 +90,8 @@ List<NavDestination> buildAdminDestinations({
       label: 'Students',
       icon: Icons.groups_outlined,
       route: '/students',
-      builder: (context) => _StudentsFlow(admin: admin, parent: parent, setup: setup),
+      builder: (context) =>
+          _StudentsFlow(admin: admin, parent: parent, setup: setup),
     ),
     NavDestination(
       id: 'setup',
@@ -106,11 +107,8 @@ List<NavDestination> buildAdminDestinations({
       label: 'Fees',
       icon: Icons.payments_outlined,
       route: '/fees',
-      builder: (context) => FinanceHomeScreen(
-        finance: finance,
-        setup: setup,
-        admin: admin,
-      ),
+      builder: (context) =>
+          FinanceHomeScreen(finance: finance, setup: setup, admin: admin),
     ),
     NavDestination(
       id: 'academics',
@@ -118,11 +116,8 @@ List<NavDestination> buildAdminDestinations({
       label: 'Academics',
       icon: Icons.school_outlined,
       route: '/academics',
-      builder: (context) => AcademicsHomeScreen(
-        academics: academics,
-        setup: setup,
-        admin: admin,
-      ),
+      builder: (context) =>
+          AcademicsHomeScreen(academics: academics, setup: setup, admin: admin),
     ),
     NavDestination(
       id: 'complaints',
@@ -130,10 +125,8 @@ List<NavDestination> buildAdminDestinations({
       label: 'Complaints',
       icon: Icons.forum_outlined,
       route: '/complaints',
-      builder: (context) => AdminComplaintsScreen(
-        repository: complaints,
-        admin: admin,
-      ),
+      builder: (context) =>
+          AdminComplaintsScreen(repository: complaints, admin: admin),
     ),
     if (attendanceReviews != null)
       NavDestination(
@@ -142,7 +135,8 @@ List<NavDestination> buildAdminDestinations({
         label: 'Attendance reviews',
         icon: Icons.rule_outlined,
         route: '/attendance-reviews',
-        builder: (context) => AttendanceReviewScreen(repository: attendanceReviews),
+        builder: (context) =>
+            AttendanceReviewScreen(repository: attendanceReviews),
       ),
     NavDestination(
       id: 'staff_attendance',
@@ -166,7 +160,8 @@ List<NavDestination> buildAdminDestinations({
       label: 'Accounts',
       icon: Icons.badge_outlined,
       route: '/accounts',
-      builder: (context) => PeopleScreen(repository: admin, currentIdentity: currentIdentity),
+      builder: (context) =>
+          PeopleScreen(repository: admin, currentIdentity: currentIdentity),
     ),
     NavDestination(
       id: 'add_user',
@@ -205,7 +200,11 @@ List<NavDestination> buildAdminDestinations({
 /// tab keeps its own state, and back returns to the roster rather than
 /// leaving the tab.
 class _StudentsFlow extends StatefulWidget {
-  const _StudentsFlow({required this.admin, required this.parent, required this.setup});
+  const _StudentsFlow({
+    required this.admin,
+    required this.parent,
+    required this.setup,
+  });
 
   final AdminRepository admin;
   final ParentRepository parent;
@@ -226,18 +225,24 @@ class _StudentsFlowState extends State<_StudentsFlow> {
         repository: widget.admin,
         onOpenStudent: (s) => setState(() => _selected = s),
         // Overhaul M4: guided admission for roles that may create students.
-        onAdmit: (CampusScope.maybeOf(context)?.options ?? const [])
-                .any((c) => c.permissions.contains('student.manage'))
-            ? () => Navigator.of(context).push(MaterialPageRoute<void>(
+        onAdmit:
+            (CampusScope.maybeOf(context)?.options ?? const []).any(
+              (c) => c.permissions.contains('student.manage'),
+            )
+            ? () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
                   builder: (_) => AdmitLearnerScreen(
                     admissions: AdmissionRepository(widget.admin.dio),
                     setup: widget.setup,
                     campuses: [
-                      for (final c in CampusScope.maybeOf(context)?.options ?? const <CampusOption>[])
+                      for (final c
+                          in CampusScope.maybeOf(context)?.options ??
+                              const <CampusOption>[])
                         if (c.permissions.contains('student.manage')) c,
                     ],
                   ),
-                ))
+                ),
+              )
             : null,
       );
     }
@@ -281,18 +286,21 @@ class _WizardLoaderState extends State<_WizardLoader> {
   }
 
   Future<void> _load() async {
-    setState(() =>
-        _state = ScreenState<List<String>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<String>>.loading(previous: _state.data),
+    );
     try {
       final ids = await widget.admin.loadCampusIds();
       if (!mounted) return;
       setState(() => _state = ScreenState<List<String>>.data(ids));
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _state = ScreenState<List<String>>.failed(
-            e is LoadFailure ? e : const LoadFailure(),
-            cached: _state.data,
-          ));
+      setState(
+        () => _state = ScreenState<List<String>>.failed(
+          e is LoadFailure ? e : const LoadFailure(),
+          cached: _state.data,
+        ),
+      );
     }
   }
 
@@ -312,11 +320,15 @@ class _WizardLoaderState extends State<_WizardLoader> {
             padding: EdgeInsets.all(24),
             child: InlineAlert(
               tone: InlineAlertTone.info,
-              message: 'Choose a campus in More → Campus before creating users.',
+              message:
+                  'Choose a campus in More → Campus before creating users.',
             ),
           );
         }
-        return CreateUserWizardScreen(repository: widget.wizard, campusId: campusId);
+        return CreateUserWizardScreen(
+          repository: widget.wizard,
+          campusId: campusId,
+        );
       },
     );
   }

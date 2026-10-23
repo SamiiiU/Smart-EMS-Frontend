@@ -760,4 +760,3 @@ class _KnownInstitution extends StatelessWidget {
     );
   }
 }
-

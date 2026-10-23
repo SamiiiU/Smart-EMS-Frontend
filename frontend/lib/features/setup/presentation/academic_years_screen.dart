@@ -47,8 +47,11 @@ class AcademicYearsScreenState extends State<AcademicYearsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _state =
-        ScreenState<List<AcademicYear>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<AcademicYear>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final years = await widget.repository.loadYears();
       if (!mounted) return;
@@ -56,12 +59,15 @@ class AcademicYearsScreenState extends State<AcademicYearsScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<AcademicYear>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<AcademicYear>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -100,7 +106,8 @@ class AcademicYearsScreenState extends State<AcademicYearsScreen> {
       title: 'Academic years',
       note: const InlineAlert(
         tone: InlineAlertTone.info,
-        message: 'The current year is set by your system administrator and '
+        message:
+            'The current year is set by your system administrator and '
             'cannot be changed in the app yet. Years created here are '
             'available to use, but will not become the current one.',
       ),
@@ -133,16 +140,18 @@ class AcademicYearsScreenState extends State<AcademicYearsScreen> {
                 !(isIsoDate(_start) && isIsoDate(_end)))
               Text(
                 'Dates must be written as YYYY-MM-DD.',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               )
             else if (isIsoDate(_start) &&
                 isIsoDate(_end) &&
                 _start.compareTo(_end) >= 0)
               Text(
                 'The end date must be after the start date.',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
           ],
         ),

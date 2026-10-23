@@ -23,7 +23,10 @@ class _Adapter implements HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(
-      RequestOptions o, Stream<List<int>>? s, Future<void>? c) async {
+    RequestOptions o,
+    Stream<List<int>>? s,
+    Future<void>? c,
+  ) async {
     requests.add(o);
     return responder(o);
   }
@@ -33,82 +36,86 @@ class _Adapter implements HttpClientAdapter {
 }
 
 ResponseBody _json(int status, Object body) => ResponseBody.fromBytes(
-      utf8.encode(jsonEncode(body)),
-      status,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+  utf8.encode(jsonEncode(body)),
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 Map<String, dynamic> _page(List<Map<String, dynamic>> rows) => {
-      'content': rows,
-      'totalElements': rows.length,
-    };
+  'content': rows,
+  'totalElements': rows.length,
+};
 
 /// Stands in for the three list endpoints `loadPeople` reads.
 _Adapter _peopleServer({bool guardiansFail = false}) => _Adapter((o) {
-      final path = o.uri.path;
-      if (path == '/api/staff') {
-        return _json(
-            200,
-            _page([
-              {
-                'id': 's1',
-                'firstName': 'Ayesha',
-                'lastName': 'Khan',
-                'employeeCode': 'EMP-002',
-                'designation': 'Teacher',
-                'userId': 'u-1',
-              },
-              {
-                'id': 's2',
-                'firstName': 'Bilal',
-                'lastName': 'Ahmed',
-                'employeeCode': 'EMP-003',
-                'userId': null,
-              },
-            ]));
-      }
-      if (path == '/api/students') {
-        return _json(
-            200,
-            _page([
-              {
-                'id': 'st1',
-                'firstName': 'Ali',
-                'lastName': 'Khan',
-                'admissionNumber': 'STU-001',
-                'status': 'active',
-                'userId': 'u-9',
-              },
-            ]));
-      }
-      if (path == '/api/guardians') {
-        if (guardiansFail) return _json(500, {'message': 'boom'});
-        return _json(
-            200,
-            _page([
-              {
-                'id': 'g1',
-                'firstName': 'Imran',
-                'lastName': 'Khan',
-                'userId': null,
-                'students': [
-                  {
-                    'studentId': 'st1',
-                    'firstName': 'Ali',
-                    'lastName': 'Khan',
-                    'relationship': 'father',
-                  },
-                ],
-              },
-            ]));
-      }
-      return _json(404, {'message': 'no route'});
-    });
+  final path = o.uri.path;
+  if (path == '/api/staff') {
+    return _json(
+      200,
+      _page([
+        {
+          'id': 's1',
+          'firstName': 'Ayesha',
+          'lastName': 'Khan',
+          'employeeCode': 'EMP-002',
+          'designation': 'Teacher',
+          'userId': 'u-1',
+        },
+        {
+          'id': 's2',
+          'firstName': 'Bilal',
+          'lastName': 'Ahmed',
+          'employeeCode': 'EMP-003',
+          'userId': null,
+        },
+      ]),
+    );
+  }
+  if (path == '/api/students') {
+    return _json(
+      200,
+      _page([
+        {
+          'id': 'st1',
+          'firstName': 'Ali',
+          'lastName': 'Khan',
+          'admissionNumber': 'STU-001',
+          'status': 'active',
+          'userId': 'u-9',
+        },
+      ]),
+    );
+  }
+  if (path == '/api/guardians') {
+    if (guardiansFail) return _json(500, {'message': 'boom'});
+    return _json(
+      200,
+      _page([
+        {
+          'id': 'g1',
+          'firstName': 'Imran',
+          'lastName': 'Khan',
+          'userId': null,
+          'students': [
+            {
+              'studentId': 'st1',
+              'firstName': 'Ali',
+              'lastName': 'Khan',
+              'relationship': 'father',
+            },
+          ],
+        },
+      ]),
+    );
+  }
+  return _json(404, {'message': 'no route'});
+});
 
 AdminRepository _repo(_Adapter a) => AdminRepository(
-    Dio(BaseOptions(baseUrl: 'http://test'))..httpClientAdapter = a);
+  Dio(BaseOptions(baseUrl: 'http://test'))..httpClientAdapter = a,
+);
 
 Widget _host(Widget child, {double textScale = 1, TextDirection? dir}) =>
     MaterialApp(
@@ -126,8 +133,9 @@ void main() {
 
   group('Accounts list', () {
     testWidgets('shows who has a login and who does not', (tester) async {
-      await tester
-          .pumpWidget(_host(PeopleScreen(repository: _repo(_peopleServer()))));
+      await tester.pumpWidget(
+        _host(PeopleScreen(repository: _repo(_peopleServer()))),
+      );
       await tester.pumpAndSettle();
 
       // Staff group is first; Bilal has no login and sorts above Ayesha.
@@ -136,23 +144,31 @@ void main() {
       expect(find.text('Has login'), findsOneWidget);
       final noLogin = tester.getCenter(find.text('No login'));
       final hasLogin = tester.getCenter(find.text('Has login'));
-      expect(noLogin.dy, lessThan(hasLogin.dy),
-          reason: 'people without a login are the ones needing action');
+      expect(
+        noLogin.dy,
+        lessThan(hasLogin.dy),
+        reason: 'people without a login are the ones needing action',
+      );
     });
 
     testWidgets('counts the people who cannot sign in', (tester) async {
-      await tester
-          .pumpWidget(_host(PeopleScreen(repository: _repo(_peopleServer()))));
+      await tester.pumpWidget(
+        _host(PeopleScreen(repository: _repo(_peopleServer()))),
+      );
       await tester.pumpAndSettle();
       // Bilal (staff) and Imran (parent) = 2 of 4.
-      expect(find.textContaining('2 of 4 people have no login'),
-          findsOneWidget);
+      expect(
+        find.textContaining('2 of 4 people have no login'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('switching group shows parents with their children',
-        (tester) async {
-      await tester
-          .pumpWidget(_host(PeopleScreen(repository: _repo(_peopleServer()))));
+    testWidgets('switching group shows parents with their children', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(PeopleScreen(repository: _repo(_peopleServer()))),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.bySemanticsLabel('Parents'));
@@ -161,10 +177,14 @@ void main() {
       expect(find.textContaining('father of Ali Khan'), findsOneWidget);
     });
 
-    testWidgets('a failed guardian lookup warns instead of hiding the list',
-        (tester) async {
-      await tester.pumpWidget(_host(
-          PeopleScreen(repository: _repo(_peopleServer(guardiansFail: true)))));
+    testWidgets('a failed guardian lookup warns instead of hiding the list', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          PeopleScreen(repository: _repo(_peopleServer(guardiansFail: true))),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Staff still loaded — the failure is partial, not fatal.
@@ -174,10 +194,12 @@ void main() {
       expect(find.textContaining('may be incomplete'), findsOneWidget);
     });
 
-    testWidgets('search filters, and says so when nothing matches',
-        (tester) async {
-      await tester
-          .pumpWidget(_host(PeopleScreen(repository: _repo(_peopleServer()))));
+    testWidgets('search filters, and says so when nothing matches', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(PeopleScreen(repository: _repo(_peopleServer()))),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'ayesha');
@@ -190,18 +212,25 @@ void main() {
       expect(find.text('Nobody yet'), findsNothing);
     });
 
-    testWidgets('says plainly that unlinked logins cannot be listed',
-        (tester) async {
-      await tester
-          .pumpWidget(_host(PeopleScreen(repository: _repo(_peopleServer()))));
+    testWidgets('says plainly that unlinked logins cannot be listed', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(PeopleScreen(repository: _repo(_peopleServer()))),
+      );
       await tester.pumpAndSettle();
-      expect(find.textContaining('never linked to a person cannot be listed'),
-          findsOneWidget);
+      expect(
+        find.textContaining('never linked to a person cannot be listed'),
+        findsOneWidget,
+      );
     });
 
     test('one guardian of two children appears once', () {
       const g = PersonAccount(
-          id: 'g1', fullName: 'Imran', group: PeopleGroup.parents);
+        id: 'g1',
+        fullName: 'Imran',
+        group: PeopleGroup.parents,
+      );
       const d = PeopleDirectory(staff: [], students: [], parents: [g]);
       expect(d.parents, hasLength(1));
       expect(d.withoutLogin, 1);
@@ -213,10 +242,11 @@ void main() {
       final controller = ThemeController();
       addTearDown(controller.dispose);
 
-      await tester.pumpWidget(_host(SettingsScreen(
-        onSignOut: () async {},
-        themeController: controller,
-      )));
+      await tester.pumpWidget(
+        _host(
+          SettingsScreen(onSignOut: () async {}, themeController: controller),
+        ),
+      );
 
       expect(find.bySemanticsLabel('System'), findsOneWidget);
       expect(find.bySemanticsLabel('Light'), findsOneWidget);
@@ -229,22 +259,26 @@ void main() {
       final restored = ThemeController();
       addTearDown(restored.dispose);
       await restored.restore();
-      expect(restored.value, ThemeMode.dark,
-          reason: 'the choice must survive a relaunch');
+      expect(
+        restored.value,
+        ThemeMode.dark,
+        reason: 'the choice must survive a relaunch',
+      );
     });
 
-    test('defaults to following the device, and survives junk on disk',
-        () async {
-      SharedPreferences.setMockInitialValues({'ui.theme_mode': 'purple'});
-      final c = ThemeController();
-      addTearDown(c.dispose);
-      await c.restore();
-      expect(c.value, ThemeMode.system);
-    });
+    test(
+      'defaults to following the device, and survives junk on disk',
+      () async {
+        SharedPreferences.setMockInitialValues({'ui.theme_mode': 'purple'});
+        final c = ThemeController();
+        addTearDown(c.dispose);
+        await c.restore();
+        expect(c.value, ThemeMode.system);
+      },
+    );
 
     testWidgets('no controller → no appearance section', (tester) async {
-      await tester
-          .pumpWidget(_host(SettingsScreen(onSignOut: () async {})));
+      await tester.pumpWidget(_host(SettingsScreen(onSignOut: () async {})));
       expect(find.text('Appearance'), findsNothing);
       expect(find.text('Sign out'), findsOneWidget);
     });
@@ -255,22 +289,25 @@ void main() {
       required IdentityResult identity,
       required List<NavDestination> destinations,
       Future<void> Function()? onSignOut,
-    }) =>
-        _host(AppShell(
-          institutionName: 'Test School',
-          destinations: destinations,
-          entitledIds: destinations.map((d) => d.id).toSet(),
-          identityResolver: StaticIdentityResolver(identity),
-          onSignOut: onSignOut,
-        ));
+    }) => _host(
+      AppShell(
+        institutionName: 'Test School',
+        destinations: destinations,
+        entitledIds: destinations.map((d) => d.id).toSet(),
+        identityResolver: StaticIdentityResolver(identity),
+        onSignOut: onSignOut,
+      ),
+    );
 
     testWidgets('the orphan screen offers sign-out', (tester) async {
       var signedOut = false;
-      await tester.pumpWidget(shell(
-        identity: const IdentityResult(IdentityResultKind.notLinked),
-        destinations: const [],
-        onSignOut: () async => signedOut = true,
-      ));
+      await tester.pumpWidget(
+        shell(
+          identity: const IdentityResult(IdentityResultKind.notLinked),
+          destinations: const [],
+          onSignOut: () async => signedOut = true,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('not been linked'), findsOneWidget);
@@ -279,45 +316,51 @@ void main() {
       expect(signedOut, isTrue);
     });
 
-    testWidgets('the identity-error screen keeps retry AND sign-out',
-        (tester) async {
-      await tester.pumpWidget(shell(
-        identity: const IdentityResult(
-          IdentityResultKind.error,
-          message: 'Timed out',
+    testWidgets('the identity-error screen keeps retry AND sign-out', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        shell(
+          identity: const IdentityResult(
+            IdentityResultKind.error,
+            message: 'Timed out',
+          ),
+          destinations: const [],
+          onSignOut: () async {},
         ),
-        destinations: const [],
-        onSignOut: () async {},
-      ));
+      );
       await tester.pumpAndSettle();
       expect(find.text('Sign out'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
 
-    testWidgets('on a phone, everything past the third tab is reachable',
-        (tester) async {
+    testWidgets('on a phone, everything past the third tab is reachable', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(400, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
       NavDestination d(String id, String label, Widget body) => NavDestination(
-            id: id,
-            label: label,
-            icon: Icons.circle_outlined,
-            route: '/$id',
-            builder: (_) => body,
-          );
+        id: id,
+        label: label,
+        icon: Icons.circle_outlined,
+        route: '/$id',
+        builder: (_) => body,
+      );
 
-      await tester.pumpWidget(shell(
-        identity: const IdentityResult(IdentityResultKind.linked),
-        destinations: [
-          d('a', 'A', const Text('A body')),
-          d('b', 'B', const Text('B body')),
-          d('c', 'C', const Text('C body')),
-          d('import', 'Import', const Text('Import body')),
-          d('more', 'More', const Text('Settings body')),
-        ],
-      ));
+      await tester.pumpWidget(
+        shell(
+          identity: const IdentityResult(IdentityResultKind.linked),
+          destinations: [
+            d('a', 'A', const Text('A body')),
+            d('b', 'B', const Text('B body')),
+            d('c', 'C', const Text('C body')),
+            d('import', 'Import', const Text('Import body')),
+            d('more', 'More', const Text('Settings body')),
+          ],
+        ),
+      );
       await tester.pumpAndSettle();
 
       // The synthesized More tab used to be a placeholder, which stranded
@@ -337,27 +380,32 @@ void main() {
 
   group('Layout', () {
     for (final width in [360.0, 768.0, 1366.0]) {
-      testWidgets('accounts + settings: no overflow at $width, 2×, RTL',
-          (tester) async {
+      testWidgets('accounts + settings: no overflow at $width, 2×, RTL', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
 
-        await tester.pumpWidget(_host(
-          PeopleScreen(repository: _repo(_peopleServer())),
-          textScale: 2,
-          dir: TextDirection.rtl,
-        ));
+        await tester.pumpWidget(
+          _host(
+            PeopleScreen(repository: _repo(_peopleServer())),
+            textScale: 2,
+            dir: TextDirection.rtl,
+          ),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
         final c = ThemeController();
         addTearDown(c.dispose);
-        await tester.pumpWidget(_host(
-          SettingsScreen(onSignOut: () async {}, themeController: c),
-          textScale: 2,
-          dir: TextDirection.rtl,
-        ));
+        await tester.pumpWidget(
+          _host(
+            SettingsScreen(onSignOut: () async {}, themeController: c),
+            textScale: 2,
+            dir: TextDirection.rtl,
+          ),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       });

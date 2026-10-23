@@ -44,8 +44,7 @@ const bool _enabled = bool.fromEnvironment('LIVE');
 
 Future<bool> _backendUp() async {
   try {
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 2);
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
     final req = await client.getUrl(Uri.parse('$_base/health'));
     final res = await req.close();
     await res.drain<void>();
@@ -57,113 +56,123 @@ Future<bool> _backendUp() async {
 }
 
 void main() {
-  test('a school is onboarded end to end, through the app’s own code',
-      () async {
-    if (!_enabled) {
-      markTestSkipped('live test — pass --dart-define=LIVE=true to run it');
-      return;
-    }
-    if (!await _backendUp()) {
-      markTestSkipped('backend not running on $_base');
-      return;
-    }
+  test(
+    'a school is onboarded end to end, through the app’s own code',
+    () async {
+      if (!_enabled) {
+        markTestSkipped('live test — pass --dart-define=LIVE=true to run it');
+        return;
+      }
+      if (!await _backendUp()) {
+        markTestSkipped('backend not running on $_base');
+        return;
+      }
 
-    final dio = Dio(BaseOptions(baseUrl: _base));
-    final login = await dio.post<Map<String, dynamic>>(
-      '/auth/login',
-      data: {
-        'institutionCode': 'test-school',
-        'username': 'admin',
-        'password': 'Test1234!',
-      },
-    );
-    dio.options.headers['Authorization'] =
-        'Bearer ${login.data!['accessToken']}';
+      final dio = Dio(BaseOptions(baseUrl: _base));
+      final login = await dio.post<Map<String, dynamic>>(
+        '/auth/login',
+        data: {
+          'institutionCode': 'test-school',
+          'username': 'admin',
+          'password': 'Test1234!',
+        },
+      );
+      dio.options.headers['Authorization'] =
+          'Bearer ${login.data!['accessToken']}';
 
-    final setup = SetupRepository(dio);
-    final admin = AdminRepository(dio);
+      final setup = SetupRepository(dio);
+      final admin = AdminRepository(dio);
 
-    final campusId = (await admin.loadCampusIds()).first;
-    final stamp =
-        DateTime.now().millisecondsSinceEpoch.toString().substring(8);
+      final campusId = (await admin.loadCampusIds()).first;
+      final stamp = DateTime.now().millisecondsSinceEpoch.toString().substring(
+        8,
+      );
 
-    // 1 · Academic year
-    final year = await setup.createYear(
-      campusId: campusId,
-      name: 'E2E $stamp',
-      startDate: '2030-08-01',
-      endDate: '2031-05-31',
-    );
-    expect((await setup.loadYears()).any((y) => y.id == year.id), isTrue);
-    // The flag the screen refuses to offer a control for.
-    expect(year.current, isFalse,
-        reason: 'a created year is never current on this backend');
+      // 1 · Academic year
+      final year = await setup.createYear(
+        campusId: campusId,
+        name: 'E2E $stamp',
+        startDate: '2030-08-01',
+        endDate: '2031-05-31',
+      );
+      expect((await setup.loadYears()).any((y) => y.id == year.id), isTrue);
+      // The flag the screen refuses to offer a control for.
+      expect(
+        year.current,
+        isFalse,
+        reason: 'a created year is never current on this backend',
+      );
 
-    // 2 · Class
-    final schoolClass = await setup.createClass(
-      campusId: campusId,
-      name: 'E2E Class $stamp',
-      levelOrder: 11,
-    );
-    expect((await setup.loadClasses()).any((c) => c.id == schoolClass.id),
-        isTrue);
+      // 2 · Class
+      final schoolClass = await setup.createClass(
+        campusId: campusId,
+        name: 'E2E Class $stamp',
+        levelOrder: 11,
+      );
+      expect(
+        (await setup.loadClasses()).any((c) => c.id == schoolClass.id),
+        isTrue,
+      );
 
-    // 3 · Section — requires the year, which is why the order matters
-    final section = await setup.createSection(
-      classId: schoolClass.id,
-      academicYearId: year.id,
-      name: 'E2E-$stamp',
-      capacity: 30,
-    );
-    expect(section.academicYearId, year.id);
+      // 3 · Section — requires the year, which is why the order matters
+      final section = await setup.createSection(
+        classId: schoolClass.id,
+        academicYearId: year.id,
+        name: 'E2E-$stamp',
+        capacity: 30,
+      );
+      expect(section.academicYearId, year.id);
 
-    // 4 · Subject
-    final subject = await setup.createSubject(
-      name: 'E2E Subject $stamp',
-      code: 'E2E$stamp',
-    );
+      // 4 · Subject
+      final subject = await setup.createSubject(
+        name: 'E2E Subject $stamp',
+        code: 'E2E$stamp',
+      );
 
-    // 5 · Teaching assignment
-    final staff = (await admin.loadPeople()).staff;
-    final teacher = staff.firstWhere((s) => s.fullName.contains('Ayesha'),
-        orElse: () => staff.first);
-    await setup.createAssignment(
-      staffId: teacher.id,
-      sectionId: section.id,
-      subjectId: subject.id,
-      academicYearId: year.id,
-    );
-    expect(await setup.loadAssignments(section.id), isNotEmpty);
+      // 5 · Teaching assignment
+      final staff = (await admin.loadPeople()).staff;
+      final teacher = staff.firstWhere(
+        (s) => s.fullName.contains('Ayesha'),
+        orElse: () => staff.first,
+      );
+      await setup.createAssignment(
+        staffId: teacher.id,
+        sectionId: section.id,
+        subjectId: subject.id,
+        academicYearId: year.id,
+      );
+      expect(await setup.loadAssignments(section.id), isNotEmpty);
 
-    // 6 · One timetable slot, on a day the seeded teacher is free
-    final periods = await setup.loadPeriods(campusId);
-    expect(periods, isNotEmpty, reason: 'the school day has periods');
-    final teaching = periods.firstWhere((p) => !p.isBreak);
+      // 6 · One timetable slot, on a day the seeded teacher is free
+      final periods = await setup.loadPeriods(campusId);
+      expect(periods, isNotEmpty, reason: 'the school day has periods');
+      final teaching = periods.firstWhere((p) => !p.isBreak);
 
-    final (slot, failure) = await setup.createSlot(
-      sectionId: section.id,
-      academicYearId: year.id,
-      periodId: teaching.id,
-      dayOfWeek: 6, // Saturday — nothing is seeded there
-      subjectId: subject.id,
-      teacherStaffId: teacher.id,
-    );
-    expect(failure, isNull, reason: failure?.message ?? '');
-    expect(slot, isNotNull);
+      final (slot, failure) = await setup.createSlot(
+        sectionId: section.id,
+        academicYearId: year.id,
+        periodId: teaching.id,
+        dayOfWeek: 6, // Saturday — nothing is seeded there
+        subjectId: subject.id,
+        teacherStaffId: teacher.id,
+      );
+      expect(failure, isNull, reason: failure?.message ?? '');
+      expect(slot, isNotNull);
 
-    final week = await setup.loadWeek(
-      sectionId: section.id,
-      academicYearId: year.id,
-    );
-    expect(week.any((s) => s.dayOfWeek == 6), isTrue);
+      final week = await setup.loadWeek(
+        sectionId: section.id,
+        academicYearId: year.id,
+      );
+      expect(week.any((s) => s.dayOfWeek == 6), isTrue);
 
-    // Cleanup
-    for (final s in week) {
-      await setup.deleteSlot(s.id);
-    }
-    await dio.delete<void>('/api/sections/${section.id}');
-    await dio.delete<void>('/api/classes/${schoolClass.id}');
-    await dio.delete<void>('/api/subjects/${subject.id}');
-    await dio.delete<void>('/api/academic-years/${year.id}');
-  });
+      // Cleanup
+      for (final s in week) {
+        await setup.deleteSlot(s.id);
+      }
+      await dio.delete<void>('/api/sections/${section.id}');
+      await dio.delete<void>('/api/classes/${schoolClass.id}');
+      await dio.delete<void>('/api/subjects/${subject.id}');
+      await dio.delete<void>('/api/academic-years/${year.id}');
+    },
+  );
 }

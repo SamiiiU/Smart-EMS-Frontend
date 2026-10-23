@@ -4,7 +4,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/finance_repository.dart';
 import '../domain/finance_models.dart';
@@ -40,8 +41,9 @@ class FeeHeadsScreenState extends State<FeeHeadsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() =>
-        _state = ScreenState<List<FeeHead>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<FeeHead>>.loading(previous: _state.data),
+    );
     try {
       final heads = await widget.repository.loadHeads();
       if (!mounted) return;
@@ -49,12 +51,15 @@ class FeeHeadsScreenState extends State<FeeHeadsScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<FeeHead>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<FeeHead>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -95,7 +100,8 @@ class FeeHeadsScreenState extends State<FeeHeadsScreen> {
           addLabel: 'Add a fee head',
           canSubmit: _name.trim().isNotEmpty,
           onSubmit: _create,
-          confirmNote: 'A fee head cannot be renamed or removed afterwards — '
+          confirmNote:
+              'A fee head cannot be renamed or removed afterwards — '
               'this backend has no edit or delete for them.',
           fields: [
             SetupField(
@@ -121,13 +127,15 @@ class FeeHeadsScreenState extends State<FeeHeadsScreen> {
                     children: [
                       Text(
                         'Charged every period',
-                        style: AppTypography.personName
-                            .copyWith(color: context.tokens.textPrimary),
+                        style: AppTypography.personName.copyWith(
+                          color: context.tokens.textPrimary,
+                        ),
                       ),
                       Text(
                         'Off for a one-off charge such as admission.',
-                        style: AppTypography.bodyAdminMeta
-                            .copyWith(color: context.tokens.textSecondary),
+                        style: AppTypography.bodyAdminMeta.copyWith(
+                          color: context.tokens.textSecondary,
+                        ),
                       ),
                     ],
                   ),

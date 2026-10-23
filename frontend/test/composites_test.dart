@@ -29,16 +29,16 @@ Widget host(Widget child, {bool dark = false, double width = 1024}) {
 }
 
 List<AppDataRow> sampleRows() => [
-      const AppDataRow(
-        cells: ['Ayesha Khan', '9-C', '96%'],
-        status: AppStatus.active,
-      ),
-      const AppDataRow(
-        cells: ['Bilal Mehmood', '9-C', '71%'],
-        status: AppStatus.partial,
-        tint: RowTint.warning,
-      ),
-    ];
+  const AppDataRow(
+    cells: ['Ayesha Khan', '9-C', '96%'],
+    status: AppStatus.active,
+  ),
+  const AppDataRow(
+    cells: ['Bilal Mehmood', '9-C', '71%'],
+    status: AppStatus.partial,
+    tint: RowTint.warning,
+  ),
+];
 
 void main() {
   group('ListRow — whole row is the tap target', () {
@@ -64,27 +64,33 @@ void main() {
       expect(taps, 1, reason: 'tap at the leading edge did not fire onTap');
     });
 
-    testWidgets('a tap in the empty gap between title and trailing fires onTap',
-        (tester) async {
-      var taps = 0;
-      await tester.pumpWidget(
-        host(
-          ListRow(
-            title: 'Short',
-            trailing: const StatusPill(status: AppStatus.present),
-            onTap: () => taps++,
+    testWidgets(
+      'a tap in the empty gap between title and trailing fires onTap',
+      (tester) async {
+        var taps = 0;
+        await tester.pumpWidget(
+          host(
+            ListRow(
+              title: 'Short',
+              trailing: const StatusPill(status: AppStatus.present),
+              onTap: () => taps++,
+            ),
           ),
-        ),
-      );
+        );
 
-      final rect = tester.getRect(find.byType(ListRow));
-      // Just left of the trailing pill: dead space in a naive implementation.
-      final pill = tester.getRect(find.byType(StatusPill));
-      await tester.tapAt(Offset(pill.left - 8, rect.center.dy));
-      await tester.pump();
+        final rect = tester.getRect(find.byType(ListRow));
+        // Just left of the trailing pill: dead space in a naive implementation.
+        final pill = tester.getRect(find.byType(StatusPill));
+        await tester.tapAt(Offset(pill.left - 8, rect.center.dy));
+        await tester.pump();
 
-      expect(taps, 1, reason: 'tap in the inter-child gap did not fire onTap');
-    });
+        expect(
+          taps,
+          1,
+          reason: 'tap in the inter-child gap did not fire onTap',
+        );
+      },
+    );
 
     testWidgets('respects the 56px minimum height', (tester) async {
       await tester.pumpWidget(host(const ListRow(title: 'x')));
@@ -96,8 +102,9 @@ void main() {
   });
 
   group('PeriodRow', () {
-    testWidgets('renders a break as a visible muted row, not an omission',
-        (tester) async {
+    testWidgets('renders a break as a visible muted row, not an omission', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(
           const Column(
@@ -119,10 +126,9 @@ void main() {
         host(const PeriodRow(time: '08:00', title: 'Mathematics')),
       );
       final box = tester.getSize(
-        find.ancestor(
-          of: find.text('08:00'),
-          matching: find.byType(SizedBox),
-        ).first,
+        find
+            .ancestor(of: find.text('08:00'), matching: find.byType(SizedBox))
+            .first,
       );
       expect(box.width, AppSizing.periodTimeColumnWidth);
     });
@@ -146,8 +152,9 @@ void main() {
     // `HeroCardBrand(action: ...)` does not compile. That cannot be asserted at
     // runtime, so these tests assert the observable consequence: a brand hero
     // contains no action and no gesture handling whatsoever.
-    testWidgets('brand variant carries no button and no gesture detector',
-        (tester) async {
+    testWidgets('brand variant carries no button and no gesture detector', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(
           const HeroCardBrand(
@@ -181,8 +188,9 @@ void main() {
       expect(brand, isA<HeroCard>());
     });
 
-    testWidgets('tinted variant renders its required action and it works',
-        (tester) async {
+    testWidgets('tinted variant renders its required action and it works', (
+      tester,
+    ) async {
       var taps = 0;
       await tester.pumpWidget(
         host(
@@ -225,8 +233,9 @@ void main() {
       expect(find.text('PRESENT %'), findsNWidgets(2));
     });
 
-    testWidgets('at 601px it renders as a WIDE table with one header band',
-        (tester) async {
+    testWidgets('at 601px it renders as a WIDE table with one header band', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(
           AppDataTable(
@@ -243,14 +252,12 @@ void main() {
       expect(find.text('PRESENT %'), findsOneWidget);
     });
 
-    testWidgets('exactly at the 600px breakpoint it is wide (>= is wide)',
-        (tester) async {
+    testWidgets('exactly at the 600px breakpoint it is wide (>= is wide)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(
-          AppDataTable(
-            columns: const ['Student', 'Class'],
-            rows: sampleRows(),
-          ),
+          AppDataTable(columns: const ['Student', 'Class'], rows: sampleRows()),
           width: AppSizing.tableCollapseBreakpoint,
         ),
       );
@@ -278,7 +285,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // No horizontal scrollable anywhere in the table.
-      final scrollables = tester.widgetList<Scrollable>(find.byType(Scrollable));
+      final scrollables = tester.widgetList<Scrollable>(
+        find.byType(Scrollable),
+      );
       for (final s in scrollables) {
         expect(
           s.axisDirection,
@@ -369,10 +378,12 @@ void main() {
       final size = tester.getSize(find.text('Overview').hitTestable());
       expect(size.height, lessThanOrEqualTo(AppSizing.touchTargetMin));
       final tabBox = tester.getSize(
-        find.ancestor(
-          of: find.text('Overview'),
-          matching: find.byType(Container),
-        ).first,
+        find
+            .ancestor(
+              of: find.text('Overview'),
+              matching: find.byType(Container),
+            )
+            .first,
       );
       expect(tabBox.height, greaterThanOrEqualTo(AppSizing.touchTargetMin));
     });
@@ -395,12 +406,16 @@ void main() {
       expect(find.text('Attendance is below 75%.'), findsOneWidget);
     });
 
-    testWidgets('renders every tone with an icon in both modes',
-        (tester) async {
+    testWidgets('renders every tone with an icon in both modes', (
+      tester,
+    ) async {
       for (final dark in [false, true]) {
         for (final tone in InlineAlertTone.values) {
           await tester.pumpWidget(
-            host(InlineAlert(tone: tone, message: 'm'), dark: dark),
+            host(
+              InlineAlert(tone: tone, message: 'm'),
+              dark: dark,
+            ),
           );
           expect(find.text('m'), findsOneWidget);
           expect(
@@ -409,7 +424,8 @@ void main() {
               matching: find.byType(Icon),
             ),
             findsOneWidget,
-            reason: '$tone rendered without an icon — tone would rely on '
+            reason:
+                '$tone rendered without an icon — tone would rely on '
                 'colour alone',
           );
         }
@@ -418,8 +434,9 @@ void main() {
   });
 
   group('Composites render in both modes', () {
-    testWidgets('ContextStrip, StatCard, SectionCard, HeroCards',
-        (tester) async {
+    testWidgets('ContextStrip, StatCard, SectionCard, HeroCards', (
+      tester,
+    ) async {
       for (final dark in [false, true]) {
         for (final tone in ContextStripTone.values) {
           await tester.pumpWidget(
@@ -441,7 +458,10 @@ void main() {
 
         for (final tone in StatCardTone.values) {
           await tester.pumpWidget(
-            host(StatCard(value: '1,234', label: 'l', tone: tone), dark: dark),
+            host(
+              StatCard(value: '1,234', label: 'l', tone: tone),
+              dark: dark,
+            ),
           );
           expect(find.text('1,234'), findsOneWidget);
         }
@@ -467,37 +487,40 @@ void main() {
     });
   });
 
-  group('No overflow at 360, 768 and 1366px (standing Phase 6 requirement)',
-      () {
-    for (final width in <double>[360, 768, 1366]) {
-      testWidgets('composites gallery renders clean at ${width.toInt()}px',
-          (tester) async {
-        tester.view.physicalSize = Size(width, 8000);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
+  group(
+    'No overflow at 360, 768 and 1366px (standing Phase 6 requirement)',
+    () {
+      for (final width in <double>[360, 768, 1366]) {
+        testWidgets('composites gallery renders clean at ${width.toInt()}px', (
+          tester,
+        ) async {
+          tester.view.physicalSize = Size(width, 8000);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: AppTheme.light(role: AppRole.teacher),
-            home: const Scaffold(
-              body: SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CompositesGallerySection(),
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.light(role: AppRole.teacher),
+              home: const Scaffold(
+                body: SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CompositesGallerySection(),
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-        await tester.pumpAndSettle();
+          );
+          await tester.pumpAndSettle();
 
-        // A RenderFlex overflow surfaces as a thrown exception in tests.
-        expect(
-          tester.takeException(),
-          isNull,
-          reason: 'overflow at ${width.toInt()}px',
-        );
-      });
-    }
-  });
+          // A RenderFlex overflow surfaces as a thrown exception in tests.
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'overflow at ${width.toInt()}px',
+          );
+        });
+      }
+    },
+  );
 }

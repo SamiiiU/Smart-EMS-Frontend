@@ -48,10 +48,7 @@ void main() {
       await tester.pumpWidget(
         app(
           isDark: isDark,
-          home: TokenGalleryScreen(
-            isDark: isDark,
-            onToggleBrightness: () {},
-          ),
+          home: TokenGalleryScreen(isDark: isDark, onToggleBrightness: () {}),
         ),
       );
       await tester.pumpAndSettle();

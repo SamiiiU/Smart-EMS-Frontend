@@ -60,9 +60,7 @@ Widget subject(
     onEmptyAction: onEmptyAction,
     filterDescription: filterDescription,
     onClearFilter: onClearFilter,
-    data: (context, rows) => Column(
-      children: [for (final r in rows) Text(r)],
-    ),
+    data: (context, rows) => Column(children: [for (final r in rows) Text(r)]),
   );
 }
 
@@ -74,19 +72,20 @@ void main() {
   group('Precedence rule — all ten rows', () {
     test('row 1: offline, no cached data -> OfflineState', () {
       expect(
-        resolveOutcome(const ScreenState<List<String>>.loading(
-          connection: NetworkStatus.offline,
-        )),
+        resolveOutcome(
+          const ScreenState<List<String>>.loading(
+            connection: NetworkStatus.offline,
+          ),
+        ),
         ScreenOutcome.offlineState,
       );
     });
 
     test('row 2: offline, cached data exists -> data', () {
       expect(
-        resolveOutcome(const ScreenState.data(
-          _rows,
-          connection: NetworkStatus.offline,
-        )),
+        resolveOutcome(
+          const ScreenState.data(_rows, connection: NetworkStatus.offline),
+        ),
         ScreenOutcome.data,
       );
     });
@@ -100,9 +99,9 @@ void main() {
 
     test('row 4: loading, prior data exists -> data', () {
       expect(
-        resolveOutcome(const ScreenState<List<String>>.loading(
-          previous: _rows,
-        )),
+        resolveOutcome(
+          const ScreenState<List<String>>.loading(previous: _rows),
+        ),
         ScreenOutcome.data,
       );
     });
@@ -119,10 +118,7 @@ void main() {
     test('row 6: error, cached data exists -> data', () {
       expect(
         resolveOutcome(
-          const ScreenState.failed(
-            LoadFailure(message: 'boom'),
-            cached: _rows,
-          ),
+          const ScreenState.failed(LoadFailure(message: 'boom'), cached: _rows),
         ),
         ScreenOutcome.data,
       );
@@ -130,11 +126,9 @@ void main() {
 
     test('row 7: loaded, zero rows, filter active -> FilteredEmptyState', () {
       expect(
-        resolveOutcome(const ScreenState.data(
-          <String>[],
-          isEmpty: true,
-          hasFilter: true,
-        )),
+        resolveOutcome(
+          const ScreenState.data(<String>[], isEmpty: true, hasFilter: true),
+        ),
         ScreenOutcome.filteredEmptyState,
       );
     });
@@ -159,35 +153,39 @@ void main() {
 
     test('M1: 403 with nothing cached -> PermissionDenied, never an error', () {
       expect(
-        resolveOutcome(const ScreenState<List<String>>.failed(
-          LoadFailure(kind: LoadFailureKind.forbidden),
-        )),
+        resolveOutcome(
+          const ScreenState<List<String>>.failed(
+            LoadFailure(kind: LoadFailureKind.forbidden),
+          ),
+        ),
         ScreenOutcome.permissionDeniedState,
       );
     });
 
     test('M1: 403 with cached data keeps the data (D-30)', () {
       expect(
-        resolveOutcome(const ScreenState.failed(
-          LoadFailure(kind: LoadFailureKind.forbidden),
-          cached: _rows,
-        )),
+        resolveOutcome(
+          const ScreenState.failed(
+            LoadFailure(kind: LoadFailureKind.forbidden),
+            cached: _rows,
+          ),
+        ),
         ScreenOutcome.data,
       );
     });
 
     test('row 10: otherwise -> data', () {
-      expect(
-        resolveOutcome(const ScreenState.data(_rows)),
-        ScreenOutcome.data,
-      );
+      expect(resolveOutcome(const ScreenState.data(_rows)), ScreenOutcome.data);
     });
 
     test('row 7 is checked BEFORE row 8 (D-14)', () {
       // Same zero-row state; only hasFilter differs, and it must decide.
       const empty = ScreenState.data(<String>[], isEmpty: true);
-      const filtered =
-          ScreenState.data(<String>[], isEmpty: true, hasFilter: true);
+      const filtered = ScreenState.data(
+        <String>[],
+        isEmpty: true,
+        hasFilter: true,
+      );
       expect(resolveOutcome(empty), ScreenOutcome.emptyState);
       expect(resolveOutcome(filtered), ScreenOutcome.filteredEmptyState);
     });
@@ -264,8 +262,7 @@ void main() {
         );
       });
 
-      test('THROWS for an underivable type — it does NOT default to false',
-          () {
+      test('THROWS for an underivable type — it does NOT default to false', () {
         // The whole point of D-39. Defaulting to false would silently skip
         // rows 7 and 8 and render a blank area with no explanation.
         expect(
@@ -303,29 +300,31 @@ void main() {
         );
       });
 
-      test('derivation is never reached on loading, error or offline paths',
-          () {
-        // An underivable type must not throw while loading — otherwise a
-        // profile screen would crash before it ever had data.
-        expect(
-          () => resolveOutcome(const ScreenState<_Profile>.loading()),
-          returnsNormally,
-        );
-        expect(
-          () => resolveOutcome(
-            const ScreenState<_Profile>.failed(LoadFailure(message: 'x')),
-          ),
-          returnsNormally,
-        );
-        expect(
-          () => resolveOutcome(
-            const ScreenState<_Profile>.loading(
-              connection: NetworkStatus.offline,
+      test(
+        'derivation is never reached on loading, error or offline paths',
+        () {
+          // An underivable type must not throw while loading — otherwise a
+          // profile screen would crash before it ever had data.
+          expect(
+            () => resolveOutcome(const ScreenState<_Profile>.loading()),
+            returnsNormally,
+          );
+          expect(
+            () => resolveOutcome(
+              const ScreenState<_Profile>.failed(LoadFailure(message: 'x')),
             ),
-          ),
-          returnsNormally,
-        );
-      });
+            returnsNormally,
+          );
+          expect(
+            () => resolveOutcome(
+              const ScreenState<_Profile>.loading(
+                connection: NetworkStatus.offline,
+              ),
+            ),
+            returnsNormally,
+          );
+        },
+      );
     });
 
     test('exactly one outcome — the resolver is total', () {
@@ -358,13 +357,15 @@ void main() {
   // D-30 — existing data is NEVER replaced by a state.
   // ==========================================================================
   group('D-30: data always wins over a state when data exists', () {
-    testWidgets('offline WITH cache renders rows, not OfflineState',
-        (tester) async {
+    testWidgets('offline WITH cache renders rows, not OfflineState', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        host(subject(const ScreenState.data(
-          _rows,
-          connection: NetworkStatus.offline,
-        ))),
+        host(
+          subject(
+            const ScreenState.data(_rows, connection: NetworkStatus.offline),
+          ),
+        ),
       );
 
       expect(find.text('Ayesha Khan'), findsOneWidget);
@@ -374,13 +375,18 @@ void main() {
       expect(find.byType(OfflineBanner), findsOneWidget);
     });
 
-    testWidgets('a FAILED REFRESH over existing data does not blank the list',
-        (tester) async {
+    testWidgets('a FAILED REFRESH over existing data does not blank the list', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        host(subject(const ScreenState.failed(
-          LoadFailure(message: 'Gateway timeout'),
-          cached: _rows,
-        ))),
+        host(
+          subject(
+            const ScreenState.failed(
+              LoadFailure(message: 'Gateway timeout'),
+              cached: _rows,
+            ),
+          ),
+        ),
       );
 
       // The rows survive — this is the failure mode that makes an app feel
@@ -395,9 +401,7 @@ void main() {
     testWidgets('loading over existing data keeps the rows and shows no '
         'skeleton', (tester) async {
       await tester.pumpWidget(
-        host(subject(const ScreenState<List<String>>.loading(
-          previous: _rows,
-        ))),
+        host(subject(const ScreenState<List<String>>.loading(previous: _rows))),
       );
 
       expect(find.text('Ayesha Khan'), findsOneWidget);
@@ -409,24 +413,24 @@ void main() {
 
     test('adornment is only attached when the outcome IS data', () {
       expect(
-        adornmentFor(const ScreenState<List<String>>.loading(
-          connection: NetworkStatus.offline,
-        )).any,
+        adornmentFor(
+          const ScreenState<List<String>>.loading(
+            connection: NetworkStatus.offline,
+          ),
+        ).any,
         isFalse,
         reason: 'OfflineState itself must not also carry an offline banner',
       );
       expect(
-        adornmentFor(const ScreenState.data(
-          _rows,
-          connection: NetworkStatus.offline,
-        )).showOfflineIndicator,
+        adornmentFor(
+          const ScreenState.data(_rows, connection: NetworkStatus.offline),
+        ).showOfflineIndicator,
         isTrue,
       );
       expect(
-        adornmentFor(const ScreenState.failed(
-          LoadFailure(message: 'x'),
-          cached: _rows,
-        )).showRefreshFailedNotice,
+        adornmentFor(
+          const ScreenState.failed(LoadFailure(message: 'x'), cached: _rows),
+        ).showRefreshFailedNotice,
         isTrue,
       );
     });
@@ -451,19 +455,28 @@ void main() {
 
     testWidgets('OfflineState with no cache', (tester) async {
       await tester.pumpWidget(
-        host(subject(const ScreenState<List<String>>.loading(
-          connection: NetworkStatus.offline,
-        ))),
+        host(
+          subject(
+            const ScreenState<List<String>>.loading(
+              connection: NetworkStatus.offline,
+            ),
+          ),
+        ),
       );
       expect(find.byType(OfflineState), findsOneWidget);
     });
 
-    testWidgets('ErrorState shows the backend message VERBATIM',
-        (tester) async {
+    testWidgets('ErrorState shows the backend message VERBATIM', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        host(subject(const ScreenState<List<String>>.failed(
-          LoadFailure(message: 'Attendance for this date is locked.'),
-        ))),
+        host(
+          subject(
+            const ScreenState<List<String>>.failed(
+              LoadFailure(message: 'Attendance for this date is locked.'),
+            ),
+          ),
+        ),
       );
       expect(find.byType(ErrorState), findsOneWidget);
       expect(find.text('Attendance for this date is locked.'), findsOneWidget);
@@ -476,29 +489,45 @@ void main() {
 
     testWidgets('UnlinkedProfileState on a 404 from /me', (tester) async {
       await tester.pumpWidget(
-        host(subject(const ScreenState<List<String>>.failed(
-          LoadFailure(kind: LoadFailureKind.notLinked),
-        ))),
+        host(
+          subject(
+            const ScreenState<List<String>>.failed(
+              LoadFailure(kind: LoadFailureKind.notLinked),
+            ),
+          ),
+        ),
       );
       expect(find.byType(UnlinkedProfileState), findsOneWidget);
       expect(find.byType(ErrorState), findsNothing);
     });
 
-    testWidgets('M1: PermissionDeniedState on a 403 offers no retry',
-        (tester) async {
+    testWidgets('M1: PermissionDeniedState on a 403 offers no retry', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        host(subject(const ScreenState<List<String>>.failed(
-          LoadFailure(kind: LoadFailureKind.forbidden, message: 'Forbidden'),
-        ))),
+        host(
+          subject(
+            const ScreenState<List<String>>.failed(
+              LoadFailure(
+                kind: LoadFailureKind.forbidden,
+                message: 'Forbidden',
+              ),
+            ),
+          ),
+        ),
       );
       expect(find.byType(PermissionDeniedState), findsOneWidget);
       expect(find.byType(ErrorState), findsNothing);
-      expect(find.byType(AppButton), findsNothing,
-          reason: 'retrying cannot grant a permission');
+      expect(
+        find.byType(AppButton),
+        findsNothing,
+        reason: 'retrying cannot grant a permission',
+      );
     });
 
-    testWidgets('EmptyState vs FilteredEmptyState are DISTINCT TYPES',
-        (tester) async {
+    testWidgets('EmptyState vs FilteredEmptyState are DISTINCT TYPES', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(subject(const ScreenState.data(<String>[], isEmpty: true))),
       );
@@ -506,11 +535,13 @@ void main() {
       expect(find.byType(FilteredEmptyState), findsNothing);
 
       await tester.pumpWidget(
-        host(subject(
-          const ScreenState.data(<String>[], isEmpty: true, hasFilter: true),
-          filterDescription: 'Class 9-C',
-          onClearFilter: () {},
-        )),
+        host(
+          subject(
+            const ScreenState.data(<String>[], isEmpty: true, hasFilter: true),
+            filterDescription: 'Class 9-C',
+            onClearFilter: () {},
+          ),
+        ),
       );
       expect(find.byType(FilteredEmptyState), findsOneWidget);
       expect(find.byType(EmptyState), findsNothing);
@@ -549,14 +580,16 @@ void main() {
       expect(
         find.textContaining('Retrying is not working'),
         findsOneWidget,
-        reason: 'a button that visibly does nothing is worse than one that '
+        reason:
+            'a button that visibly does nothing is worse than one that '
             'explains (D-11)',
       );
       expect(find.textContaining('connection'), findsOneWidget);
     });
 
-    testWidgets('the label changes on the first retry, before escalation',
-        (tester) async {
+    testWidgets('the label changes on the first retry, before escalation', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(ErrorState(onRetry: () {})));
       expect(find.text('Retry'), findsOneWidget);
       await tester.tap(find.byType(AppButton));
@@ -564,8 +597,9 @@ void main() {
       expect(find.text('Try again'), findsOneWidget);
     });
 
-    testWidgets('falls back to a neutral message when there is none',
-        (tester) async {
+    testWidgets('falls back to a neutral message when there is none', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(ErrorState(onRetry: () {})));
       expect(find.text('The request did not complete.'), findsOneWidget);
     });
@@ -575,11 +609,10 @@ void main() {
   // Skeleton dimensions — a mismatch is a layout jump.
   // ==========================================================================
   group('Skeleton dimensions match the real content', () {
-    testWidgets('a skeleton list row is at least listRowMinHeight',
-        (tester) async {
-      await tester.pumpWidget(
-        host(const LoadingSkeleton.listRows(count: 3)),
-      );
+    testWidgets('a skeleton list row is at least listRowMinHeight', (
+      tester,
+    ) async {
+      await tester.pumpWidget(host(const LoadingSkeleton.listRows(count: 3)));
 
       final rows = tester.widgetList<Container>(
         find.descendant(
@@ -596,7 +629,8 @@ void main() {
       expect(
         constrained.length,
         3,
-        reason: 'each skeleton row must match ListRow.minHeight '
+        reason:
+            'each skeleton row must match ListRow.minHeight '
             '(${AppSizing.listRowMinHeight}) or data arrival causes a jump',
       );
     });
@@ -623,8 +657,9 @@ void main() {
   // Reduced motion (D-29 — an accessibility requirement, not an option).
   // ==========================================================================
   group('Reduced motion', () {
-    testWidgets('shimmer is ABSENT when disableAnimations is set',
-        (tester) async {
+    testWidgets('shimmer is ABSENT when disableAnimations is set', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(const LoadingSkeleton.listRows(), reduceMotion: true),
       );
@@ -652,8 +687,9 @@ void main() {
       );
     });
 
-    testWidgets('the shimmer animates opacity only, never layout (D-05)',
-        (tester) async {
+    testWidgets('the shimmer animates opacity only, never layout (D-05)', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(const LoadingSkeleton.listRows(count: 2)));
       final before = tester.getSize(find.byType(LoadingSkeleton));
       await tester.pump(const Duration(milliseconds: 450));
@@ -661,7 +697,8 @@ void main() {
       expect(
         after,
         before,
-        reason: 'the skeleton changed size mid-animation — that is a layout '
+        reason:
+            'the skeleton changed size mid-animation — that is a layout '
             'animation, which D-05 prohibits',
       );
     });
@@ -683,17 +720,17 @@ void main() {
           expect(
             i.color,
             isNot(tokens.danger),
-            reason: 'offline is a MODE, not a fault — styling it as a failure '
+            reason:
+                'offline is a MODE, not a fault — styling it as a failure '
                 'trains users to distrust a normal condition',
           );
         }
       });
 
-      testWidgets('UnlinkedProfileState uses no danger token in $mode',
-          (tester) async {
-        await tester.pumpWidget(
-          host(const UnlinkedProfileState(), dark: dark),
-        );
+      testWidgets('UnlinkedProfileState uses no danger token in $mode', (
+        tester,
+      ) async {
+        await tester.pumpWidget(host(const UnlinkedProfileState(), dark: dark));
         final icons = tester.widgetList<Icon>(find.byType(Icon));
         expect(icons, isNotEmpty);
         for (final i in icons) {
@@ -701,22 +738,24 @@ void main() {
         }
       });
 
-      testWidgets('ErrorState, by contrast, DOES use danger in $mode',
-          (tester) async {
-        await tester.pumpWidget(
-          host(ErrorState(onRetry: () {}), dark: dark),
-        );
+      testWidgets('ErrorState, by contrast, DOES use danger in $mode', (
+        tester,
+      ) async {
+        await tester.pumpWidget(host(ErrorState(onRetry: () {}), dark: dark));
         final icons = tester.widgetList<Icon>(find.byType(Icon));
         expect(
           icons.any((i) => i.color == tokens.danger),
           isTrue,
-          reason: 'a real error should look like one — otherwise the '
+          reason:
+              'a real error should look like one — otherwise the '
               'not-an-error styling of the other two means nothing',
         );
       });
     }
 
-    testWidgets('neither offers a retry — retrying cannot help', (tester) async {
+    testWidgets('neither offers a retry — retrying cannot help', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(const OfflineState()));
       expect(find.byType(AppButton), findsNothing);
 
@@ -724,8 +763,9 @@ void main() {
       expect(find.byType(AppButton), findsNothing);
     });
 
-    testWidgets('UnlinkedProfileState points at the administrator',
-        (tester) async {
+    testWidgets('UnlinkedProfileState points at the administrator', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(const UnlinkedProfileState()));
       expect(find.textContaining('administrator'), findsOneWidget);
     });
@@ -737,11 +777,7 @@ void main() {
   group('D-19: no false affordances', () {
     test('an EmptyState action needs BOTH a label and a callback', () {
       expect(
-        () => EmptyState(
-          title: 't',
-          message: 'm',
-          actionLabel: 'Do it',
-        ),
+        () => EmptyState(title: 't', message: 'm', actionLabel: 'Do it'),
         throwsAssertionError,
         reason: 'a label with no callback is a control that does nothing',
       );
@@ -758,34 +794,41 @@ void main() {
       expect(
         find.byType(AppButton),
         findsNothing,
-        reason: 'an empty notifications list offers nothing, because there is '
+        reason:
+            'an empty notifications list offers nothing, because there is '
             'nothing the user does about it',
       );
     });
 
-    testWidgets('EmptyState with an action renders and fires it',
-        (tester) async {
+    testWidgets('EmptyState with an action renders and fires it', (
+      tester,
+    ) async {
       var tapped = 0;
       await tester.pumpWidget(
-        host(EmptyState(
-          title: 'No students yet',
-          message: 'm',
-          actionLabel: 'Import students',
-          onAction: () => tapped++,
-        )),
+        host(
+          EmptyState(
+            title: 'No students yet',
+            message: 'm',
+            actionLabel: 'Import students',
+            onAction: () => tapped++,
+          ),
+        ),
       );
       await tester.tap(find.text('Import students'));
       expect(tapped, 1);
     });
 
-    testWidgets('FilteredEmptyState ALWAYS exposes a clear action',
-        (tester) async {
+    testWidgets('FilteredEmptyState ALWAYS exposes a clear action', (
+      tester,
+    ) async {
       var cleared = 0;
       await tester.pumpWidget(
-        host(FilteredEmptyState(
-          filterDescription: 'Class 9-C',
-          onClearFilter: () => cleared++,
-        )),
+        host(
+          FilteredEmptyState(
+            filterDescription: 'Class 9-C',
+            onClearFilter: () => cleared++,
+          ),
+        ),
       );
       expect(find.byType(AppButton), findsOneWidget);
       await tester.tap(find.byType(AppButton));
@@ -842,14 +885,22 @@ void main() {
         // NOTE: textMuted is deliberately NOT tested here — it measures
         // 2.39:1 on surface and is not valid for an icon. The state icons use
         // textSecondary instead.
-        expect(contrastRatio(t.textSecondary, t.surface),
-            greaterThanOrEqualTo(aaNonText));
-        expect(contrastRatio(t.info, t.surface),
-            greaterThanOrEqualTo(aaNonText));
-        expect(contrastRatio(t.danger, t.surface),
-            greaterThanOrEqualTo(aaNonText));
-        expect(contrastRatio(t.textSecondary, t.surface),
-            greaterThanOrEqualTo(aaNonText));
+        expect(
+          contrastRatio(t.textSecondary, t.surface),
+          greaterThanOrEqualTo(aaNonText),
+        );
+        expect(
+          contrastRatio(t.info, t.surface),
+          greaterThanOrEqualTo(aaNonText),
+        );
+        expect(
+          contrastRatio(t.danger, t.surface),
+          greaterThanOrEqualTo(aaNonText),
+        );
+        expect(
+          contrastRatio(t.textSecondary, t.surface),
+          greaterThanOrEqualTo(aaNonText),
+        );
       }
     });
 
@@ -858,7 +909,8 @@ void main() {
         expect(
           contrastRatio(t.surfaceSunken, t.surface),
           greaterThan(1.05),
-          reason: 'a skeleton block invisible against its surface is not a '
+          reason:
+              'a skeleton block invisible against its surface is not a '
               'skeleton',
         );
       }
@@ -870,8 +922,9 @@ void main() {
   // ==========================================================================
   group('No overflow at 360, 768 and 1366px', () {
     for (final width in <double>[360, 768, 1366]) {
-      testWidgets('every state renders clean at ${width.toInt()}px',
-          (tester) async {
+      testWidgets('every state renders clean at ${width.toInt()}px', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 1400);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
@@ -931,8 +984,9 @@ void main() {
   });
 
   group('Typography use is correct per D-33', () {
-    testWidgets('state titles use cardHeading, bodies use bodyAdminMeta',
-        (tester) async {
+    testWidgets('state titles use cardHeading, bodies use bodyAdminMeta', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(const EmptyState(title: 'No students yet', message: 'Import.')),
       );

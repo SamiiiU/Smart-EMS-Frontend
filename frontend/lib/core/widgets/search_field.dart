@@ -68,7 +68,9 @@ class SearchField extends StatelessWidget {
               child: Text(
                 resultCount == 1 ? '1 result' : '$resultCount results',
                 key: const Key('search-count'),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.textSecondary),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: t.textSecondary),
               ),
             ),
           ),

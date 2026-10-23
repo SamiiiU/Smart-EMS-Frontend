@@ -21,7 +21,8 @@ class InstitutionAdminsScreen extends StatefulWidget {
   final InstitutionAdminRepository repository;
 
   @override
-  State<InstitutionAdminsScreen> createState() => InstitutionAdminsScreenState();
+  State<InstitutionAdminsScreen> createState() =>
+      InstitutionAdminsScreenState();
 }
 
 class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
@@ -43,21 +44,29 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final admins = await widget.repository.list();
-    final candidates = admins.failure == null ? await widget.repository.candidates() : null;
+    final candidates = admins.failure == null
+        ? await widget.repository.candidates()
+        : null;
     if (!mounted) return;
-    final current = {for (final a in admins.admins ?? const <InstitutionAdmin>[]) a.userId};
+    final current = {
+      for (final a in admins.admins ?? const <InstitutionAdmin>[]) a.userId,
+    };
     setState(() {
       _loading = false;
       _admins = admins.admins ?? const [];
       _candidates = (candidates?.candidates ?? const <AdminCandidate>[])
           .where((c) => !current.contains(c.userId))
           .toList();
-      if (_target != null && !_candidates.any((c) => c.userId == _target)) _target = null;
+      if (_target != null && !_candidates.any((c) => c.userId == _target))
+        _target = null;
       _error = admins.failure?.message ?? candidates?.failure?.message;
     });
   }
 
-  Future<void> _run(Future<LoadFailure?> Function() action, String success) async {
+  Future<void> _run(
+    Future<LoadFailure?> Function() action,
+    String success,
+  ) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -86,12 +95,15 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
     final ok = await confirmAction(
       context,
       title: 'Remove ${admin.username}?',
-      message: 'They lose Institution Admin access at once and are signed out on every device.',
+      message:
+          'They lose Institution Admin access at once and are signed out on every device.',
       confirmLabel: 'Remove',
     );
     if (!ok || !mounted) return;
-    await _run(() => widget.repository.remove(userId: admin.userId, code: _code),
-        '${admin.username} is no longer an Institution Admin and has been signed out.');
+    await _run(
+      () => widget.repository.remove(userId: admin.userId, code: _code),
+      '${admin.username} is no longer an Institution Admin and has been signed out.',
+    );
   }
 
   @override
@@ -103,7 +115,10 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.space6),
         children: [
-          const PageHeader(title: 'Institution Admins', padding: EdgeInsets.zero),
+          const PageHeader(
+            title: 'Institution Admins',
+            padding: EdgeInsets.zero,
+          ),
           const SizedBox(height: AppSpacing.space3),
           Text(
             'Only the institution owner can appoint or remove Institution Admins. '
@@ -127,14 +142,20 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
             onChanged: (v) => setState(() => _code = v),
           ),
           const SizedBox(height: AppSpacing.space6),
-          Text('Current Institution Admins',
-              style: AppTypography.sectionHeading.copyWith(color: t.textPrimary)),
+          Text(
+            'Current Institution Admins',
+            style: AppTypography.sectionHeading.copyWith(color: t.textPrimary),
+          ),
           const SizedBox(height: AppSpacing.space3),
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_admins.isEmpty)
-            Text('No Institution Admins yet.',
-                style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary))
+            Text(
+              'No Institution Admins yet.',
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
+            )
           else
             for (final a in _admins)
               Padding(
@@ -142,7 +163,12 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(a.username, style: AppTypography.personName.copyWith(color: t.textPrimary)),
+                      child: Text(
+                        a.username,
+                        style: AppTypography.personName.copyWith(
+                          color: t.textPrimary,
+                        ),
+                      ),
                     ),
                     AppButton(
                       key: Key('remove-${a.userId}'),
@@ -154,12 +180,18 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
                 ),
               ),
           const SizedBox(height: AppSpacing.space6),
-          Text('Appoint an Institution Admin',
-              style: AppTypography.sectionHeading.copyWith(color: t.textPrimary)),
+          Text(
+            'Appoint an Institution Admin',
+            style: AppTypography.sectionHeading.copyWith(color: t.textPrimary),
+          ),
           const SizedBox(height: AppSpacing.space3),
           if (!_loading && _candidates.isEmpty)
-            Text('No eligible staff account with a login was found.',
-                style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary))
+            Text(
+              'No eligible staff account with a login was found.',
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
+            )
           else
             DropdownButton<String>(
               key: const Key('institution-admin-target'),
@@ -168,7 +200,10 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
               hint: const Text('Choose a staff member'),
               items: [
                 for (final c in _candidates)
-                  DropdownMenuItem(value: c.userId, child: Text(c.name.isEmpty ? c.userId : c.name)),
+                  DropdownMenuItem(
+                    value: c.userId,
+                    child: Text(c.name.isEmpty ? c.userId : c.name),
+                  ),
               ],
               onChanged: _busy ? null : (v) => setState(() => _target = v),
             ),
@@ -178,8 +213,13 @@ class InstitutionAdminsScreenState extends State<InstitutionAdminsScreen> {
             label: _busy ? 'Working…' : 'Appoint',
             fullWidth: true,
             onPressed: canAppoint
-                ? () => _run(() => widget.repository.appoint(userId: _target!, code: _code),
-                    'Appointed. They now have Institution Admin access.')
+                ? () => _run(
+                    () => widget.repository.appoint(
+                      userId: _target!,
+                      code: _code,
+                    ),
+                    'Appointed. They now have Institution Admin access.',
+                  )
                 : null,
           ),
         ],

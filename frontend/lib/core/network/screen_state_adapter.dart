@@ -18,11 +18,7 @@ Future<ScreenState<T>> loadIntoScreenState<T>(
 }) async {
   try {
     final data = await request();
-    return ScreenState<T>.data(
-      data,
-      hasFilter: hasFilter,
-      isEmpty: isEmpty,
-    );
+    return ScreenState<T>.data(data, hasFilter: hasFilter, isEmpty: isEmpty);
   } on DioException catch (err) {
     return ScreenState<T>.failed(
       mapDioError(err),

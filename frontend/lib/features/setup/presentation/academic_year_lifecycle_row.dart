@@ -29,14 +29,16 @@ class AcademicYearLifecycleRow extends StatefulWidget {
   final VoidCallback onChanged;
 
   @override
-  State<AcademicYearLifecycleRow> createState() => AcademicYearLifecycleRowState();
+  State<AcademicYearLifecycleRow> createState() =>
+      AcademicYearLifecycleRowState();
 }
 
 class AcademicYearLifecycleRowState extends State<AcademicYearLifecycleRow> {
   bool _busy = false;
   String? _error;
 
-  String get _stateLabel => widget.year.reviewRequired || widget.year.status == null
+  String get _stateLabel =>
+      widget.year.reviewRequired || widget.year.status == null
       ? 'Needs classification'
       : widget.year.status!.label;
 
@@ -66,10 +68,13 @@ class AcademicYearLifecycleRowState extends State<AcademicYearLifecycleRow> {
       context,
       title: '${widget.year.status!.nextActionLabel} “${widget.year.name}”?',
       message: switch (next) {
-        YearStatus.active => 'The year becomes active for teaching and enrolment.',
-        YearStatus.closing => 'The year starts closing. It stays writable until it is archived.',
-        YearStatus.archived => 'Archived years are read-only: no new attendance, marks or '
-            'teaching assignments. This cannot be undone.',
+        YearStatus.active =>
+          'The year becomes active for teaching and enrolment.',
+        YearStatus.closing =>
+          'The year starts closing. It stays writable until it is archived.',
+        YearStatus.archived =>
+          'Archived years are read-only: no new attendance, marks or '
+              'teaching assignments. This cannot be undone.',
         YearStatus.draft => '',
       },
       confirmLabel: widget.year.status!.nextActionLabel!,
@@ -85,7 +90,10 @@ class AcademicYearLifecycleRowState extends State<AcademicYearLifecycleRow> {
       builder: (_) => _ClassifyDialog(yearName: widget.year.name),
     );
     if (choice == null || !mounted) return;
-    await _guard(() => widget.repository.classifyYear(widget.year.id, choice.$1, choice.$2));
+    await _guard(
+      () =>
+          widget.repository.classifyYear(widget.year.id, choice.$1, choice.$2),
+    );
   }
 
   @override
@@ -95,7 +103,8 @@ class AcademicYearLifecycleRowState extends State<AcademicYearLifecycleRow> {
     final needsReview = y.reviewRequired || y.status == null;
     return Semantics(
       container: true,
-      label: '${y.name}, ${y.rangeLabel}, $_stateLabel${y.current ? ', current' : ''}',
+      label:
+          '${y.name}, ${y.rangeLabel}, $_stateLabel${y.current ? ', current' : ''}',
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.space3),
         padding: const EdgeInsets.all(AppSpacing.space5),
@@ -112,24 +121,51 @@ class AcademicYearLifecycleRowState extends State<AcademicYearLifecycleRow> {
               runSpacing: AppSpacing.space1,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(y.name, style: AppTypography.personName.copyWith(color: t.textPrimary)),
-                Text(_stateLabel,
-                    style: AppTypography.bodyAdminMeta.copyWith(
-                        color: needsReview ? t.warningTextOnBg : t.textSecondary)),
+                Text(
+                  y.name,
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
+                ),
+                Text(
+                  _stateLabel,
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: needsReview ? t.warningTextOnBg : t.textSecondary,
+                  ),
+                ),
                 if (y.current)
-                  Text('Current', style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary)),
+                  Text(
+                    'Current',
+                    style: AppTypography.bodyAdminMeta.copyWith(
+                      color: t.textSecondary,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: AppSpacing.space1),
-            Text(y.rangeLabel, style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary)),
+            Text(
+              y.rangeLabel,
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
+            ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.space2),
-              Text(_error!, style: AppTypography.bodyAdminMeta.copyWith(color: t.dangerTextOnBg)),
+              Text(
+                _error!,
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.dangerTextOnBg,
+                ),
+              ),
             ],
             if (needsReview || y.status?.nextActionLabel != null) ...[
               const SizedBox(height: AppSpacing.space3),
               AppButton(
-                label: _busy ? 'Working…' : (needsReview ? 'Classify year' : y.status!.nextActionLabel!),
+                label: _busy
+                    ? 'Working…'
+                    : (needsReview
+                          ? 'Classify year'
+                          : y.status!.nextActionLabel!),
                 variant: AppButtonVariant.secondary,
                 onPressed: _busy ? null : (needsReview ? _classify : _advance),
               ),
@@ -163,8 +199,10 @@ class _ClassifyDialogState extends State<_ClassifyDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('This year was created before year states existed. Choose the state it '
-              'really is in, and say why. It is not assumed to be archived.'),
+          const Text(
+            'This year was created before year states existed. Choose the state it '
+            'really is in, and say why. It is not assumed to be archived.',
+          ),
           const SizedBox(height: AppSpacing.space3),
           DropdownButton<YearStatus>(
             key: const Key('classify-status'),
@@ -172,7 +210,8 @@ class _ClassifyDialogState extends State<_ClassifyDialog> {
             isExpanded: true,
             hint: const Text('Choose a state'),
             items: [
-              for (final s in YearStatus.values) DropdownMenuItem(value: s, child: Text(s.label)),
+              for (final s in YearStatus.values)
+                DropdownMenuItem(value: s, child: Text(s.label)),
             ],
             onChanged: (v) => setState(() => _status = v),
           ),
@@ -186,9 +225,14 @@ class _ClassifyDialogState extends State<_ClassifyDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
         TextButton(
-          onPressed: ok ? () => Navigator.of(context).pop((_status!, _reason.trim())) : null,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: ok
+              ? () => Navigator.of(context).pop((_status!, _reason.trim()))
+              : null,
           child: const Text('Classify'),
         ),
       ],

@@ -28,9 +28,13 @@ class AuthLayout extends StatelessWidget {
         final wide = constraints.maxWidth >= splitAt;
         final card = Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(wide ? AppSpacing.space10 : AppSpacing.space6),
+            padding: EdgeInsets.all(
+              wide ? AppSpacing.space10 : AppSpacing.space6,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: AppSizing.authFormMaxWidth + 2 * AppSpacing.space8),
+              constraints: const BoxConstraints(
+                maxWidth: AppSizing.authFormMaxWidth + 2 * AppSpacing.space8,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -40,7 +44,9 @@ class AuthLayout extends StatelessWidget {
                     const SizedBox(height: AppSpacing.space6),
                   ],
                   Container(
-                    padding: EdgeInsets.all(wide ? AppSpacing.space9 : AppSpacing.space7),
+                    padding: EdgeInsets.all(
+                      wide ? AppSpacing.space9 : AppSpacing.space7,
+                    ),
                     decoration: BoxDecoration(
                       color: t.surface,
                       borderRadius: BorderRadius.circular(AppRadius.xl2),
@@ -74,16 +80,21 @@ class AuthBrandPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     Widget line(IconData icon, String text) => Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.space6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: t.onBrandMuted, size: 22),
-              const SizedBox(width: AppSpacing.space5),
-              Expanded(child: Text(text, style: AppTypography.bodyTeacher.copyWith(color: t.onBrand))),
-            ],
+      padding: const EdgeInsets.only(bottom: AppSpacing.space6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: t.onBrandMuted, size: 22),
+          const SizedBox(width: AppSpacing.space5),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.bodyTeacher.copyWith(color: t.onBrand),
+            ),
           ),
-        );
+        ],
+      ),
+    );
     return Container(
       color: t.brandSurface,
       padding: const EdgeInsets.all(AppSpacing.space10),
@@ -96,12 +107,25 @@ class AuthBrandPanel extends StatelessWidget {
             children: [
               Icon(Icons.school_outlined, color: t.onBrand, size: 40),
               const SizedBox(height: AppSpacing.space6),
-              Text('One place for your institution’s daily work',
-                  style: AppTypography.parentStatusHero.copyWith(color: t.onBrand)),
+              Text(
+                'One place for your institution’s daily work',
+                style: AppTypography.parentStatusHero.copyWith(
+                  color: t.onBrand,
+                ),
+              ),
               const SizedBox(height: AppSpacing.space8),
-              line(Icons.fact_check_outlined, 'Attendance that keeps working when the connection drops.'),
-              line(Icons.payments_outlined, 'Fees, payments and receipts with approval built in.'),
-              line(Icons.family_restroom_outlined, 'Results and progress for families and learners.'),
+              line(
+                Icons.fact_check_outlined,
+                'Attendance that keeps working when the connection drops.',
+              ),
+              line(
+                Icons.payments_outlined,
+                'Fees, payments and receipts with approval built in.',
+              ),
+              line(
+                Icons.family_restroom_outlined,
+                'Results and progress for families and learners.',
+              ),
             ],
           ),
         ),
@@ -122,13 +146,18 @@ class AuthBrandStrip extends StatelessWidget {
         Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(color: t.brandSurface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+          decoration: BoxDecoration(
+            color: t.brandSurface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
           child: Icon(Icons.school_outlined, color: t.onBrand, size: 22),
         ),
         const SizedBox(width: AppSpacing.space5),
         Expanded(
-          child: Text('Educational management for your institution',
-              style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary)),
+          child: Text(
+            'Educational management for your institution',
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+          ),
         ),
       ],
     );

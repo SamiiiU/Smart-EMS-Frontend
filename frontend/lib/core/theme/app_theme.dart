@@ -96,10 +96,9 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: tokens.page,
       canvasColor: tokens.surface,
       dividerColor: tokens.border,
-      textTheme: AppTypography.textThemeFor(role).apply(
-        bodyColor: tokens.textPrimary,
-        displayColor: tokens.textPrimary,
-      ),
+      textTheme: AppTypography.textThemeFor(
+        role,
+      ).apply(bodyColor: tokens.textPrimary, displayColor: tokens.textPrimary),
       extensions: <ThemeExtension<dynamic>>[tokens],
     );
   }

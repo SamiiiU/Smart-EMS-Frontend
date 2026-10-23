@@ -63,8 +63,9 @@ void main() {
   for (final isDark in [false, true]) {
     final mode = isDark ? 'dark' : 'light';
 
-    testWidgets('gallery renders every colour token in $mode mode',
-        (tester) async {
+    testWidgets('gallery renders every colour token in $mode mode', (
+      tester,
+    ) async {
       useTallViewport(tester);
       await tester.pumpWidget(_gallery(isDark: isDark));
       await tester.pump();
@@ -85,8 +86,10 @@ void main() {
       // colourGroups, so this catches a token added to the class but not to
       // the gallery list. Expressed against the source of truth rather than a
       // magic number, which otherwise breaks on every legitimate addition.
-      final declared =
-          tokens.colourGroups.fold<int>(0, (n, g) => n + g.$2.length);
+      final declared = tokens.colourGroups.fold<int>(
+        0,
+        (n, g) => n + g.$2.length,
+      );
       expect(
         count,
         declared,
@@ -98,8 +101,9 @@ void main() {
       expect(declared, greaterThanOrEqualTo(33));
     });
 
-    testWidgets('gallery renders every spacing and radius step in $mode mode',
-        (tester) async {
+    testWidgets('gallery renders every spacing and radius step in $mode mode', (
+      tester,
+    ) async {
       useTallViewport(tester);
       await tester.pumpWidget(_gallery(isDark: isDark));
       await tester.pump();
@@ -112,8 +116,9 @@ void main() {
       }
     });
 
-    testWidgets('gallery renders every typography style in $mode mode',
-        (tester) async {
+    testWidgets('gallery renders every typography style in $mode mode', (
+      tester,
+    ) async {
       useTallViewport(tester);
       await tester.pumpWidget(_gallery(isDark: isDark));
       await tester.pump();
@@ -128,51 +133,62 @@ void main() {
     });
   }
 
-  testWidgets('toggling brightness changes colour only — no layout or font shift',
-      (tester) async {
-    tester.view.physicalSize = const Size(1400, 26000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'toggling brightness changes colour only — no layout or font shift',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 26000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_gallery(isDark: false));
-    await tester.pump();
-    final lightShapes = _shapes(tester);
+      await tester.pumpWidget(_gallery(isDark: false));
+      await tester.pump();
+      final lightShapes = _shapes(tester);
 
-    await tester.pumpWidget(_gallery(isDark: true));
-    await tester.pump();
-    final darkShapes = _shapes(tester);
+      await tester.pumpWidget(_gallery(isDark: true));
+      await tester.pump();
+      final darkShapes = _shapes(tester);
 
-    expect(lightShapes, isNotEmpty);
+      expect(lightShapes, isNotEmpty);
 
-    // The mode banner label is the one string that intentionally differs.
-    const intentionallyDifferent = {'Light mode', 'Dark mode'};
+      // The mode banner label is the one string that intentionally differs.
+      const intentionallyDifferent = {'Light mode', 'Dark mode'};
 
-    final light = lightShapes
-        .where((s) => !intentionallyDifferent.contains(s.text))
-        .toList();
-    final dark = darkShapes
-        .where((s) => !intentionallyDifferent.contains(s.text))
-        .toList();
+      final light = lightShapes
+          .where((s) => !intentionallyDifferent.contains(s.text))
+          .toList();
+      final dark = darkShapes
+          .where((s) => !intentionallyDifferent.contains(s.text))
+          .toList();
 
-    expect(
-      dark.length,
-      light.length,
-      reason: 'a different number of text elements rendered between modes',
-    );
+      expect(
+        dark.length,
+        light.length,
+        reason: 'a different number of text elements rendered between modes',
+      );
 
-    for (var i = 0; i < light.length; i++) {
-      final l = light[i];
-      final d = dark[i];
-      expect(d.text, l.text, reason: 'text changed at index $i');
-      expect(d.rect, l.rect, reason: 'LAYOUT SHIFT on "${l.text}"');
-      expect(d.fontSize, l.fontSize, reason: 'SIZE CHANGE on "${l.text}"');
-      expect(d.fontWeight, l.fontWeight, reason: 'WEIGHT CHANGE on "${l.text}"');
-      expect(d.fontFamily, l.fontFamily, reason: 'FONT CHANGE on "${l.text}"');
-    }
-  });
+      for (var i = 0; i < light.length; i++) {
+        final l = light[i];
+        final d = dark[i];
+        expect(d.text, l.text, reason: 'text changed at index $i');
+        expect(d.rect, l.rect, reason: 'LAYOUT SHIFT on "${l.text}"');
+        expect(d.fontSize, l.fontSize, reason: 'SIZE CHANGE on "${l.text}"');
+        expect(
+          d.fontWeight,
+          l.fontWeight,
+          reason: 'WEIGHT CHANGE on "${l.text}"',
+        );
+        expect(
+          d.fontFamily,
+          l.fontFamily,
+          reason: 'FONT CHANGE on "${l.text}"',
+        );
+      }
+    },
+  );
 
-  testWidgets('no raw Colors.* or hardcoded colour reaches the gallery theme',
-      (tester) async {
+  testWidgets('no raw Colors.* or hardcoded colour reaches the gallery theme', (
+    tester,
+  ) async {
     // Guards the D-23 invariant: the action colour is the same in both modes,
     // so a mode-dependent action colour would mean someone hardcoded one.
     await tester.pumpWidget(_gallery(isDark: false));

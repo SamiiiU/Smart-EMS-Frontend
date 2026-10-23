@@ -35,7 +35,9 @@ class _AttendanceReviewScreenState extends State<AttendanceReviewScreen> {
     if (!mounted) return;
     setState(() {
       _reviews = result.reviews;
-      _error = result.failure?.message ?? (result.reviews == null ? 'Could not load reviews.' : null);
+      _error =
+          result.failure?.message ??
+          (result.reviews == null ? 'Could not load reviews.' : null);
     });
   }
 
@@ -45,7 +47,11 @@ class _AttendanceReviewScreenState extends State<AttendanceReviewScreen> {
       builder: (context) => _ReasonDialog(accept: accept),
     );
     if (reason == null || !mounted) return;
-    final failure = await widget.repository.decide(review.id, accept: accept, reason: reason);
+    final failure = await widget.repository.decide(
+      review.id,
+      accept: accept,
+      reason: reason,
+    );
     if (!mounted) return;
     if (failure != null) {
       setState(() => _error = failure.message ?? 'The decision was not saved.');
@@ -66,21 +72,32 @@ class _AttendanceReviewScreenState extends State<AttendanceReviewScreen> {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.space6),
             children: [
-              const PageHeader(title: 'Attendance reviews', padding: EdgeInsets.zero),
+              const PageHeader(
+                title: 'Attendance reviews',
+                padding: EdgeInsets.zero,
+              ),
               const SizedBox(height: AppSpacing.space3),
               Text(
                 'Offline marks that differed from the office record, or synced after '
                 'the closing time + 72 hours. The office record stays until you decide.',
-                style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.space6),
               if (_error != null) ...[
                 InlineAlert(tone: InlineAlertTone.danger, message: _error!),
                 const SizedBox(height: AppSpacing.space6),
               ],
-              if (reviews == null && _error == null) const Center(child: CircularProgressIndicator()),
+              if (reviews == null && _error == null)
+                const Center(child: CircularProgressIndicator()),
               if (reviews != null && reviews.isEmpty)
-                Text('Nothing is waiting for review.', style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary)),
+                Text(
+                  'Nothing is waiting for review.',
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
+                ),
               for (final r in reviews ?? const <AttendanceReview>[])
                 Card(
                   key: Key('review-${r.id}'),
@@ -89,20 +106,29 @@ class _AttendanceReviewScreenState extends State<AttendanceReviewScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${r.studentName} · ${r.attendanceDate}',
-                            style: AppTypography.personName.copyWith(color: t.textPrimary)),
+                        Text(
+                          '${r.studentName} · ${r.attendanceDate}',
+                          style: AppTypography.personName.copyWith(
+                            color: t.textPrimary,
+                          ),
+                        ),
                         const SizedBox(height: AppSpacing.space2),
                         Text(
                           'Teacher marked ${r.submittedStatus}; office record '
                           '${r.currentServerStatus ?? 'none'} · '
                           '${r.reason == 'LATE_SYNC' ? 'synced after the deadline' : 'conflict'}',
-                          style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+                          style: AppTypography.bodyAdminMeta.copyWith(
+                            color: t.textSecondary,
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.space3),
                         Wrap(
                           spacing: AppSpacing.space3,
                           children: [
-                            AppButton(label: 'Apply teacher mark', onPressed: () => _decide(r, true)),
+                            AppButton(
+                              label: 'Apply teacher mark',
+                              onPressed: () => _decide(r, true),
+                            ),
                             AppButton(
                               label: 'Keep office record',
                               variant: AppButtonVariant.secondary,
@@ -146,9 +172,14 @@ class _ReasonDialogState extends State<_ReasonDialog> {
         onChanged: (v) => setState(() => _reason = v),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
         TextButton(
-          onPressed: valid ? () => Navigator.of(context).pop(_reason.trim()) : null,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: valid
+              ? () => Navigator.of(context).pop(_reason.trim())
+              : null,
           child: const Text('Confirm'),
         ),
       ],

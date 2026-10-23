@@ -12,7 +12,7 @@ class SyncStatus {
   const SyncStatus.synced() : this(state: SyncState.synced);
   const SyncStatus.syncing() : this(state: SyncState.syncing);
   const SyncStatus.offline({int pendingCount = 0})
-      : this(state: SyncState.offline, pendingCount: pendingCount);
+    : this(state: SyncState.offline, pendingCount: pendingCount);
 
   final SyncState state;
 
@@ -47,9 +47,7 @@ abstract interface class SyncStatusSource {
 /// first — swapping this for the real source is a one-line change at the
 /// call site, not a shell change.
 class StaticSyncStatusSource implements SyncStatusSource {
-  const StaticSyncStatusSource([
-    this._status = const SyncStatus.synced(),
-  ]);
+  const StaticSyncStatusSource([this._status = const SyncStatus.synced()]);
 
   final SyncStatus _status;
 

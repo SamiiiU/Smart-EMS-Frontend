@@ -50,10 +50,7 @@ class WizardSucceeded extends WizardOutcome {
 /// `UnlinkedProfileState` renders from the other side. Recoverable, and the
 /// [userId] is the thing that makes it recoverable.
 class WizardPartiallyFailed extends WizardOutcome {
-  const WizardPartiallyFailed({
-    required this.userId,
-    required this.failure,
-  });
+  const WizardPartiallyFailed({required this.userId, required this.failure});
 
   final String userId;
   final LoadFailure failure;
@@ -152,10 +149,7 @@ class UserWizardRepository {
       await _createPersonRecord(draft, userId);
       return WizardSucceeded(userId: userId);
     } on DioException catch (err) {
-      return WizardPartiallyFailed(
-        userId: userId,
-        failure: mapDioError(err),
-      );
+      return WizardPartiallyFailed(userId: userId, failure: mapDioError(err));
     }
   }
 

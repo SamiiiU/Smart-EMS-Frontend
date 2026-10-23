@@ -51,15 +51,15 @@ class AcademicYear {
   });
 
   factory AcademicYear.fromJson(Map<String, dynamic> json) => AcademicYear(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        startDate: json['startDate'] as String? ?? '',
-        endDate: json['endDate'] as String? ?? '',
-        current: json['current'] as bool? ?? false,
-        campusId: json['campusId'] as String?,
-        status: YearStatus.parse(json['status'] as String?),
-        reviewRequired: json['lifecycleReviewRequired'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    startDate: json['startDate'] as String? ?? '',
+    endDate: json['endDate'] as String? ?? '',
+    current: json['current'] as bool? ?? false,
+    campusId: json['campusId'] as String?,
+    status: YearStatus.parse(json['status'] as String?),
+    reviewRequired: json['lifecycleReviewRequired'] as bool? ?? false,
+  );
 
   /// C8 state; null only while a legacy year awaits classification.
   final YearStatus? status;
@@ -92,11 +92,11 @@ class SchoolClass {
   });
 
   factory SchoolClass.fromJson(Map<String, dynamic> json) => SchoolClass(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        levelOrder: (json['levelOrder'] as num?)?.toInt(),
-        campusId: json['campusId'] as String?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    levelOrder: (json['levelOrder'] as num?)?.toInt(),
+    campusId: json['campusId'] as String?,
+  );
 
   final String id;
   final String name;
@@ -136,13 +136,13 @@ class Section {
   });
 
   factory Section.fromJson(Map<String, dynamic> json) => Section(
-        id: json['id'] as String,
-        classId: json['classId'] as String? ?? '',
-        academicYearId: json['academicYearId'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        classTeacherId: json['classTeacherId'] as String?,
-        capacity: (json['capacity'] as num?)?.toInt(),
-      );
+    id: json['id'] as String,
+    classId: json['classId'] as String? ?? '',
+    academicYearId: json['academicYearId'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    classTeacherId: json['classTeacherId'] as String?,
+    capacity: (json['capacity'] as num?)?.toInt(),
+  );
 
   final String id;
   final String classId;
@@ -157,10 +157,10 @@ class Subject {
   const Subject({required this.id, required this.name, this.code});
 
   factory Subject.fromJson(Map<String, dynamic> json) => Subject(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        code: json['code'] as String?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    code: json['code'] as String?,
+  );
 
   final String id;
   final String name;
@@ -250,13 +250,13 @@ class SchoolPeriod {
   });
 
   factory SchoolPeriod.fromJson(Map<String, dynamic> json) => SchoolPeriod(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        startTime: json['startTime'] as String? ?? '',
-        endTime: json['endTime'] as String? ?? '',
-        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
-        isBreak: json['isBreak'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    startTime: json['startTime'] as String? ?? '',
+    endTime: json['endTime'] as String? ?? '',
+    sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+    isBreak: json['isBreak'] as bool? ?? false,
+  );
 
   final String id;
   final String name;
@@ -275,10 +275,10 @@ class Room {
   const Room({required this.id, required this.name, this.capacity});
 
   factory Room.fromJson(Map<String, dynamic> json) => Room(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        capacity: (json['capacity'] as num?)?.toInt(),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    capacity: (json['capacity'] as num?)?.toInt(),
+  );
 
   final String id;
   final String name;
@@ -298,16 +298,16 @@ class TimetableSlot {
   });
 
   factory TimetableSlot.fromJson(Map<String, dynamic> json) => TimetableSlot(
-        // The section week endpoint calls it `slotId`; the write endpoints
-        // call the same thing `id`. Both are accepted rather than picking
-        // one and having the other silently produce empty cells.
-        id: (json['slotId'] ?? json['id']) as String? ?? '',
-        dayOfWeek: (json['dayOfWeek'] as num?)?.toInt() ?? 0,
-        periodId: json['periodId'] as String? ?? '',
-        subjectId: json['subjectId'] as String? ?? '',
-        teacherStaffId: json['teacherStaffId'] as String? ?? '',
-        roomId: json['roomId'] as String?,
-      );
+    // The section week endpoint calls it `slotId`; the write endpoints
+    // call the same thing `id`. Both are accepted rather than picking
+    // one and having the other silently produce empty cells.
+    id: (json['slotId'] ?? json['id']) as String? ?? '',
+    dayOfWeek: (json['dayOfWeek'] as num?)?.toInt() ?? 0,
+    periodId: json['periodId'] as String? ?? '',
+    subjectId: json['subjectId'] as String? ?? '',
+    teacherStaffId: json['teacherStaffId'] as String? ?? '',
+    roomId: json['roomId'] as String?,
+  );
 
   final String id;
 

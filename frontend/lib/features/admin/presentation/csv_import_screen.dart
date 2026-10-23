@@ -185,7 +185,10 @@ class CsvImportScreenState extends State<CsvImportScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.space6),
           children: [
-            const PageHeader(title: 'Import students', padding: EdgeInsets.zero),
+            const PageHeader(
+              title: 'Import students',
+              padding: EdgeInsets.zero,
+            ),
             const SizedBox(height: AppSpacing.space2),
             Text(
               'Choose your CSV file, or paste its contents below. Either way '

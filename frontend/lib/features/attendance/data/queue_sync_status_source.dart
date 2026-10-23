@@ -51,8 +51,8 @@ class QueueSyncStatusSource implements SyncStatusSource {
     final next = offline
         ? SyncStatus.offline(pendingCount: pending)
         : pending > 0
-            ? const SyncStatus.syncing()
-            : const SyncStatus.synced();
+        ? const SyncStatus.syncing()
+        : const SyncStatus.synced();
 
     if (next != _current) {
       _current = next;

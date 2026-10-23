@@ -72,11 +72,11 @@ class ScreenState<T> {
     NetworkStatus connection = NetworkStatus.online,
     bool hasFilter = false,
   }) : this(
-          status: ScreenStatus.loading,
-          data: previous,
-          connection: connection,
-          hasFilter: hasFilter,
-        );
+         status: ScreenStatus.loading,
+         data: previous,
+         connection: connection,
+         hasFilter: hasFilter,
+       );
 
   const ScreenState.data(
     T value, {
@@ -84,12 +84,12 @@ class ScreenState<T> {
     bool hasFilter = false,
     bool? isEmpty,
   }) : this(
-          status: ScreenStatus.loaded,
-          data: value,
-          connection: connection,
-          hasFilter: hasFilter,
-          isEmpty: isEmpty,
-        );
+         status: ScreenStatus.loaded,
+         data: value,
+         connection: connection,
+         hasFilter: hasFilter,
+         isEmpty: isEmpty,
+       );
 
   const ScreenState.failed(
     LoadFailure failure, {
@@ -97,12 +97,12 @@ class ScreenState<T> {
     NetworkStatus connection = NetworkStatus.online,
     bool hasFilter = false,
   }) : this(
-          status: ScreenStatus.error,
-          data: cached,
-          failure: failure,
-          connection: connection,
-          hasFilter: hasFilter,
-        );
+         status: ScreenStatus.error,
+         data: cached,
+         failure: failure,
+         connection: connection,
+         hasFilter: hasFilter,
+       );
 
   final ScreenStatus status;
 

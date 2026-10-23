@@ -20,6 +20,7 @@ enum AppStatus {
   late,
   leave,
   excused,
+
   /// STAFF attendance only — students have no half day, and staff have no
   /// `excused`. Two five-value vocabularies that share four values, verified
   /// against both endpoints (open item 37). Kept in the attendance family so
@@ -70,24 +71,24 @@ class StatusPill extends StatelessWidget {
     this.showLabel = true,
     super.key,
   }) : assert(
-          // Written as an explicit disjunction rather than via `isAttendance`
-          // so the whole expression is const-evaluable — that keeps
-          // `const StatusPill(...)` legal AND makes the violation a
-          // compile-time error for const call sites, not just a debug assert.
-          showLabel ||
-              (size == StatusPillSize.md &&
-                  (status == AppStatus.present ||
-                      status == AppStatus.absent ||
-                      status == AppStatus.late ||
-                      status == AppStatus.leave ||
-                      status == AppStatus.excused ||
-                      status == AppStatus.halfDay)),
-          'A pill with no label must carry a letter, and only a MEDIUM '
-          'ATTENDANCE pill does (D-37). A small glyph is 12px and cannot hold '
-          'a discriminable letter, and entity statuses have no letter at all — '
-          'so showLabel: false there would leave colour as the only signal, '
-          'which D-21 forbids.',
-        );
+         // Written as an explicit disjunction rather than via `isAttendance`
+         // so the whole expression is const-evaluable — that keeps
+         // `const StatusPill(...)` legal AND makes the violation a
+         // compile-time error for const call sites, not just a debug assert.
+         showLabel ||
+             (size == StatusPillSize.md &&
+                 (status == AppStatus.present ||
+                     status == AppStatus.absent ||
+                     status == AppStatus.late ||
+                     status == AppStatus.leave ||
+                     status == AppStatus.excused ||
+                     status == AppStatus.halfDay)),
+         'A pill with no label must carry a letter, and only a MEDIUM '
+         'ATTENDANCE pill does (D-37). A small glyph is 12px and cannot hold '
+         'a discriminable letter, and entity statuses have no letter at all — '
+         'so showLabel: false there would leave colour as the only signal, '
+         'which D-21 forbids.',
+       );
 
   final AppStatus status;
   final StatusPillSize size;
@@ -100,44 +101,44 @@ class StatusPill extends StatelessWidget {
   /// The single-character (or two-character) marker shown inside the shape.
   /// Attendance statuses only — entity statuses have no letter.
   static String? letterFor(AppStatus status) => switch (status) {
-        AppStatus.present => 'P',
-        AppStatus.absent => 'A',
-        AppStatus.late => '—',
-        AppStatus.leave => 'Lv',
-        AppStatus.excused => 'E',
-        // 'H' on a half-filled circle. The SHAPE is shared with Late, which
-        // D-21 allows — Present and Leave already share one — because the
-        // (shape + letter) PAIR is what must be unique, and '—' vs 'H' makes
-        // it so. Half-filled is also simply what a half day looks like.
-        AppStatus.halfDay => 'H',
-        _ => null,
-      };
+    AppStatus.present => 'P',
+    AppStatus.absent => 'A',
+    AppStatus.late => '—',
+    AppStatus.leave => 'Lv',
+    AppStatus.excused => 'E',
+    // 'H' on a half-filled circle. The SHAPE is shared with Late, which
+    // D-21 allows — Present and Leave already share one — because the
+    // (shape + letter) PAIR is what must be unique, and '—' vs 'H' makes
+    // it so. Half-filled is also simply what a half day looks like.
+    AppStatus.halfDay => 'H',
+    _ => null,
+  };
 
   static StatusShape? shapeFor(AppStatus status) => switch (status) {
-        AppStatus.present => StatusShape.filledCircle,
-        AppStatus.absent => StatusShape.openCircle,
-        AppStatus.late => StatusShape.halfFilledCircle,
-        AppStatus.leave => StatusShape.filledCircle,
-        AppStatus.excused => StatusShape.dashedRing,
-        AppStatus.halfDay => StatusShape.halfFilledCircle,
-        _ => null,
-      };
+    AppStatus.present => StatusShape.filledCircle,
+    AppStatus.absent => StatusShape.openCircle,
+    AppStatus.late => StatusShape.halfFilledCircle,
+    AppStatus.leave => StatusShape.filledCircle,
+    AppStatus.excused => StatusShape.dashedRing,
+    AppStatus.halfDay => StatusShape.halfFilledCircle,
+    _ => null,
+  };
 
   static String labelFor(AppStatus status) => switch (status) {
-        AppStatus.present => 'Present',
-        AppStatus.absent => 'Absent',
-        AppStatus.late => 'Late',
-        AppStatus.leave => 'Leave',
-        AppStatus.excused => 'Excused',
-        AppStatus.halfDay => 'Half day',
-        AppStatus.active => 'Active',
-        AppStatus.inactive => 'Inactive',
-        AppStatus.complete => 'Complete',
-        AppStatus.notStarted => 'Not started',
-        AppStatus.partial => 'Partial',
-        AppStatus.unpaid => 'Unpaid',
-        AppStatus.paid => 'Paid',
-      };
+    AppStatus.present => 'Present',
+    AppStatus.absent => 'Absent',
+    AppStatus.late => 'Late',
+    AppStatus.leave => 'Leave',
+    AppStatus.excused => 'Excused',
+    AppStatus.halfDay => 'Half day',
+    AppStatus.active => 'Active',
+    AppStatus.inactive => 'Inactive',
+    AppStatus.complete => 'Complete',
+    AppStatus.notStarted => 'Not started',
+    AppStatus.partial => 'Partial',
+    AppStatus.unpaid => 'Unpaid',
+    AppStatus.paid => 'Paid',
+  };
 
   /// Colours for a status, resolved from the token set.
   ///
@@ -154,42 +155,72 @@ class StatusPill extends StatelessWidget {
   static ({Color glyph, Color text, Color bg}) coloursFor(
     AppStatus status,
     SmartEmsTokens t,
-  ) =>
-      switch (status) {
-        AppStatus.present =>
-          (glyph: t.success, text: t.successTextOnBg, bg: t.successBg),
-        AppStatus.absent =>
-          (glyph: t.danger, text: t.dangerTextOnBg, bg: t.dangerBg),
-        AppStatus.late =>
-          (glyph: t.warning, text: t.warningTextOnBg, bg: t.warningBg),
-        AppStatus.leave =>
-          (glyph: t.info, text: t.infoTextOnBg, bg: t.infoBg),
-        // No `…TextOnBg` token exists for the neutral pairing, and none is
-        // needed: textSecondary on surfaceSunken already measures ~6:1.
-        AppStatus.excused =>
-          (glyph: t.textSecondary, text: t.textSecondary, bg: t.surfaceSunken),
-        // Info rather than warning: a half day is an arrangement, not a
-        // problem, and Late already owns the warning pairing.
-        AppStatus.halfDay =>
-          (glyph: t.info, text: t.infoTextOnBg, bg: t.infoBg),
-        AppStatus.active =>
-          (glyph: t.success, text: t.successTextOnBg, bg: t.successBg),
-        AppStatus.inactive =>
-          (glyph: t.textSecondary, text: t.textSecondary, bg: t.surfaceSunken),
-        AppStatus.complete =>
-          (glyph: t.success, text: t.successTextOnBg, bg: t.successBg),
-        AppStatus.notStarted =>
-          (glyph: t.textSecondary, text: t.textSecondary, bg: t.surfaceSunken),
-        AppStatus.partial =>
-          (glyph: t.warning, text: t.warningTextOnBg, bg: t.warningBg),
-        // An unpaid invoice is not an error — it is the normal state of a
-        // fee the day it is issued. Neutral, like `notStarted`, so that a
-        // whole freshly-generated class does not read as a wall of red.
-        AppStatus.unpaid =>
-          (glyph: t.textSecondary, text: t.textSecondary, bg: t.surfaceSunken),
-        AppStatus.paid =>
-          (glyph: t.success, text: t.successTextOnBg, bg: t.successBg),
-      };
+  ) => switch (status) {
+    AppStatus.present => (
+      glyph: t.success,
+      text: t.successTextOnBg,
+      bg: t.successBg,
+    ),
+    AppStatus.absent => (
+      glyph: t.danger,
+      text: t.dangerTextOnBg,
+      bg: t.dangerBg,
+    ),
+    AppStatus.late => (
+      glyph: t.warning,
+      text: t.warningTextOnBg,
+      bg: t.warningBg,
+    ),
+    AppStatus.leave => (glyph: t.info, text: t.infoTextOnBg, bg: t.infoBg),
+    // No `…TextOnBg` token exists for the neutral pairing, and none is
+    // needed: textSecondary on surfaceSunken already measures ~6:1.
+    AppStatus.excused => (
+      glyph: t.textSecondary,
+      text: t.textSecondary,
+      bg: t.surfaceSunken,
+    ),
+    // Info rather than warning: a half day is an arrangement, not a
+    // problem, and Late already owns the warning pairing.
+    AppStatus.halfDay => (glyph: t.info, text: t.infoTextOnBg, bg: t.infoBg),
+    AppStatus.active => (
+      glyph: t.success,
+      text: t.successTextOnBg,
+      bg: t.successBg,
+    ),
+    AppStatus.inactive => (
+      glyph: t.textSecondary,
+      text: t.textSecondary,
+      bg: t.surfaceSunken,
+    ),
+    AppStatus.complete => (
+      glyph: t.success,
+      text: t.successTextOnBg,
+      bg: t.successBg,
+    ),
+    AppStatus.notStarted => (
+      glyph: t.textSecondary,
+      text: t.textSecondary,
+      bg: t.surfaceSunken,
+    ),
+    AppStatus.partial => (
+      glyph: t.warning,
+      text: t.warningTextOnBg,
+      bg: t.warningBg,
+    ),
+    // An unpaid invoice is not an error — it is the normal state of a
+    // fee the day it is issued. Neutral, like `notStarted`, so that a
+    // whole freshly-generated class does not read as a wall of red.
+    AppStatus.unpaid => (
+      glyph: t.textSecondary,
+      text: t.textSecondary,
+      bg: t.surfaceSunken,
+    ),
+    AppStatus.paid => (
+      glyph: t.success,
+      text: t.successTextOnBg,
+      bg: t.successBg,
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -227,8 +258,9 @@ class StatusPill extends StatelessWidget {
                 // D-38: inverts with its background — white in light,
                 // the status's own `…Bg` in dark.
                 letterOnFill: t.onFilledGlyph(colours.bg),
-                diameter:
-                    isSm ? AppSizing.statusGlyphSm : AppSizing.statusGlyphMd,
+                diameter: isSm
+                    ? AppSizing.statusGlyphSm
+                    : AppSizing.statusGlyphMd,
               ),
             if (shape != null && showLabel)
               SizedBox(width: isSm ? AppSpacing.space2 : AppSpacing.space3),

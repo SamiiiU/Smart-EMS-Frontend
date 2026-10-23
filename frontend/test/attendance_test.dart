@@ -111,38 +111,57 @@ void main() {
     },
   );
 
-  test('BUG-QA-15: a refused row the server ALREADY holds identically leaves the queue; a differing one stays', () async {
-    // Pixel finding: unchanged Present rows past the 15-minute lock were refused
-    // and retried forever, leaving "Syncing…" / "Submitting…" on screen.
-    final adapter = _Adapter((o) {
-      if (o.path.contains(ApiConfig.attendanceSectionPath)) {
+  test(
+    'BUG-QA-15: a refused row the server ALREADY holds identically leaves the queue; a differing one stays',
+    () async {
+      // Pixel finding: unchanged Present rows past the 15-minute lock were refused
+      // and retried forever, leaving "Syncing…" / "Submitting…" on screen.
+      final adapter = _Adapter((o) {
+        if (o.path.contains(ApiConfig.attendanceSectionPath)) {
+          return _json(200, {
+            'records': [
+              {'studentId': 's1', 'status': 'present'},
+              {'studentId': 's2', 'status': 'present'},
+            ],
+          });
+        }
         return _json(200, {
-          'records': [
-            {'studentId': 's1', 'status': 'present'},
-            {'studentId': 's2', 'status': 'present'},
+          'successCount': 0,
+          'errorCount': 2,
+          'operations': [
+            {
+              'clientUuid': 'uuid-s1',
+              'studentId': 's1',
+              'outcome': 'rejected',
+              'errorCode': 'FORBIDDEN',
+            },
+            {
+              'clientUuid': 'uuid-s2',
+              'studentId': 's2',
+              'outcome': 'rejected',
+              'errorCode': 'FORBIDDEN',
+            },
           ],
         });
-      }
-      return _json(200, {
-        'successCount': 0,
-        'errorCount': 2,
-        'operations': [
-          {'clientUuid': 'uuid-s1', 'studentId': 's1', 'outcome': 'rejected', 'errorCode': 'FORBIDDEN'},
-          {'clientUuid': 'uuid-s2', 'studentId': 's2', 'outcome': 'rejected', 'errorCode': 'FORBIDDEN'},
-        ],
       });
-    });
-    final q = _queue();
-    final repo = AttendanceRepository(dio: _dio(adapter), queue: q);
-    await expectLater(
-      repo.submitRegister([
-        _mark('s1', AttendanceStatus.present), // server already holds present: satisfied
-        _mark('s2', AttendanceStatus.absent), // genuinely different: must stay and be reported
-      ]),
-      throwsStateError,
-    );
-    expect((await q.pending()).map((m) => m.clientUuid), ['uuid-s2']);
-  });
+      final q = _queue();
+      final repo = AttendanceRepository(dio: _dio(adapter), queue: q);
+      await expectLater(
+        repo.submitRegister([
+          _mark(
+            's1',
+            AttendanceStatus.present,
+          ), // server already holds present: satisfied
+          _mark(
+            's2',
+            AttendanceStatus.absent,
+          ), // genuinely different: must stay and be reported
+        ]),
+        throwsStateError,
+      );
+      expect((await q.pending()).map((m) => m.clientUuid), ['uuid-s2']);
+    },
+  );
 
   test('unknown receipt ID never acknowledges another pending mark', () async {
     final adapter = _Adapter((o) {
@@ -394,33 +413,35 @@ void main() {
       expect(await q.pendingCount(), 0);
     });
 
-    test('a review_required outcome without a reviewId is NOT acknowledged',
-        () async {
-      final adapter = _Adapter((o) {
-        if (o.path.contains(ApiConfig.attendanceSectionPath)) {
-          return _json(200, {'records': <Object>[]});
-        }
-        final r = (((o.data as Map)['rows'] as List).single as Map);
-        return _json(200, {
-          'successCount': 1,
-          'errorCount': 0,
-          'operations': [
-            {
-              'clientUuid': r['clientUuid'],
-              'studentId': r['studentId'],
-              'outcome': 'review_required',
-            },
-          ],
+    test(
+      'a review_required outcome without a reviewId is NOT acknowledged',
+      () async {
+        final adapter = _Adapter((o) {
+          if (o.path.contains(ApiConfig.attendanceSectionPath)) {
+            return _json(200, {'records': <Object>[]});
+          }
+          final r = (((o.data as Map)['rows'] as List).single as Map);
+          return _json(200, {
+            'successCount': 1,
+            'errorCount': 0,
+            'operations': [
+              {
+                'clientUuid': r['clientUuid'],
+                'studentId': r['studentId'],
+                'outcome': 'review_required',
+              },
+            ],
+          });
         });
-      });
-      final q = _queue();
-      final repo = AttendanceRepository(dio: _dio(adapter), queue: q);
-      await expectLater(
-        repo.submitRegister([_mark('s1', AttendanceStatus.present)]),
-        throwsA(isA<StateError>()),
-      );
-      expect(await q.pendingCount(), 1, reason: 'no silent deletion');
-    });
+        final q = _queue();
+        final repo = AttendanceRepository(dio: _dio(adapter), queue: q);
+        await expectLater(
+          repo.submitRegister([_mark('s1', AttendanceStatus.present)]),
+          throwsA(isA<StateError>()),
+        );
+        expect(await q.pendingCount(), 1, reason: 'no silent deletion');
+      },
+    );
 
     test('no conflict when the server agrees — the mark IS sent', () async {
       // Positive case pairing the assertion above: the guard is not simply

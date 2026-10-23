@@ -29,21 +29,30 @@ class CampusFilterInterceptor extends Interceptor {
       final campus = selectedCampus();
       options.extra[_key] = campus ?? '';
       if (campus != null && !options.queryParameters.containsKey('campusId')) {
-        options.queryParameters = {...options.queryParameters, 'campusId': campus};
+        options.queryParameters = {
+          ...options.queryParameters,
+          'campusId': campus,
+        };
       }
     }
     handler.next(options);
   }
 
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
     final requested = response.requestOptions.extra[_key];
     if (requested is String && requested != (selectedCampus() ?? '')) {
-      return handler.reject(DioException(
-        requestOptions: response.requestOptions,
-        type: DioExceptionType.cancel,
-        error: 'Campus changed while loading; reload for the selected campus.',
-      ));
+      return handler.reject(
+        DioException(
+          requestOptions: response.requestOptions,
+          type: DioExceptionType.cancel,
+          error:
+              'Campus changed while loading; reload for the selected campus.',
+        ),
+      );
     }
     handler.next(response);
   }

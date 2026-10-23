@@ -109,13 +109,15 @@ class DiaryEditorScreenState extends State<DiaryEditorScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final failure = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<DiaryLoad>.failed(
-            failure,
-            cached: _state.data,
-            connection: failure.unreachable
-                ? NetworkStatus.offline
-                : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<DiaryLoad>.failed(
+          failure,
+          cached: _state.data,
+          connection: failure.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -152,12 +154,12 @@ class DiaryEditorScreenState extends State<DiaryEditorScreen> {
         _conflict = failure.message == _conflictMessage;
         _saveError = failure.unreachable
             ? 'You are offline, so this was not saved. Your text is still '
-                'here — save again when you are back online.'
+                  'here — save again when you are back online.'
             : _conflict
-                ? 'Someone else saved this diary at the same time, so your '
-                    'version was NOT saved. Reload to see theirs, then add '
-                    'your changes.'
-                : (failure.message ?? 'The diary could not be saved.');
+            ? 'Someone else saved this diary at the same time, so your '
+                  'version was NOT saved. Reload to see theirs, then add '
+                  'your changes.'
+            : (failure.message ?? 'The diary could not be saved.');
       });
     }
   }
@@ -192,7 +194,8 @@ class DiaryEditorScreenState extends State<DiaryEditorScreen> {
           state: _state,
           onRetry: _load,
           emptyTitle: 'No diary entry yet',
-          emptyMessage: 'Nothing has been written for this period. Add '
+          emptyMessage:
+              'Nothing has been written for this period. Add '
               'homework, a note or a reminder for the class.',
           data: (context, load) => _form(context, load),
         ),
@@ -203,8 +206,9 @@ class DiaryEditorScreenState extends State<DiaryEditorScreen> {
   Widget _form(BuildContext context, DiaryLoad load) {
     final t = context.tokens;
     final existing = load.existing;
-    final fieldState =
-        _saving ? AppTextFieldState.disabled : AppTextFieldState.normal;
+    final fieldState = _saving
+        ? AppTextFieldState.disabled
+        : AppTextFieldState.normal;
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.space6),
@@ -223,7 +227,8 @@ class DiaryEditorScreenState extends State<DiaryEditorScreen> {
         if (existing == null)
           const InlineAlert(
             tone: InlineAlertTone.info,
-            message: 'No diary written for this period yet. Saving will '
+            message:
+                'No diary written for this period yet. Saving will '
                 'create it.',
           )
         // Shared entry: the backend keys the diary per SUBJECT, so a
@@ -233,7 +238,8 @@ class DiaryEditorScreenState extends State<DiaryEditorScreen> {
         else if (_writtenBySomeoneElse)
           InlineAlert(
             tone: InlineAlertTone.info,
-            message: 'Last saved by ${existing.authorName}. Everyone who '
+            message:
+                'Last saved by ${existing.authorName}. Everyone who '
                 'teaches this subject to this section shares one diary '
                 'entry per day.',
           ),
@@ -309,8 +315,9 @@ class DiaryEditorScreenState extends State<DiaryEditorScreen> {
           fullWidth: true,
           // A blank NEW entry is not worth creating; a blank EXISTING entry
           // is a deliberate clear and may be saved.
-          onPressed:
-              _saving || (existing == null && _draft.isBlank) ? null : save,
+          onPressed: _saving || (existing == null && _draft.isBlank)
+              ? null
+              : save,
         ),
       ],
     );
@@ -340,8 +347,9 @@ class _MultilineField extends StatefulWidget {
 }
 
 class _MultilineFieldState extends State<_MultilineField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.value);
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value,
+  );
 
   @override
   void dispose() {
@@ -362,8 +370,9 @@ class _MultilineFieldState extends State<_MultilineField> {
         ),
         const SizedBox(height: AppSpacing.space2),
         Container(
-          constraints:
-              const BoxConstraints(minHeight: AppSizing.diaryFieldMinHeight),
+          constraints: const BoxConstraints(
+            minHeight: AppSizing.diaryFieldMinHeight,
+          ),
           padding: const EdgeInsets.all(AppSpacing.space4),
           decoration: BoxDecoration(
             color: widget.enabled ? t.surface : t.surfaceSunken,
@@ -378,8 +387,7 @@ class _MultilineFieldState extends State<_MultilineField> {
               maxLines: null,
               keyboardType: TextInputType.multiline,
               onChanged: widget.onChanged,
-              style: AppTypography.bodyAdminMeta
-                  .copyWith(color: t.textPrimary),
+              style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
               decoration: const InputDecoration.collapsed(hintText: null),
             ),
           ),

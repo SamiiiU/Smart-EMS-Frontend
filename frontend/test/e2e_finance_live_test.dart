@@ -54,140 +54,160 @@ Future<bool> _backendUp() async {
 }
 
 void main() {
-  test('a fee is set up, billed, paid and receipted, through the app’s own code',
-      () async {
-    if (!_enabled) {
-      markTestSkipped('live test — pass --dart-define=LIVE=true to run it');
-      return;
-    }
-    if (!await _backendUp()) {
-      markTestSkipped('backend not running on $_base');
-      return;
-    }
+  test(
+    'a fee is set up, billed, paid and receipted, through the app’s own code',
+    () async {
+      if (!_enabled) {
+        markTestSkipped('live test — pass --dart-define=LIVE=true to run it');
+        return;
+      }
+      if (!await _backendUp()) {
+        markTestSkipped('backend not running on $_base');
+        return;
+      }
 
-    final dio = Dio(BaseOptions(baseUrl: _base));
-    final login = await dio.post<Map<String, dynamic>>(
-      '/auth/login',
-      data: {
-        'institutionCode': 'test-school',
-        'username': 'admin',
-        'password': 'Test1234!',
-      },
-    );
-    dio.options.headers['Authorization'] =
-        'Bearer ${login.data!['accessToken']}';
+      final dio = Dio(BaseOptions(baseUrl: _base));
+      final login = await dio.post<Map<String, dynamic>>(
+        '/auth/login',
+        data: {
+          'institutionCode': 'test-school',
+          'username': 'admin',
+          'password': 'Test1234!',
+        },
+      );
+      dio.options.headers['Authorization'] =
+          'Bearer ${login.data!['accessToken']}';
 
-    final finance = FinanceRepository(dio);
-    final setup = SetupRepository(dio);
-    final admin = AdminRepository(dio);
+      final finance = FinanceRepository(dio);
+      final setup = SetupRepository(dio);
+      final admin = AdminRepository(dio);
 
-    final campusId = (await admin.loadCampusIds()).first;
-    final stamp = DateTime.now().millisecondsSinceEpoch.toString().substring(8);
+      final campusId = (await admin.loadCampusIds()).first;
+      final stamp = DateTime.now().millisecondsSinceEpoch.toString().substring(
+        8,
+      );
 
-    // The year is taken explicitly and never left to the server, because
-    // the `current` flag on this backend points at an EXPIRED year.
-    final years = await setup.loadYears();
-    final year = years.firstWhere((y) => y.current, orElse: () => years.first);
-    final schoolClass = (await setup.loadClasses()).first;
+      // The year is taken explicitly and never left to the server, because
+      // the `current` flag on this backend points at an EXPIRED year.
+      final years = await setup.loadYears();
+      final year = years.firstWhere(
+        (y) => y.current,
+        orElse: () => years.first,
+      );
+      final schoolClass = (await setup.loadClasses()).first;
 
-    // 1 · Fee head
-    final head = await finance.createHead(
-      name: 'E2E Head $stamp',
-      isRecurring: true,
-    );
-    expect((await finance.loadHeads()).any((h) => h.id == head.id), isTrue);
+      // 1 · Fee head
+      final head = await finance.createHead(
+        name: 'E2E Head $stamp',
+        isRecurring: true,
+      );
+      expect((await finance.loadHeads()).any((h) => h.id == head.id), isTrue);
 
-    // 2 · Fee plan — an exact amount, carried as text the whole way
-    const amount = '1234.56';
-    final plan = await finance.createPlan(
-      name: 'E2E Plan $stamp',
-      frequency: 'monthly',
-      classId: schoolClass.id,
-      academicYearId: year.id,
-      campusId: campusId,
-      dueDay: 10,
-      graceDays: 0,
-      items: [(feeHeadId: head.id, amount: Money.parse(amount))],
-    );
-    expect(plan.academicYearId, year.id,
-        reason: 'the plan must store the year it was given');
+      // 2 · Fee plan — an exact amount, carried as text the whole way
+      const amount = '1234.56';
+      final plan = await finance.createPlan(
+        name: 'E2E Plan $stamp',
+        frequency: 'monthly',
+        classId: schoolClass.id,
+        academicYearId: year.id,
+        campusId: campusId,
+        dueDay: 10,
+        graceDays: 0,
+        items: [(feeHeadId: head.id, amount: Money.parse(amount))],
+      );
+      expect(
+        plan.academicYearId,
+        year.id,
+        reason: 'the plan must store the year it was given',
+      );
 
-    // The server's own total, read back exactly — the point of the whole
-    // money type. A double would have turned 1234.56 into 1234.5600000001.
-    final detail = await finance.loadPlan(plan.id);
-    expect(detail.total, Money.parse(amount));
-    expect(detail.total!.paisa, 123456);
+      // The server's own total, read back exactly — the point of the whole
+      // money type. A double would have turned 1234.56 into 1234.5600000001.
+      final detail = await finance.loadPlan(plan.id);
+      expect(detail.total, Money.parse(amount));
+      expect(detail.total!.paisa, 123456);
 
-    // 3 · Generate, for a period far enough out that nothing collides with
-    // real data. The plan itself is unique per run, so the same period is
-    // safe to reuse.
-    const safePeriod = '2031-03';
-    final run = await finance.generate(planId: plan.id, period: safePeriod);
-    expect(run.total, greaterThan(0),
-        reason: 'the class must have at least one student to bill');
+      // 3 · Generate, for a period far enough out that nothing collides with
+      // real data. The plan itself is unique per run, so the same period is
+      // safe to reuse.
+      const safePeriod = '2031-03';
+      final run = await finance.generate(planId: plan.id, period: safePeriod);
+      expect(
+        run.total,
+        greaterThan(0),
+        reason: 'the class must have at least one student to bill',
+      );
 
-    // 4 · Find the invoice we just created
-    final page = await finance.loadInvoices(
-      classId: schoolClass.id,
-      period: safePeriod,
-    );
-    final invoice = page.invoices.firstWhere((i) => i.totalAmount ==
-        Money.parse(amount));
-    expect(invoice.status, InvoiceStatus.unpaid);
-    expect(invoice.outstanding, Money.parse(amount));
+      // 4 · Find the invoice we just created
+      final page = await finance.loadInvoices(
+        classId: schoolClass.id,
+        period: safePeriod,
+      );
+      final invoice = page.invoices.firstWhere(
+        (i) => i.totalAmount == Money.parse(amount),
+      );
+      expect(invoice.status, InvoiceStatus.unpaid);
+      expect(invoice.outstanding, Money.parse(amount));
 
-    // 5 · Record a PART payment — the money must NOT move yet
-    final recorded = await finance.recordPayment(
-      invoiceId: invoice.id,
-      amount: Money.parse('34.56'),
-      source: PaymentSource.bank,
-      reference: 'E2E $stamp',
-    );
-    expect(recorded.error, isNull, reason: recorded.error ?? '');
-    expect(recorded.paymentId, isNotNull);
+      // 5 · Record a PART payment — the money must NOT move yet
+      final recorded = await finance.recordPayment(
+        invoiceId: invoice.id,
+        amount: Money.parse('34.56'),
+        source: PaymentSource.bank,
+        reference: 'E2E $stamp',
+      );
+      expect(recorded.error, isNull, reason: recorded.error ?? '');
+      expect(recorded.paymentId, isNotNull);
 
-    final beforeApproval = await finance.loadInvoice(invoice.id);
-    expect(beforeApproval.paidAmount, Money.zero,
-        reason: 'a pending payment must not count against the invoice');
+      final beforeApproval = await finance.loadInvoice(invoice.id);
+      expect(
+        beforeApproval.paidAmount,
+        Money.zero,
+        reason: 'a pending payment must not count against the invoice',
+      );
 
-    expect(
-      (await finance.loadPending()).any((p) => p.id == recorded.paymentId),
-      isTrue,
-    );
+      expect(
+        (await finance.loadPending()).any((p) => p.id == recorded.paymentId),
+        isTrue,
+      );
 
-    // 6 · Approve — and the receipt comes back with it
-    final approval = await finance.approvePayment(recorded.paymentId!);
-    expect(approval.error, isNull, reason: approval.error ?? '');
-    expect(approval.result!.receiptNumber, isNotEmpty);
+      // 6 · Approve — and the receipt comes back with it
+      final approval = await finance.approvePayment(recorded.paymentId!);
+      expect(approval.error, isNull, reason: approval.error ?? '');
+      expect(approval.result!.receiptNumber, isNotEmpty);
 
-    final receipt = await finance.loadReceipt(approval.result!.receiptId);
-    expect(receipt.amount, Money.parse('34.56'));
-    expect(receipt.source, 'Bank transfer');
+      final receipt = await finance.loadReceipt(approval.result!.receiptId);
+      expect(receipt.amount, Money.parse('34.56'));
+      expect(receipt.source, 'Bank transfer');
 
-    // 7 · The invoice reflects it, computed by the server
-    final afterApproval = await finance.loadInvoice(invoice.id);
-    expect(afterApproval.paidAmount, Money.parse('34.56'));
-    expect(afterApproval.status, InvoiceStatus.partial);
-    expect(afterApproval.outstanding, Money.parse('1200.00'),
-        reason: '1234.56 - 34.56 must be exactly 1200.00');
+      // 7 · The invoice reflects it, computed by the server
+      final afterApproval = await finance.loadInvoice(invoice.id);
+      expect(afterApproval.paidAmount, Money.parse('34.56'));
+      expect(afterApproval.status, InvoiceStatus.partial);
+      expect(
+        afterApproval.outstanding,
+        Money.parse('1200.00'),
+        reason: '1234.56 - 34.56 must be exactly 1200.00',
+      );
 
-    // 8 · And the defaulters worklist shows what is still owed
-    final defaulters = await finance.loadDefaulters(period: safePeriod);
-    final row = defaulters.firstWhere((d) => d.invoiceId == invoice.id);
-    expect(row.outstanding, Money.parse('1200.00'));
+      // 8 · And the defaulters worklist shows what is still owed
+      final defaulters = await finance.loadDefaulters(period: safePeriod);
+      final row = defaulters.firstWhere((d) => d.invoiceId == invoice.id);
+      expect(row.outstanding, Money.parse('1200.00'));
 
-    // 9 · Overpayment is refused by the server, with a message worth showing
-    final tooMuch = await finance.recordPayment(
-      invoiceId: invoice.id,
-      amount: Money.parse('99999.99'),
-      source: PaymentSource.cash,
-    );
-    expect(tooMuch.paymentId, isNull);
-    expect(tooMuch.error, contains('exceeds outstanding balance'));
+      // 9 · Overpayment is refused by the server, with a message worth showing
+      final tooMuch = await finance.recordPayment(
+        invoiceId: invoice.id,
+        amount: Money.parse('99999.99'),
+        source: PaymentSource.cash,
+      );
+      expect(tooMuch.paymentId, isNull);
+      expect(tooMuch.error, contains('exceeds outstanding balance'));
 
-    // 10 · Re-running generation for the same period does not duplicate
-    final rerun = await finance.generate(planId: plan.id, period: safePeriod);
-    expect(rerun.generated, 0);
-    expect(rerun.skipped, greaterThan(0));
-  });
+      // 10 · Re-running generation for the same period does not duplicate
+      final rerun = await finance.generate(planId: plan.id, period: safePeriod);
+      expect(rerun.generated, 0);
+      expect(rerun.skipped, greaterThan(0));
+    },
+  );
 }

@@ -18,8 +18,9 @@ void main() {
       // The strongest form of the guarantee available: the file that owns
       // every money value has no way to reach a double, checked against its
       // own source rather than against one code path a test happens to take.
-      final source =
-          File('lib/features/finance/domain/money.dart').readAsStringSync();
+      final source = File(
+        'lib/features/finance/domain/money.dart',
+      ).readAsStringSync();
       final code = source
           .split('\n')
           .where((line) {
@@ -32,7 +33,8 @@ void main() {
         expect(
           code.contains(banned),
           isFalse,
-          reason: 'money.dart contains "$banned". Money is integer paisa; a '
+          reason:
+              'money.dart contains "$banned". Money is integer paisa; a '
               'single double anywhere in this file reintroduces the drift '
               'the whole type exists to prevent.',
         );
@@ -43,10 +45,7 @@ void main() {
       // If a money key were ever missed in FinanceJson.moneyKeys, jsonDecode
       // would hand us a double. That must fail loudly rather than quietly
       // becoming an amount.
-      expect(
-        () => Money.fromJson(5500.00),
-        throwsA(isA<FormatException>()),
-      );
+      expect(() => Money.fromJson(5500.00), throwsA(isA<FormatException>()));
       expect(() => Money.fromJson(5500), throwsA(isA<FormatException>()));
     });
 
@@ -129,8 +128,7 @@ void main() {
   });
 
   group('totals come from the server, never from the client', () {
-    test('an invoice reports the total the backend sent, not the line sum',
-        () {
+    test('an invoice reports the total the backend sent, not the line sum', () {
       // Lines that deliberately do NOT add up to the total — a discount, a
       // waiver, anything the app does not know about. The invoice must
       // report what the server says it owes.
@@ -149,8 +147,11 @@ void main() {
       });
 
       expect(invoice.totalAmount, Money.parse('5000.00'));
-      expect(invoice.totalAmount, isNot(Money.parse('5500.00')),
-          reason: 'the line sum must not win over the server total');
+      expect(
+        invoice.totalAmount,
+        isNot(Money.parse('5500.00')),
+        reason: 'the line sum must not win over the server total',
+      );
     });
 
     test('outstanding is the difference of two server figures, exactly', () {
@@ -193,9 +194,11 @@ void main() {
     // the count arrives as text. Dropping the key from the money set would
     // put a real amount through a double instead, so the count is read
     // either way — a regression a widget test caught first.
-    final quoted = jsonDecode(FinanceJson.quoteMoney(
-      '{"total":30,"generated":0,"skipped":30}',
-    )) as Map<String, dynamic>;
+    final quoted =
+        jsonDecode(
+              FinanceJson.quoteMoney('{"total":30,"generated":0,"skipped":30}'),
+            )
+            as Map<String, dynamic>;
 
     final result = GenerationResult.fromJson(quoted);
     expect(result.total, 30);
@@ -254,35 +257,52 @@ void main() {
       expect(InvoiceStatus.parse('paid'), InvoiceStatus.paid);
     });
 
-    test('overdue is derived from the due date, because there is no status',
-        () {
-      Invoice at(String due, String status) => Invoice.fromJson({
-            'id': 'i',
-            'student_name': 'A',
-            'period': '2026-07',
-            'due_date': due,
-            'total_amount': '100.00',
-            'paid_amount': '0.00',
-            'status': status,
-          });
+    test(
+      'overdue is derived from the due date, because there is no status',
+      () {
+        Invoice at(String due, String status) => Invoice.fromJson({
+          'id': 'i',
+          'student_name': 'A',
+          'period': '2026-07',
+          'due_date': due,
+          'total_amount': '100.00',
+          'paid_amount': '0.00',
+          'status': status,
+        });
 
-      final today = DateTime(2026, 9, 24);
-      expect(at('2026-07-10', 'unpaid').isOverdue(today), isTrue);
-      expect(at('2026-07-10', 'unpaid').daysOverdue(today), 76);
-      expect(at('2026-12-10', 'unpaid').isOverdue(today), isFalse);
-      // A paid invoice is never overdue, however old.
-      expect(at('2020-01-01', 'paid').isOverdue(today), isFalse);
-    });
+        final today = DateTime(2026, 9, 24);
+        expect(at('2026-07-10', 'unpaid').isOverdue(today), isTrue);
+        expect(at('2026-07-10', 'unpaid').daysOverdue(today), 76);
+        expect(at('2026-12-10', 'unpaid').isOverdue(today), isFalse);
+        // A paid invoice is never overdue, however old.
+        expect(at('2020-01-01', 'paid').isOverdue(today), isFalse);
+      },
+    );
   });
 
   group('payment sources', () {
-    test('exactly the manual sources the backend accepts (V8 CHECK; challan verified live 201)', () {
-      expect(PaymentSource.values.map((s) => s.wire),
-          ['MANUAL_CASH', 'MANUAL_BANK', 'MANUAL_CHALLAN']);
-    });
+    test(
+      'exactly the manual sources the backend accepts (V8 CHECK; challan verified live 201)',
+      () {
+        expect(PaymentSource.values.map((s) => s.wire), [
+          'MANUAL_CASH',
+          'MANUAL_BANK',
+          'MANUAL_CHALLAN',
+        ]);
+      },
+    );
 
     test('staff never see a raw wire code', () {
-      for (final w in ['MANUAL_CASH', 'MANUAL_BANK', 'MANUAL_CHALLAN', 'JAZZCASH', 'EASYPAISA', 'CARD', 'STRIPE', 'SOMETHING_NEW']) {
+      for (final w in [
+        'MANUAL_CASH',
+        'MANUAL_BANK',
+        'MANUAL_CHALLAN',
+        'JAZZCASH',
+        'EASYPAISA',
+        'CARD',
+        'STRIPE',
+        'SOMETHING_NEW',
+      ]) {
         final label = PaymentSource.labelForWire(w);
         expect(label, isNot(w), reason: w);
         expect(label.contains('_'), isFalse, reason: w);

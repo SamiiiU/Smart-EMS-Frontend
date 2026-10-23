@@ -57,9 +57,7 @@ class _ErrorStateState extends State<ErrorState> {
       iconColour: t.danger,
       title: widget.title,
       message: widget.message ?? 'The request did not complete.',
-      secondary: _escalated
-          ? _EscalationNotice(attempts: _attempts)
-          : null,
+      secondary: _escalated ? _EscalationNotice(attempts: _attempts) : null,
       action: AppButton(
         // The label changes too, so the second press does not look identical
         // to the first even before the notice appears.
@@ -94,9 +92,7 @@ class _EscalationNotice extends StatelessWidget {
         'Retrying is not working. Check your internet connection, then try '
         'again.',
         textAlign: TextAlign.center,
-        style: AppTypography.bodyAdminMeta.copyWith(
-          color: t.warningTextOnBg,
-        ),
+        style: AppTypography.bodyAdminMeta.copyWith(color: t.warningTextOnBg),
       ),
     );
   }
@@ -117,7 +113,7 @@ class OfflineState extends StatelessWidget {
     this.title = 'You are offline',
     this.message =
         'This will load as soon as the connection comes back. Nothing has been '
-            'lost.',
+        'lost.',
     super.key,
   });
 
@@ -153,8 +149,8 @@ class UnlinkedProfileState extends StatelessWidget {
     this.title = 'Your profile is not set up yet',
     this.message =
         'Your login works, but it has not been linked to a staff or student '
-            'record yet. Please ask your institution’s administrator to finish setting '
-            'up your profile.',
+        'record yet. Please ask your institution’s administrator to finish setting '
+        'up your profile.',
     super.key,
   });
 
@@ -187,7 +183,7 @@ class PermissionDeniedState extends StatelessWidget {
     this.title = 'You don’t have access to this',
     this.message =
         'Your account isn’t allowed to open this for the selected campus. '
-            'If you need it for your work, ask your institution’s administrator.',
+        'If you need it for your work, ask your institution’s administrator.',
     super.key,
   });
 

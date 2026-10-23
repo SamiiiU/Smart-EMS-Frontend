@@ -51,8 +51,7 @@ class TeachingAssignmentsScreen extends StatefulWidget {
       TeachingAssignmentsScreenState();
 }
 
-class TeachingAssignmentsScreenState
-    extends State<TeachingAssignmentsScreen> {
+class TeachingAssignmentsScreenState extends State<TeachingAssignmentsScreen> {
   ScreenState<List<TeachingAssignment>> _state =
       const ScreenState<List<TeachingAssignment>>.loading();
 
@@ -70,7 +69,8 @@ class TeachingAssignmentsScreenState
     final s = _startsOn.trim(), e = _endsOn.trim();
     if (s.isNotEmpty && !isIsoDate(s)) return false;
     if (e.isNotEmpty && !isIsoDate(e)) return false;
-    if (_type == AssignmentType.substitute && (s.isEmpty || e.isEmpty)) return false;
+    if (_type == AssignmentType.substitute && (s.isEmpty || e.isEmpty))
+      return false;
     if (s.isNotEmpty && e.isNotEmpty && e.compareTo(s) < 0) return false;
     return true;
   }
@@ -89,9 +89,11 @@ class TeachingAssignmentsScreenState
   }
 
   Future<void> _load() async {
-    setState(() => _state = ScreenState<List<TeachingAssignment>>.loading(
-          previous: _state.data,
-        ));
+    setState(
+      () => _state = ScreenState<List<TeachingAssignment>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final rows = await widget.repository.loadAssignments(_section.id);
       List<PersonAccount> staff = _staff;
@@ -110,12 +112,15 @@ class TeachingAssignmentsScreenState
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<TeachingAssignment>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<TeachingAssignment>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -147,7 +152,8 @@ class TeachingAssignmentsScreenState
   Future<String?> _create() async {
     final subjectId = _subjectId;
     final staffId = _staffId;
-    if (subjectId == null || staffId == null) return 'Pick a subject and a teacher.';
+    if (subjectId == null || staffId == null)
+      return 'Pick a subject and a teacher.';
     try {
       await widget.repository.createAssignment(
         staffId: staffId,
@@ -180,7 +186,8 @@ class TeachingAssignmentsScreenState
     final ok = await confirmAction(
       context,
       title: 'End this assignment?',
-      message: '${_staffName(a.staffId)} stops teaching ${_subjectName(a.subjectId)} in '
+      message:
+          '${_staffName(a.staffId)} stops teaching ${_subjectName(a.subjectId)} in '
           '${_section.name} immediately, including attendance and marks for it.',
       confirmLabel: 'End assignment',
     );
@@ -190,7 +197,9 @@ class TeachingAssignmentsScreenState
     } on LoadFailure catch (f) {
       if (!mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(f.message ?? 'The assignment could not be ended.')),
+        SnackBar(
+          content: Text(f.message ?? 'The assignment could not be ended.'),
+        ),
       );
     }
     if (mounted) await _load();
@@ -205,7 +214,8 @@ class TeachingAssignmentsScreenState
       title: 'Who teaches what',
       note: const InlineAlert(
         tone: InlineAlertTone.warning,
-        message: 'An assignment cannot be edited. End it when it stops, and add '
+        message:
+            'An assignment cannot be edited. End it when it stops, and add '
             'a new one; ending takes effect immediately.',
       ),
       children: [
@@ -273,13 +283,17 @@ class TeachingAssignmentsScreenState
             ),
             const SizedBox(height: AppSpacing.space5),
             SetupField(
-              label: _type == AssignmentType.substitute ? 'Starts (required)' : 'Starts (optional)',
+              label: _type == AssignmentType.substitute
+                  ? 'Starts (required)'
+                  : 'Starts (optional)',
               value: _startsOn,
               placeholder: 'YYYY-MM-DD',
               onChanged: (v) => setState(() => _startsOn = v),
             ),
             SetupField(
-              label: _type == AssignmentType.substitute ? 'Ends (required)' : 'Ends (optional)',
+              label: _type == AssignmentType.substitute
+                  ? 'Ends (required)'
+                  : 'Ends (optional)',
               value: _endsOn,
               placeholder: 'YYYY-MM-DD',
               onChanged: (v) => setState(() => _endsOn = v),
@@ -289,7 +303,9 @@ class TeachingAssignmentsScreenState
                 _type == AssignmentType.substitute
                     ? 'A substitute needs a start and an end date (YYYY-MM-DD), end on or after start.'
                     : 'Dates must be YYYY-MM-DD, with the end on or after the start.',
-                style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
             const SizedBox(height: AppSpacing.space5),
             Text(
@@ -300,8 +316,9 @@ class TeachingAssignmentsScreenState
             if (_staff.isEmpty)
               Text(
                 'No staff could be loaded, so no teacher can be picked yet.',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               )
             else
               Wrap(
@@ -336,11 +353,14 @@ class TeachingAssignmentsScreenState
                     children: [
                       SetupRow(
                         title: '${_subjectName(a.subjectId)} · ${a.type.label}',
-                        detail: '${_staffName(a.staffId)} · ${a.periodLabel} · ${a.status}',
+                        detail:
+                            '${_staffName(a.staffId)} · ${a.periodLabel} · ${a.status}',
                       ),
                       if (a.isLive)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.space3),
+                          padding: const EdgeInsets.only(
+                            bottom: AppSpacing.space3,
+                          ),
                           child: AppButton(
                             key: Key('end-${a.id}'),
                             label: 'End assignment',

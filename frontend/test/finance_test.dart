@@ -59,7 +59,10 @@ class _FeeServer implements HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(
-      RequestOptions o, Stream<List<int>>? s, Future<void>? c) async {
+    RequestOptions o,
+    Stream<List<int>>? s,
+    Future<void>? c,
+  ) async {
     requests.add(o);
     final path = o.uri.path;
     final body = o.data is Map ? (o.data as Map).cast<String, dynamic>() : null;
@@ -77,8 +80,10 @@ class _FeeServer implements HttpClientAdapter {
         );
       }
       if (path == '/api/fee/invoices') {
-        return _raw(200,
-            '{"size":20,"page":0,"totalElements":1,"content":$invoicesJson}');
+        return _raw(
+          200,
+          '{"size":20,"page":0,"totalElements":1,"content":$invoicesJson}',
+        );
       }
       if (path.startsWith('/api/fee/invoices/')) {
         return _raw(200, invoiceDetailJson);
@@ -132,14 +137,16 @@ class _FeeServer implements HttpClientAdapter {
         return _raw(status, '{"message":"$failMessage"}');
       }
       if (path == '/api/fee/heads') {
-        final row = '{"id":"head-${_id++}","name":"${body?['name']}",'
+        final row =
+            '{"id":"head-${_id++}","name":"${body?['name']}",'
             '"is_recurring":${body?['isRecurring'] ?? false},'
             '"tax_rate":${body?['taxRate'] ?? 0}}';
         heads.add(row);
         return _raw(201, row);
       }
       if (path == '/api/fee/plans') {
-        final row = '{"id":"plan-${_id++}","name":"${body?['name']}",'
+        final row =
+            '{"id":"plan-${_id++}","name":"${body?['name']}",'
             '"frequency":"monthly","class_id":"${body?['classId']}",'
             '"academic_year_id":"${body?['academicYearId']}","due_day":10,'
             '"grace_days":0,"items":[],"subtotal":0.00,"total":0.00}';
@@ -149,7 +156,8 @@ class _FeeServer implements HttpClientAdapter {
       if (path.endsWith('/generate')) return _raw(200, generateJson);
       if (path == '/api/fee/payments') {
         lastPaymentBody = body;
-        final row = '{"id":"pay-1","invoice_id":"${body?['invoiceId']}",'
+        final row =
+            '{"id":"pay-1","invoice_id":"${body?['invoiceId']}",'
             '"student_name":"Ali Khan","amount":${body?['amount']},'
             '"source":"${body?['source']}","reference":'
             '${body?['reference'] == null ? 'null' : '"${body?['reference']}"'},'
@@ -180,12 +188,12 @@ class _FeeServer implements HttpClientAdapter {
 }
 
 ResponseBody _raw(int status, String json) => ResponseBody.fromBytes(
-      utf8.encode(json),
-      status,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+  utf8.encode(json),
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 ({Dio dio, _FeeServer server, FinanceRepository repo}) _wire() {
   final server = _FeeServer();
@@ -203,9 +211,9 @@ ResponseBody _raw(int status, String json) => ResponseBody.fromBytes(
 }
 
 Widget _host(Widget child) => MaterialApp(
-      theme: AppTheme.light(role: AppRole.admin),
-      home: child,
-    );
+  theme: AppTheme.light(role: AppRole.admin),
+  home: child,
+);
 
 const _class = SchoolClass(id: 'class-1', name: 'Grade 5', levelOrder: 5);
 const _year = AcademicYear(
@@ -267,32 +275,36 @@ void main() {
   });
 
   group('writes', () {
-    test('a payment sends a UUID idempotency key and a decimal amount',
-        () async {
-      final w = _wire();
-      final result = await w.repo.recordPayment(
-        invoiceId: 'inv-1',
-        amount: Money.parse('2500.50'),
-        source: PaymentSource.bank,
-        reference: 'SLIP-9',
-      );
+    test(
+      'a payment sends a UUID idempotency key and a decimal amount',
+      () async {
+        final w = _wire();
+        final result = await w.repo.recordPayment(
+          invoiceId: 'inv-1',
+          amount: Money.parse('2500.50'),
+          source: PaymentSource.bank,
+          reference: 'SLIP-9',
+        );
 
-      expect(result.paymentId, 'pay-1');
-      final body = w.server.lastPaymentBody!;
-      expect(
-        RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-'
-                r'[0-9a-f]{12}$')
-            .hasMatch(body['idempotencyKey'] as String),
-        isTrue,
-        reason: 'a non-UUID key answers the misleading "Malformed request '
-            'body" on the live API',
-      );
-      // Sent as text, never as a double.
-      expect(body['amount'], '2500.50');
-      expect(body['amount'], isA<String>());
-      expect(body['source'], 'MANUAL_BANK');
-      expect(body['reference'], 'SLIP-9');
-    });
+        expect(result.paymentId, 'pay-1');
+        final body = w.server.lastPaymentBody!;
+        expect(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-'
+            r'[0-9a-f]{12}$',
+          ).hasMatch(body['idempotencyKey'] as String),
+          isTrue,
+          reason:
+              'a non-UUID key answers the misleading "Malformed request '
+              'body" on the live API',
+        );
+        // Sent as text, never as a double.
+        expect(body['amount'], '2500.50');
+        expect(body['amount'], isA<String>());
+        expect(body['source'], 'MANUAL_BANK');
+        expect(body['reference'], 'SLIP-9');
+      },
+    );
 
     test('a real UUID is generated when none is injected', () async {
       final server = _FeeServer();
@@ -351,9 +363,13 @@ void main() {
       );
 
       final body = w.server.requests.last.data as Map;
-      expect(body['academicYearId'], 'year-1',
-          reason: 'the backend’s `current` year flag points at an EXPIRED '
-              'year, so the year is never left to the server');
+      expect(
+        body['academicYearId'],
+        'year-1',
+        reason:
+            'the backend’s `current` year flag points at an EXPIRED '
+            'year, so the year is never left to the server',
+      );
       expect((body['items'] as List).single, {
         'feeHeadId': 'head-1',
         'amount': '5000.00',
@@ -362,8 +378,9 @@ void main() {
   });
 
   group('fee heads screen', () {
-    testWidgets('an empty school is told what a fee head is for',
-        (tester) async {
+    testWidgets('an empty school is told what a fee head is for', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(_host(FeeHeadsScreen(repository: w.repo)));
       await tester.pumpAndSettle();
@@ -371,8 +388,9 @@ void main() {
       expect(find.text('No fee heads yet'), findsOneWidget);
     });
 
-    testWidgets('permanence is stated BEFORE the save, not after',
-        (tester) async {
+    testWidgets('permanence is stated BEFORE the save, not after', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(_host(FeeHeadsScreen(repository: w.repo)));
       await tester.pumpAndSettle();
@@ -401,8 +419,9 @@ void main() {
       expect(find.text('Transport'), findsWidgets);
     });
 
-    testWidgets('a malformed tax rate is refused before the round trip',
-        (tester) async {
+    testWidgets('a malformed tax rate is refused before the round trip', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(_host(FeeHeadsScreen(repository: w.repo)));
       await tester.pumpAndSettle();
@@ -421,22 +440,26 @@ void main() {
   });
 
   group('fee plans screen', () {
-    Widget plansScreen(FinanceRepository repo) => _host(FeePlansScreen(
-          repository: repo,
-          classes: const [_class],
-          heads: const [
-            FeeHead(
-              id: 'head-1',
-              name: 'Tuition Fee',
-              isRecurring: true,
-              taxRate: '0.00',
-            ),
-          ],
-          year: _year,
-          campusId: 'campus-1',
-        ));
+    Widget plansScreen(FinanceRepository repo) => _host(
+      FeePlansScreen(
+        repository: repo,
+        classes: const [_class],
+        heads: const [
+          FeeHead(
+            id: 'head-1',
+            name: 'Tuition Fee',
+            isRecurring: true,
+            taxRate: '0.00',
+          ),
+        ],
+        year: _year,
+        campusId: 'campus-1',
+      ),
+    );
 
-    testWidgets('the year the plan will be written to is named', (tester) async {
+    testWidgets('the year the plan will be written to is named', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(plansScreen(w.repo));
       await tester.pumpAndSettle();
@@ -444,8 +467,9 @@ void main() {
       expect(find.textContaining('2025-26'), findsOneWidget);
     });
 
-    testWidgets('no running total is shown while typing amounts',
-        (tester) async {
+    testWidgets('no running total is shown while typing amounts', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(plansScreen(w.repo));
       await tester.pumpAndSettle();
@@ -458,30 +482,27 @@ void main() {
 
       // A client-side sum would be a second source of truth for money.
       expect(find.text('PKR 5,000.00'), findsNothing);
-      expect(
-        find.textContaining('calculated by the server'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('calculated by the server'), findsOneWidget);
     });
   });
 
   group('generate invoices', () {
-    Widget generateScreen(FinanceRepository repo) =>
-        _host(GenerateInvoicesScreen(
-          repository: repo,
-          plans: const [
-            FeePlan(
-              id: 'plan-1',
-              name: 'Grade 5 Monthly',
-              frequency: 'monthly',
-              classId: 'class-1',
-            ),
-          ],
-          classes: const [_class],
-        ));
+    Widget generateScreen(FinanceRepository repo) => _host(
+      GenerateInvoicesScreen(
+        repository: repo,
+        plans: const [
+          FeePlan(
+            id: 'plan-1',
+            name: 'Grade 5 Monthly',
+            frequency: 'monthly',
+            classId: 'class-1',
+          ),
+        ],
+        classes: const [_class],
+      ),
+    );
 
-    testWidgets('what will happen is stated before it happens',
-        (tester) async {
+    testWidgets('what will happen is stated before it happens', (tester) async {
       final w = _wire();
       await tester.pumpWidget(generateScreen(w.repo));
       await tester.pumpAndSettle();
@@ -491,8 +512,9 @@ void main() {
       expect(find.textContaining('cannot be deleted'), findsOneWidget);
     });
 
-    testWidgets('it does not estimate a student count it cannot know',
-        (tester) async {
+    testWidgets('it does not estimate a student count it cannot know', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(generateScreen(w.repo));
       await tester.pumpAndSettle();
@@ -503,8 +525,9 @@ void main() {
       );
     });
 
-    testWidgets('the run is confirmed deliberately and says it is permanent',
-        (tester) async {
+    testWidgets('the run is confirmed deliberately and says it is permanent', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(generateScreen(w.repo));
       await tester.pumpAndSettle();
@@ -515,7 +538,10 @@ void main() {
       expect(find.text('Generate these invoices?'), findsOneWidget);
       expect(find.textContaining('This cannot be undone'), findsOneWidget);
       // And the reassurance that re-running is safe, which is true here.
-      expect(find.textContaining('are skipped, not duplicated'), findsOneWidget);
+      expect(
+        find.textContaining('are skipped, not duplicated'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -526,8 +552,9 @@ void main() {
       );
     });
 
-    testWidgets('a repeat run reports what was skipped rather than created',
-        (tester) async {
+    testWidgets('a repeat run reports what was skipped rather than created', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.generateJson = '{"total":30,"generated":0,"skipped":30}';
       await tester.pumpWidget(generateScreen(w.repo));
@@ -555,14 +582,14 @@ void main() {
   });
 
   group('invoice list and detail', () {
-    testWidgets('an overdue invoice says so in words, since there is no status',
-        (tester) async {
+    testWidgets('an overdue invoice says so in words, since there is no status', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.invoicesJson = '[$_invoiceJson]';
-      await tester.pumpWidget(_host(InvoicesScreen(
-        repository: w.repo,
-        classes: const [_class],
-      )));
+      await tester.pumpWidget(
+        _host(InvoicesScreen(repository: w.repo, classes: const [_class])),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Ali Khan'), findsOneWidget);
@@ -571,8 +598,9 @@ void main() {
       expect(find.textContaining('days late'), findsOneWidget);
     });
 
-    testWidgets('the detail renders the SERVER total, not the sum of lines',
-        (tester) async {
+    testWidgets('the detail renders the SERVER total, not the sum of lines', (
+      tester,
+    ) async {
       final w = _wire();
       // Lines add up to 5,500 but the server says 5,000 — a discount the app
       // knows nothing about. The server figure must win.
@@ -583,34 +611,37 @@ void main() {
           '{"description":"Tuition Fee","total":5000.00},'
           '{"description":"Exam Fee","total":500.00}]}';
 
-      await tester.pumpWidget(_host(InvoiceDetailScreen(
-        repository: w.repo,
-        invoiceId: 'inv-1',
-      )));
+      await tester.pumpWidget(
+        _host(InvoiceDetailScreen(repository: w.repo, invoiceId: 'inv-1')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('PKR 5,000.00'), findsWidgets);
       expect(find.text('PKR 5,500.00'), findsNothing);
     });
 
-    testWidgets('due date is a localized business date, not raw ISO', (tester) async {
+    testWidgets('due date is a localized business date, not raw ISO', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.invoiceDetailJson = _invoiceJson;
-      await tester.pumpWidget(_host(InvoiceDetailScreen(repository: w.repo, invoiceId: 'inv-1')));
+      await tester.pumpWidget(
+        _host(InvoiceDetailScreen(repository: w.repo, invoiceId: 'inv-1')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('due Jul 10, 2026'), findsOneWidget);
       expect(find.textContaining('2026-07-10'), findsNothing);
     });
 
-    testWidgets('it admits it cannot list the individual payments',
-        (tester) async {
+    testWidgets('it admits it cannot list the individual payments', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.invoiceDetailJson = _invoiceJson;
-      await tester.pumpWidget(_host(InvoiceDetailScreen(
-        repository: w.repo,
-        invoiceId: 'inv-1',
-      )));
+      await tester.pumpWidget(
+        _host(InvoiceDetailScreen(repository: w.repo, invoiceId: 'inv-1')),
+      );
       await tester.pumpAndSettle();
 
       expect(
@@ -625,10 +656,9 @@ void main() {
           .replaceAll('"paid_amount":0.00', '"paid_amount":5500.00')
           .replaceAll('"status":"unpaid"', '"status":"paid"');
 
-      await tester.pumpWidget(_host(InvoiceDetailScreen(
-        repository: w.repo,
-        invoiceId: 'inv-1',
-      )));
+      await tester.pumpWidget(
+        _host(InvoiceDetailScreen(repository: w.repo, invoiceId: 'inv-1')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Record a payment'), findsNothing);
@@ -648,13 +678,13 @@ void main() {
           'status': status,
         });
 
-    testWidgets('it says the payment is not final until approved',
-        (tester) async {
+    testWidgets('it says the payment is not final until approved', (
+      tester,
+    ) async {
       final w = _wire();
-      await tester.pumpWidget(_host(RecordPaymentScreen(
-        repository: w.repo,
-        invoice: invoice(),
-      )));
+      await tester.pumpWidget(
+        _host(RecordPaymentScreen(repository: w.repo, invoice: invoice())),
+      );
       await tester.pumpAndSettle();
 
       expect(
@@ -663,77 +693,90 @@ void main() {
       );
     });
 
-    testWidgets('no date field is offered, and the reason is given',
-        (tester) async {
+    testWidgets('no date field is offered, and the reason is given', (
+      tester,
+    ) async {
       final w = _wire();
-      await tester.pumpWidget(_host(RecordPaymentScreen(
-        repository: w.repo,
-        invoice: invoice(),
-      )));
+      await tester.pumpWidget(
+        _host(RecordPaymentScreen(repository: w.repo, invoice: invoice())),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('an earlier date cannot be entered'),
-          findsOneWidget);
+      expect(
+        find.textContaining('an earlier date cannot be entered'),
+        findsOneWidget,
+      );
       expect(find.text('Date'), findsNothing);
     });
 
     testWidgets('only cash and bank transfer are offered', (tester) async {
       final w = _wire();
-      await tester.pumpWidget(_host(RecordPaymentScreen(
-        repository: w.repo,
-        invoice: invoice(),
-      )));
+      await tester.pumpWidget(
+        _host(RecordPaymentScreen(repository: w.repo, invoice: invoice())),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Cash'), findsOneWidget);
       expect(find.text('Bank transfer'), findsOneWidget);
       expect(find.text('Cheque'), findsNothing);
-      expect(find.textContaining('Cheque, card and online are not available'),
-          findsOneWidget);
+      expect(
+        find.textContaining('Cheque, card and online are not available'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('it says plainly that payments cannot be taken offline',
-        (tester) async {
+    testWidgets('it says plainly that payments cannot be taken offline', (
+      tester,
+    ) async {
       final w = _wire();
-      await tester.pumpWidget(_host(RecordPaymentScreen(
-        repository: w.repo,
-        invoice: invoice(),
-      )));
+      await tester.pumpWidget(
+        _host(RecordPaymentScreen(repository: w.repo, invoice: invoice())),
+      );
       await tester.pumpAndSettle();
 
       // M5: the summary panel moved the note below the fold; scroll to it.
-      await tester.scrollUntilVisible(find.textContaining('cannot be recorded while offline'), 200,
-          scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(
+        find.textContaining('cannot be recorded while offline'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(
         find.textContaining('cannot be recorded while offline'),
         findsOneWidget,
       );
     });
 
-    testWidgets('an overpayment is caught before the round trip',
-        (tester) async {
+    testWidgets('an overpayment is caught before the round trip', (
+      tester,
+    ) async {
       final w = _wire();
-      await tester.pumpWidget(_host(RecordPaymentScreen(
-        repository: w.repo,
-        invoice: invoice(paid: '5000.00', status: 'partial'),
-      )));
+      await tester.pumpWidget(
+        _host(
+          RecordPaymentScreen(
+            repository: w.repo,
+            invoice: invoice(paid: '5000.00', status: 'partial'),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, '900');
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('more than the PKR 500.00 still owed'),
-          findsOneWidget);
+      expect(
+        find.textContaining('more than the PKR 500.00 still owed'),
+        findsOneWidget,
+      );
       expect(w.server.lastPaymentBody, isNull);
     });
 
-    testWidgets('after recording, the money is shown as NOT yet counted',
-        (tester) async {
+    testWidgets('after recording, the money is shown as NOT yet counted', (
+      tester,
+    ) async {
       final w = _wire();
-      await tester.pumpWidget(_host(RecordPaymentScreen(
-        repository: w.repo,
-        invoice: invoice(),
-      )));
+      await tester.pumpWidget(
+        _host(RecordPaymentScreen(repository: w.repo, invoice: invoice())),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, '1500');
@@ -745,20 +788,23 @@ void main() {
       await tester.tap(find.byKey(const Key('confirm-record-payment')));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('counts against the invoice only after approval'), findsOneWidget);
+      expect(
+        find.textContaining('counts against the invoice only after approval'),
+        findsOneWidget,
+      );
       // NOTE-QA-10: a payment recorded just now is not described as restored.
       expect(find.textContaining('restored'), findsNothing);
       expect(find.textContaining('earlier attempt'), findsNothing);
       expect(find.text('Approve and issue receipt'), findsOneWidget);
     });
 
-    testWidgets('approval is confirmed and stated as irreversible',
-        (tester) async {
+    testWidgets('approval is confirmed and stated as irreversible', (
+      tester,
+    ) async {
       final w = _wire();
-      await tester.pumpWidget(_host(RecordPaymentScreen(
-        repository: w.repo,
-        invoice: invoice(),
-      )));
+      await tester.pumpWidget(
+        _host(RecordPaymentScreen(repository: w.repo, invoice: invoice())),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, '1500');
@@ -774,13 +820,17 @@ void main() {
       await tester.tap(find.text('Approve and issue receipt'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('no way to reverse or cancel'), findsOneWidget);
+      expect(
+        find.textContaining('no way to reverse or cancel'),
+        findsOneWidget,
+      );
     });
   });
 
   group('approvals queue', () {
-    testWidgets('every pending payment is marked as not yet counted',
-        (tester) async {
+    testWidgets('every pending payment is marked as not yet counted', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.pending.add(
         '{"id":"pay-1","invoice_id":"inv-1","student_name":"Ali Khan",'
@@ -788,21 +838,22 @@ void main() {
         '"received_at":"2026-09-24T00:00:00Z"}',
       );
 
-      await tester
-          .pumpWidget(_host(PendingPaymentsScreen(repository: w.repo)));
+      await tester.pumpWidget(_host(PendingPaymentsScreen(repository: w.repo)));
       await tester.pumpAndSettle();
 
       expect(find.text('PKR 1,500.00'), findsOneWidget);
       expect(find.text('Cash'), findsOneWidget);
-      expect(find.textContaining('None of this money is counted'),
-          findsOneWidget);
+      expect(
+        find.textContaining('None of this money is counted'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('an empty queue is an empty state, not an error',
-        (tester) async {
+    testWidgets('an empty queue is an empty state, not an error', (
+      tester,
+    ) async {
       final w = _wire();
-      await tester
-          .pumpWidget(_host(PendingPaymentsScreen(repository: w.repo)));
+      await tester.pumpWidget(_host(PendingPaymentsScreen(repository: w.repo)));
       await tester.pumpAndSettle();
 
       expect(find.text('Nothing awaiting approval'), findsOneWidget);
@@ -810,29 +861,38 @@ void main() {
   });
 
   group('receipt', () {
-    testWidgets('it shows the receipt and admits there is no PDF',
-        (tester) async {
+    testWidgets('it shows the receipt and admits there is no PDF', (
+      tester,
+    ) async {
       final w = _wire();
-      await tester.pumpWidget(_host(ReceiptScreen(
-        repository: w.repo,
-        receiptId: 'rcp-1',
-        receiptNumber: 'RCP-2026-001',
-      )));
+      await tester.pumpWidget(
+        _host(
+          ReceiptScreen(
+            repository: w.repo,
+            receiptId: 'rcp-1',
+            receiptNumber: 'RCP-2026-001',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('PKR 1,500.00'), findsOneWidget);
       expect(find.text('RCP-2026-001'), findsWidgets);
-      expect(find.textContaining('cannot be downloaded or printed'),
-          findsOneWidget);
+      expect(
+        find.textContaining('cannot be downloaded or printed'),
+        findsOneWidget,
+      );
       expect(find.text('Download'), findsNothing);
     });
   });
 
   group('defaulters', () {
-    testWidgets('the biggest debt is at the top, not the first name',
-        (tester) async {
+    testWidgets('the biggest debt is at the top, not the first name', (
+      tester,
+    ) async {
       final w = _wire();
-      w.server.defaultersJson = '['
+      w.server.defaultersJson =
+          '['
           '{"invoice_id":"i1","student_name":"Aisha","admission_number":"S1",'
           '"period":"2026-07","due_date":"2026-07-10","status":"unpaid",'
           '"total_amount":200.00,"paid_amount":0.00,"outstanding":200.00},'
@@ -841,10 +901,9 @@ void main() {
           '"total_amount":80000.00,"paid_amount":0.00,"outstanding":80000.00}'
           ']';
 
-      await tester.pumpWidget(_host(DefaultersScreen(
-        repository: w.repo,
-        classes: const [_class],
-      )));
+      await tester.pumpWidget(
+        _host(DefaultersScreen(repository: w.repo, classes: const [_class])),
+      );
       await tester.pumpAndSettle();
 
       final amounts = tester
@@ -858,10 +917,9 @@ void main() {
 
     testWidgets('nobody behind is a clean empty state', (tester) async {
       final w = _wire();
-      await tester.pumpWidget(_host(DefaultersScreen(
-        repository: w.repo,
-        classes: const [_class],
-      )));
+      await tester.pumpWidget(
+        _host(DefaultersScreen(repository: w.repo, classes: const [_class])),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Nobody is behind'), findsOneWidget);
@@ -869,8 +927,9 @@ void main() {
   });
 
   group('collection report', () {
-    testWidgets('it states its scope rather than offering a dead filter',
-        (tester) async {
+    testWidgets('it states its scope rather than offering a dead filter', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.collectionJson =
           '{"totalInvoiced":125000.00,"totalCollected":100000.50,'
@@ -878,21 +937,25 @@ void main() {
           '"invoiced":125000.00,"collected":100000.50,'
           '"outstanding":24999.50}]}';
 
-      await tester
-          .pumpWidget(_host(CollectionReportScreen(repository: w.repo)));
+      await tester.pumpWidget(
+        _host(CollectionReportScreen(repository: w.repo)),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('PKR 100,000.50'), findsWidgets);
-      expect(find.textContaining('cannot be narrowed to a month or a year'),
-          findsOneWidget);
+      expect(
+        find.textContaining('cannot be narrowed to a month or a year'),
+        findsOneWidget,
+      );
       // No period control, because the endpoint ignores one.
       expect(find.text('Apply period'), findsNothing);
     });
 
     testWidgets('nothing invoiced yet is an empty state', (tester) async {
       final w = _wire();
-      await tester
-          .pumpWidget(_host(CollectionReportScreen(repository: w.repo)));
+      await tester.pumpWidget(
+        _host(CollectionReportScreen(repository: w.repo)),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Nothing invoiced yet'), findsOneWidget);
@@ -900,14 +963,17 @@ void main() {
   });
 
   group('the finance hub', () {
-    Widget hub(Dio dio, FinanceRepository repo) => _host(FinanceHomeScreen(
-          finance: repo,
-          setup: SetupRepository(dio),
-          admin: AdminRepository(dio),
-        ));
+    Widget hub(Dio dio, FinanceRepository repo) => _host(
+      FinanceHomeScreen(
+        finance: repo,
+        setup: SetupRepository(dio),
+        admin: AdminRepository(dio),
+      ),
+    );
 
-    testWidgets('a blocked step says what is missing, not "could not load"',
-        (tester) async {
+    testWidgets('a blocked step says what is missing, not "could not load"', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(hub(w.dio, w.repo));
       await tester.pumpAndSettle();
@@ -917,36 +983,63 @@ void main() {
       expect(find.textContaining('Could not load'), findsNothing);
     });
 
-    testWidgets('M6: the hub opens on collected / outstanding / awaiting approval',
-        (tester) async {
-      final w = _wire();
-      w.server.collectionJson =
-          '{"totalInvoiced":125000.00,"totalCollected":100000.50,'
-          '"outstanding":24999.50,"byClass":[]}';
-      await tester.pumpWidget(hub(w.dio, w.repo));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'M6: the hub opens on collected / outstanding / awaiting approval',
+      (tester) async {
+        final w = _wire();
+        w.server.collectionJson =
+            '{"totalInvoiced":125000.00,"totalCollected":100000.50,'
+            '"outstanding":24999.50,"byClass":[]}';
+        await tester.pumpWidget(hub(w.dio, w.repo));
+        await tester.pumpAndSettle();
 
-      final summary = find.byKey(const Key('finance-summary'));
-      expect(find.descendant(of: summary, matching: find.text('PKR 100,000.50')), findsOneWidget);
-      expect(find.descendant(of: summary, matching: find.text('PKR 24,999.50')), findsOneWidget);
-      expect(find.text('of PKR 125,000.00 invoiced'), findsOneWidget);
-      expect(find.descendant(of: summary, matching: find.text('Payments awaiting approval')), findsOneWidget);
-    });
+        final summary = find.byKey(const Key('finance-summary'));
+        expect(
+          find.descendant(of: summary, matching: find.text('PKR 100,000.50')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: summary, matching: find.text('PKR 24,999.50')),
+          findsOneWidget,
+        );
+        expect(find.text('of PKR 125,000.00 invoiced'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: summary,
+            matching: find.text('Payments awaiting approval'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('M6: a failed collection report never blocks the fee tools',
-        (tester) async {
+    testWidgets('M6: a failed collection report never blocks the fee tools', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.collectionStatus = 500;
       await tester.pumpWidget(hub(w.dio, w.repo));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Collection totals could not be loaded'), findsOneWidget);
-      expect(find.text('Fee heads'), findsOneWidget, reason: 'the hub itself still renders');
-      expect(find.text('Collected'), findsNothing, reason: 'no invented zero totals');
+      expect(
+        find.textContaining('Collection totals could not be loaded'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Fee heads'),
+        findsOneWidget,
+        reason: 'the hub itself still renders',
+      );
+      expect(
+        find.text('Collected'),
+        findsNothing,
+        reason: 'no invented zero totals',
+      );
     });
 
-    testWidgets('the steps unblock in order as their dependency appears',
-        (tester) async {
+    testWidgets('the steps unblock in order as their dependency appears', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.heads.add(
         '{"id":"head-1","name":"Tuition Fee","is_recurring":true,'
@@ -967,8 +1060,7 @@ void main() {
     for (final dark in [false, true]) {
       final mode = dark ? 'dark' : 'light';
 
-      testWidgets('all eight finance screens render in $mode',
-          (tester) async {
+      testWidgets('all eight finance screens render in $mode', (tester) async {
         final w = _wire();
         w.server.invoicesJson = '[$_invoiceJson]';
         w.server.invoiceDetailJson = _invoiceJson;
@@ -981,7 +1073,8 @@ void main() {
           '"amount":1500.00,"source":"MANUAL_CASH","reference":null,'
           '"received_at":"2026-09-24T00:00:00Z"}',
         );
-        w.server.defaultersJson = '['
+        w.server.defaultersJson =
+            '['
             '{"invoice_id":"i1","student_name":"Aisha","admission_number":"S1",'
             '"period":"2026-07","due_date":"2026-07-10","status":"unpaid",'
             '"total_amount":200.00,"paid_amount":0.00,"outstanding":200.00}]';
@@ -1024,9 +1117,14 @@ void main() {
             ],
             classes: const [_class],
           ),
-          'invoices':
-              InvoicesScreen(repository: w.repo, classes: const [_class]),
-          'invoice': InvoiceDetailScreen(repository: w.repo, invoiceId: 'inv-1'),
+          'invoices': InvoicesScreen(
+            repository: w.repo,
+            classes: const [_class],
+          ),
+          'invoice': InvoiceDetailScreen(
+            repository: w.repo,
+            invoiceId: 'inv-1',
+          ),
           'payment': RecordPaymentScreen(
             repository: w.repo,
             invoice: Invoice.fromJson(const {
@@ -1045,21 +1143,28 @@ void main() {
             receiptId: 'rcp-1',
             receiptNumber: 'RCP-2026-001',
           ),
-          'defaulters':
-              DefaultersScreen(repository: w.repo, classes: const [_class]),
+          'defaulters': DefaultersScreen(
+            repository: w.repo,
+            classes: const [_class],
+          ),
           'report': CollectionReportScreen(repository: w.repo),
         };
 
         for (final entry in screens.entries) {
-          await tester.pumpWidget(MaterialApp(
-            theme: dark
-                ? AppTheme.dark(role: AppRole.admin)
-                : AppTheme.light(role: AppRole.admin),
-            home: entry.value,
-          ));
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: dark
+                  ? AppTheme.dark(role: AppRole.admin)
+                  : AppTheme.light(role: AppRole.admin),
+              home: entry.value,
+            ),
+          );
           await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull,
-              reason: '${entry.key} threw in $mode');
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '${entry.key} threw in $mode',
+          );
         }
       });
     }
@@ -1067,8 +1172,9 @@ void main() {
 
   group('responsive and accessible', () {
     for (final width in [360.0, 768.0, 1366.0]) {
-      testWidgets('no finance screen overflows at ${width.toInt()}px',
-          (tester) async {
+      testWidgets('no finance screen overflows at ${width.toInt()}px', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.reset);
@@ -1081,7 +1187,8 @@ void main() {
           '"amount":1500.00,"source":"MANUAL_CASH","reference":"SLIP-12345",'
           '"received_at":"2026-09-24T00:00:00Z"}',
         );
-        w.server.defaultersJson = '['
+        w.server.defaultersJson =
+            '['
             '{"invoice_id":"i1","student_name":"Muhammad Abdul Rehman",'
             '"admission_number":"STU-0001","period":"2026-07",'
             '"due_date":"2026-07-10","status":"unpaid",'
@@ -1099,12 +1206,19 @@ void main() {
             setup: SetupRepository(w.dio),
             admin: AdminRepository(w.dio),
           ),
-          'invoices':
-              InvoicesScreen(repository: w.repo, classes: const [_class]),
-          'invoice': InvoiceDetailScreen(repository: w.repo, invoiceId: 'inv-1'),
+          'invoices': InvoicesScreen(
+            repository: w.repo,
+            classes: const [_class],
+          ),
+          'invoice': InvoiceDetailScreen(
+            repository: w.repo,
+            invoiceId: 'inv-1',
+          ),
           'pending': PendingPaymentsScreen(repository: w.repo),
-          'defaulters':
-              DefaultersScreen(repository: w.repo, classes: const [_class]),
+          'defaulters': DefaultersScreen(
+            repository: w.repo,
+            classes: const [_class],
+          ),
           'report': CollectionReportScreen(repository: w.repo),
           'receipt': ReceiptScreen(
             repository: w.repo,
@@ -1116,48 +1230,48 @@ void main() {
         for (final entry in screens.entries) {
           await tester.pumpWidget(_host(entry.value));
           await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull,
-              reason: '${entry.key} overflowed at ${width.toInt()}px');
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '${entry.key} overflowed at ${width.toInt()}px',
+          );
         }
       });
     }
 
-    testWidgets('an invoice row carries its status in its semantics label',
-        (tester) async {
+    testWidgets('an invoice row carries its status in its semantics label', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.invoicesJson = '[$_invoiceJson]';
-      await tester.pumpWidget(_host(InvoicesScreen(
-        repository: w.repo,
-        classes: const [_class],
-      )));
+      await tester.pumpWidget(
+        _host(InvoicesScreen(repository: w.repo, classes: const [_class])),
+      );
       await tester.pumpAndSettle();
 
       // The pill's colour is not the only carrier of the status — the row's
       // own label states it for a screen reader.
-      expect(
-        find.bySemanticsLabel(RegExp('Ali Khan.*Unpaid')),
-        findsOneWidget,
-      );
+      expect(find.bySemanticsLabel(RegExp('Ali Khan.*Unpaid')), findsOneWidget);
     });
 
-    testWidgets('amounts survive a large text scale without overflowing',
-        (tester) async {
+    testWidgets('amounts survive a large text scale without overflowing', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(360, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
       final w = _wire();
       w.server.invoicesJson = '[$_invoiceJson]';
-      await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.light(role: AppRole.admin),
-        home: MediaQuery(
-          data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
-          child: InvoicesScreen(
-            repository: w.repo,
-            classes: const [_class],
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(role: AppRole.admin),
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
+            child: InvoicesScreen(repository: w.repo, classes: const [_class]),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);

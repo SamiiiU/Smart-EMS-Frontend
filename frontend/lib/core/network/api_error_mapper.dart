@@ -18,7 +18,9 @@ LoadFailure mapDioError(DioException err) {
   final response = err.response;
   final status = response?.statusCode;
   final body = response?.data;
-  final message = withoutInternalIds(body is Map ? body['message'] as String? : null);
+  final message = withoutInternalIds(
+    body is Map ? body['message'] as String? : null,
+  );
   final requestedPath = err.requestOptions.uri.path;
 
   // A 404 from a PERSON-RECORD endpoint is the D-17 orphan case (row 9 of
@@ -56,7 +58,12 @@ LoadFailure mapDioError(DioException err) {
 String? withoutInternalIds(String? message) {
   if (message == null) return null;
   final cleaned = message
-      .replaceAll(RegExp(r':?\s*\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b'), '')
+      .replaceAll(
+        RegExp(
+          r':?\s*\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b',
+        ),
+        '',
+      )
       .trim();
   return cleaned.isEmpty ? null : cleaned;
 }

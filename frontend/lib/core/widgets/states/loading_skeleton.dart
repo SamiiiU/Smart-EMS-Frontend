@@ -26,23 +26,20 @@ enum SkeletonVariant { listRows, cards, tableRows, statCards }
 ///  - stops immediately under `prefers-reduced-motion`, leaving a STATIC
 ///    skeleton rather than no skeleton.
 class LoadingSkeleton extends StatelessWidget {
-  const LoadingSkeleton({
-    required this.variant,
-    this.count = 5,
-    super.key,
-  }) : assert(count > 0, 'a skeleton with no rows communicates nothing');
+  const LoadingSkeleton({required this.variant, this.count = 5, super.key})
+    : assert(count > 0, 'a skeleton with no rows communicates nothing');
 
   const LoadingSkeleton.listRows({int count = 5, Key? key})
-      : this(variant: SkeletonVariant.listRows, count: count, key: key);
+    : this(variant: SkeletonVariant.listRows, count: count, key: key);
 
   const LoadingSkeleton.cards({int count = 3, Key? key})
-      : this(variant: SkeletonVariant.cards, count: count, key: key);
+    : this(variant: SkeletonVariant.cards, count: count, key: key);
 
   const LoadingSkeleton.tableRows({int count = 5, Key? key})
-      : this(variant: SkeletonVariant.tableRows, count: count, key: key);
+    : this(variant: SkeletonVariant.tableRows, count: count, key: key);
 
   const LoadingSkeleton.statCards({int count = 4, Key? key})
-      : this(variant: SkeletonVariant.statCards, count: count, key: key);
+    : this(variant: SkeletonVariant.statCards, count: count, key: key);
 
   final SkeletonVariant variant;
   final int count;
@@ -139,9 +136,10 @@ class _ShimmerState extends State<_Shimmer>
       return widget.child;
     }
     return FadeTransition(
-      opacity: Tween<double>(begin: 0.45, end: 1).animate(
-        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-      ),
+      opacity: Tween<double>(
+        begin: 0.45,
+        end: 1,
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
       child: widget.child,
     );
   }
@@ -149,11 +147,7 @@ class _ShimmerState extends State<_Shimmer>
 
 /// A single neutral block. The only shape any skeleton is built from.
 class _Block extends StatelessWidget {
-  const _Block({
-    required this.height,
-    this.width,
-    this.circle = false,
-  });
+  const _Block({required this.height, this.width, this.circle = false});
 
   final double height;
   final double? width;

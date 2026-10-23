@@ -140,7 +140,8 @@ class RecordPaymentScreenState extends State<RecordPaymentScreen> {
     final confirmed = await confirmAction(
       context,
       title: retry ? 'Retry the original payment?' : 'Record this payment?',
-      message: '${amount.format()} via ${_source.label} for '
+      message:
+          '${amount.format()} via ${_source.label} for '
           '${widget.invoice.studentName} (${widget.invoice.period}). '
           '${retry ? 'The original details and request key are reused, so it cannot be recorded twice. ' : ''}'
           'It will await approval and does not count against the invoice until approved.',
@@ -177,7 +178,8 @@ class RecordPaymentScreenState extends State<RecordPaymentScreen> {
     final confirmed = await confirmAction(
       context,
       title: 'Approve this payment?',
-      message: '${_pendingAmount?.format() ?? 'The payment'} will be counted against this '
+      message:
+          '${_pendingAmount?.format() ?? 'The payment'} will be counted against this '
           'invoice and a receipt will be issued. There is no way to reverse or cancel an '
           'approved payment on this system.',
       confirmLabel: 'Approve',
@@ -231,7 +233,8 @@ class RecordPaymentScreenState extends State<RecordPaymentScreen> {
     setState(() {
       _busy = false;
       _error = null;
-      _warning = 'This payment was already processed'
+      _warning =
+          'This payment was already processed'
           '${status == null ? '' : ' — it is $status'} — by someone else or by an '
           'earlier attempt. Nothing was applied again. Go back to the invoice to '
           'see its current balance.';
@@ -403,13 +406,13 @@ class RecordPaymentScreenState extends State<RecordPaymentScreen> {
             // says it is approved or collected: only the server decides that.
             message: _restoredPending
                 ? '${_pendingAmount?.format() ?? 'A payment'} from an earlier '
-                    'attempt is recorded and still awaiting approval. The displayed '
-                    'outstanding balance is ${invoice.outstanding.format()}. Check '
-                    'the current status before approving it.'
+                      'attempt is recorded and still awaiting approval. The displayed '
+                      'outstanding balance is ${invoice.outstanding.format()}. Check '
+                      'the current status before approving it.'
                 : '${_pendingAmount?.format() ?? 'The payment'} has been '
-                    'recorded and is awaiting approval. It counts against the '
-                    'invoice only after approval. Approve it now to issue a '
-                    'receipt, or leave it in the approval queue.',
+                      'recorded and is awaiting approval. It counts against the '
+                      'invoice only after approval. Approve it now to issue a '
+                      'receipt, or leave it in the approval queue.',
           ),
           const SizedBox(height: AppSpacing.space6),
           AppButton(
@@ -437,15 +440,17 @@ class RecordPaymentScreenState extends State<RecordPaymentScreen> {
                         widget.invoice.id,
                         _pendingPaymentId!,
                       );
-                      if (context.mounted) { Navigator.of(context).pop(); }
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
                     } catch (_) {
                       if (mounted) {
                         setState(() {
                           _busy = false;
                           _error =
                               'Saved tracking could not be cleared. Try again after storage is restored.';
-});
-}
+                        });
+                      }
                     }
                   },
           ),
@@ -490,7 +495,11 @@ class RecordPaymentScreenState extends State<RecordPaymentScreen> {
 /// amount typed (or recorded). Deliberately no "balance after payment" — that
 /// would be a new calculation, and a pending payment changes nothing yet.
 class _PaymentSummary extends StatelessWidget {
-  const _PaymentSummary({required this.outstanding, required this.entered, required this.recorded});
+  const _PaymentSummary({
+    required this.outstanding,
+    required this.entered,
+    required this.recorded,
+  });
 
   final Money outstanding;
   final Money? entered;
@@ -500,33 +509,48 @@ class _PaymentSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     Widget tile(String label, String value, {Key? key}) => Expanded(
-          child: MergeSemantics(
-            key: key,
-            child: Container(
-              padding: const EdgeInsets.all(AppSpacing.space5),
-              decoration: BoxDecoration(
-                color: t.surface,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: t.border, width: AppSizing.borderThin),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: AppTypography.caption.copyWith(color: t.textSecondary)),
-                  const SizedBox(height: AppSpacing.space2),
-                  Text(value, style: AppTypography.sectionHeading.copyWith(color: t.textPrimary)),
-                ],
-              ),
-            ),
+      child: MergeSemantics(
+        key: key,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.space5),
+          decoration: BoxDecoration(
+            color: t.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: t.border, width: AppSizing.borderThin),
           ),
-        );
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: AppTypography.caption.copyWith(color: t.textSecondary),
+              ),
+              const SizedBox(height: AppSpacing.space2),
+              Text(
+                value,
+                style: AppTypography.sectionHeading.copyWith(
+                  color: t.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        tile('Outstanding on invoice', outstanding.format(), key: const Key('summary-outstanding')),
+        tile(
+          'Outstanding on invoice',
+          outstanding.format(),
+          key: const Key('summary-outstanding'),
+        ),
         const SizedBox(width: AppSpacing.space4),
-        tile(recorded ? 'Recorded, awaiting approval' : 'This payment', entered?.format() ?? '—',
-            key: const Key('summary-payment')),
+        tile(
+          recorded ? 'Recorded, awaiting approval' : 'This payment',
+          entered?.format() ?? '—',
+          key: const Key('summary-payment'),
+        ),
       ],
     );
   }

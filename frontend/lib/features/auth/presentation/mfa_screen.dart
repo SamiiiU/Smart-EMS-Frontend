@@ -66,7 +66,8 @@ class MfaScreenState extends State<MfaScreen> {
     if (status == null) {
       setState(() {
         _stage = _Stage.failed;
-        _error = result.failure?.message ?? 'Could not check two-factor status.';
+        _error =
+            result.failure?.message ?? 'Could not check two-factor status.';
       });
       return;
     }
@@ -132,9 +133,19 @@ class MfaScreenState extends State<MfaScreen> {
     final children = <Widget>[];
     void heading(String title, String body) {
       children
-        ..add(Text(title, style: AppTypography.screenTitle.copyWith(color: t.textPrimary)))
+        ..add(
+          Text(
+            title,
+            style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
+          ),
+        )
         ..add(const SizedBox(height: AppSpacing.space3))
-        ..add(Text(body, style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary)))
+        ..add(
+          Text(
+            body,
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+          ),
+        )
         ..add(const SizedBox(height: AppSpacing.space6));
     }
 
@@ -148,28 +159,53 @@ class MfaScreenState extends State<MfaScreen> {
       case _Stage.loading:
         children.add(const Center(child: CircularProgressIndicator()));
       case _Stage.alreadyEnabled:
-        heading('Two-factor authentication', 'Two-factor authentication is already enabled for your account.');
-        children.add(AppButton(label: 'Done', fullWidth: true, onPressed: widget.onVerified));
+        heading(
+          'Two-factor authentication',
+          'Two-factor authentication is already enabled for your account.',
+        );
+        children.add(
+          AppButton(
+            label: 'Done',
+            fullWidth: true,
+            onPressed: widget.onVerified,
+          ),
+        );
       case _Stage.failed:
-        heading('Two-factor authentication', 'Two-factor sign-in could not be started.');
-        children.add(AppButton(label: 'Try again', fullWidth: true, onPressed: _load));
+        heading(
+          'Two-factor authentication',
+          'Two-factor sign-in could not be started.',
+        );
+        children.add(
+          AppButton(label: 'Try again', fullWidth: true, onPressed: _load),
+        );
       case _Stage.enrol:
         heading(
           'Set up two-factor authentication',
           '${widget.optionalEnrolment ? '' : 'Your role requires an authenticator app. '}'
-          'Add this key to Google Authenticator, Microsoft Authenticator or a '
-          'similar app, then enter the 6-digit code it shows.',
+              'Add this key to Google Authenticator, Microsoft Authenticator or a '
+              'similar app, then enter the 6-digit code it shows.',
         );
         children
-          ..add(SelectableText(_enrollment!.secret,
+          ..add(
+            SelectableText(
+              _enrollment!.secret,
               key: const Key('mfa-secret'),
-              style: AppTypography.screenTitle.copyWith(color: t.textPrimary, letterSpacing: 2)))
+              style: AppTypography.screenTitle.copyWith(
+                color: t.textPrimary,
+                letterSpacing: 2,
+              ),
+            ),
+          )
           ..add(const SizedBox(height: AppSpacing.space3))
-          ..add(AppButton(
-            label: 'Copy setup link',
-            variant: AppButtonVariant.secondary,
-            onPressed: () => Clipboard.setData(ClipboardData(text: _enrollment!.otpauthUrl)),
-          ))
+          ..add(
+            AppButton(
+              label: 'Copy setup link',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Clipboard.setData(
+                ClipboardData(text: _enrollment!.otpauthUrl),
+              ),
+            ),
+          )
           ..add(const SizedBox(height: AppSpacing.space6))
           ..addAll(_codeField('Authenticator code'));
       case _Stage.recoveryCodes:
@@ -179,11 +215,24 @@ class MfaScreenState extends State<MfaScreen> {
               'be shown again. Store them somewhere safe.',
         );
         children
-          ..add(SelectableText(_recoveryCodes.join('\n'),
+          ..add(
+            SelectableText(
+              _recoveryCodes.join('\n'),
               key: const Key('mfa-recovery-codes'),
-              style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary, fontFamily: 'monospace')))
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textPrimary,
+                fontFamily: 'monospace',
+              ),
+            ),
+          )
           ..add(const SizedBox(height: AppSpacing.space6))
-          ..add(AppButton(label: 'I have saved them', fullWidth: true, onPressed: widget.onVerified));
+          ..add(
+            AppButton(
+              label: 'I have saved them',
+              fullWidth: true,
+              onPressed: widget.onVerified,
+            ),
+          );
       case _Stage.verify:
         heading(
           'Two-factor verification',
@@ -192,29 +241,39 @@ class MfaScreenState extends State<MfaScreen> {
               : 'Enter the 6-digit code from your authenticator app.',
         );
         children
-          ..addAll(_codeField(_useRecoveryCode ? 'Recovery code' : 'Authenticator code'))
+          ..addAll(
+            _codeField(
+              _useRecoveryCode ? 'Recovery code' : 'Authenticator code',
+            ),
+          )
           ..add(const SizedBox(height: AppSpacing.space3))
-          ..add(AppButton(
-            label: _useRecoveryCode ? 'Use authenticator code' : 'Use a recovery code',
-            variant: AppButtonVariant.ghost,
-            onPressed: _submitting
-                ? null
-                : () => setState(() {
+          ..add(
+            AppButton(
+              label: _useRecoveryCode
+                  ? 'Use authenticator code'
+                  : 'Use a recovery code',
+              variant: AppButtonVariant.ghost,
+              onPressed: _submitting
+                  ? null
+                  : () => setState(() {
                       _useRecoveryCode = !_useRecoveryCode;
                       _code = '';
                       _error = null;
                     }),
-          ));
+            ),
+          );
     }
 
     if (_stage != _Stage.recoveryCodes && !widget.optionalEnrolment) {
       children
         ..add(const SizedBox(height: AppSpacing.space6))
-        ..add(AppButton(
-          label: 'Sign out',
-          variant: AppButtonVariant.ghost,
-          onPressed: _submitting ? null : widget.onSignOut,
-        ));
+        ..add(
+          AppButton(
+            label: 'Sign out',
+            variant: AppButtonVariant.ghost,
+            onPressed: _submitting ? null : widget.onSignOut,
+          ),
+        );
     }
 
     return Scaffold(
@@ -236,10 +295,12 @@ class MfaScreenState extends State<MfaScreen> {
     AppTextField(
       key: const Key('mfa-code'),
       label: label,
-required: true,
+      required: true,
       value: _code,
       autofocus: true,
-      state: _submitting ? AppTextFieldState.disabled : AppTextFieldState.normal,
+      state: _submitting
+          ? AppTextFieldState.disabled
+          : AppTextFieldState.normal,
       onChanged: (v) => setState(() => _code = v),
       onSubmitted: (_) => submit(),
     ),
@@ -254,7 +315,11 @@ required: true,
 
 /// Prompts for a fresh authenticator code before a sensitive finance action.
 /// Returns true only once the server accepted the code.
-Future<bool> showStepUpDialog(BuildContext context, MfaRepository repository, String reason) async {
+Future<bool> showStepUpDialog(
+  BuildContext context,
+  MfaRepository repository,
+  String reason,
+) async {
   if (reason == 'MFA_ENROLLMENT_REQUIRED') {
     await showDialog<void>(
       context: context,
@@ -264,7 +329,12 @@ Future<bool> showStepUpDialog(BuildContext context, MfaRepository repository, St
           'This action needs two-factor authentication. Set it up from More → '
           'Two-factor authentication, then try again.',
         ),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
     return false;
@@ -316,8 +386,10 @@ class _StepUpDialogState extends State<_StepUpDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Enter the 6-digit code from your authenticator app. '
-              'It stays valid on this device for five minutes.'),
+          const Text(
+            'Enter the 6-digit code from your authenticator app. '
+            'It stays valid on this device for five minutes.',
+          ),
           const SizedBox(height: AppSpacing.space6),
           if (_error != null) ...[
             InlineAlert(tone: InlineAlertTone.danger, message: _error!),
@@ -326,10 +398,12 @@ class _StepUpDialogState extends State<_StepUpDialog> {
           AppTextField(
             key: const Key('step-up-code'),
             label: 'Authenticator code',
-required: true,
+            required: true,
             value: _code,
             autofocus: true,
-            state: _submitting ? AppTextFieldState.disabled : AppTextFieldState.normal,
+            state: _submitting
+                ? AppTextFieldState.disabled
+                : AppTextFieldState.normal,
             onChanged: (v) => setState(() => _code = v),
             onSubmitted: (_) => _submit(),
           ),
@@ -337,7 +411,9 @@ required: true,
       ),
       actions: [
         TextButton(
-          onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
+          onPressed: _submitting
+              ? null
+              : () => Navigator.of(context).pop(false),
           child: const Text('Cancel'),
         ),
         TextButton(
@@ -360,5 +436,6 @@ class MfaScope extends InheritedWidget {
       context.dependOnInheritedWidgetOfExactType<MfaScope>()?.repository;
 
   @override
-  bool updateShouldNotify(MfaScope oldWidget) => repository != oldWidget.repository;
+  bool updateShouldNotify(MfaScope oldWidget) =>
+      repository != oldWidget.repository;
 }

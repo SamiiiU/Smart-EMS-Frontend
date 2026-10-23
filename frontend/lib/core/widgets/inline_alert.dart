@@ -39,11 +39,11 @@ class InlineAlert extends StatelessWidget {
   final IconData? icon;
 
   IconData get _defaultIcon => switch (tone) {
-        InlineAlertTone.info => Icons.info_outline,
-        InlineAlertTone.warning => Icons.warning_amber_outlined,
-        InlineAlertTone.danger => Icons.error_outline,
-        InlineAlertTone.success => Icons.check_circle_outline,
-      };
+    InlineAlertTone.info => Icons.info_outline,
+    InlineAlertTone.warning => Icons.warning_amber_outlined,
+    InlineAlertTone.danger => Icons.error_outline,
+    InlineAlertTone.success => Icons.check_circle_outline,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +69,11 @@ class InlineAlert extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon ?? _defaultIcon, size: AppSpacing.space6, color: iconColour),
+            Icon(
+              icon ?? _defaultIcon,
+              size: AppSpacing.space6,
+              color: iconColour,
+            ),
             const SizedBox(width: AppSpacing.space4),
             Expanded(
               child: Text(

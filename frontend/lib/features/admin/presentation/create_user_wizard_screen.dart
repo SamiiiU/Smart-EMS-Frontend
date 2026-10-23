@@ -85,19 +85,20 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
   }
 
   WizardDraft get _draft => WizardDraft(
-        role: _role,
-        username: _username.trim(),
-        password: _password,
-        firstName: _firstName.trim(),
-        lastName: _lastName.trim(),
-        campusId: widget.campusId,
-        email: _email.trim().isEmpty ? null : _email.trim(),
-        employeeCode: _employeeCode.trim(),
-        admissionNumber: _admissionNumber.trim(),
-        relationship: 'guardian',
-        linkedStudentId:
-            _linkedStudentId.trim().isEmpty ? null : _linkedStudentId.trim(),
-      );
+    role: _role,
+    username: _username.trim(),
+    password: _password,
+    firstName: _firstName.trim(),
+    lastName: _lastName.trim(),
+    campusId: widget.campusId,
+    email: _email.trim().isEmpty ? null : _email.trim(),
+    employeeCode: _employeeCode.trim(),
+    admissionNumber: _admissionNumber.trim(),
+    relationship: 'guardian',
+    linkedStudentId: _linkedStudentId.trim().isEmpty
+        ? null
+        : _linkedStudentId.trim(),
+  );
 
   Future<void> commit() async {
     if (_submitting) return;
@@ -148,20 +149,25 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.space6),
           child: ConstrainedBox(
-            constraints:
-                const BoxConstraints(maxWidth: AppSizing.authFormMaxWidth),
+            constraints: const BoxConstraints(
+              maxWidth: AppSizing.authFormMaxWidth,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const PageHeader(title: 'Create a user', padding: EdgeInsets.zero),
+                const PageHeader(
+                  title: 'Create a user',
+                  padding: EdgeInsets.zero,
+                ),
                 const SizedBox(height: AppSpacing.space2),
                 Text(
                   _done
                       ? 'Done.'
                       : 'Step ${_step + 1} of ${_lastStep + 1} · nothing is '
-                          'saved until you confirm',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
+                            'saved until you confirm',
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.space6),
 
@@ -183,7 +189,8 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
                   if (_isRecovering) ...[
                     InlineAlert(
                       tone: InlineAlertTone.warning,
-                      message: 'The login “$_username” was created, but its '
+                      message:
+                          'The login “$_username” was created, but its '
                           'record could not be linked. Retrying will resume '
                           'from that step — it will not create a second '
                           'account.',
@@ -191,10 +198,7 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
                     const SizedBox(height: AppSpacing.space5),
                   ],
                   if (_error != null) ...[
-                    InlineAlert(
-                      tone: InlineAlertTone.danger,
-                      message: _error!,
-                    ),
+                    InlineAlert(tone: InlineAlertTone.danger, message: _error!),
                     const SizedBox(height: AppSpacing.space5),
                   ],
                   ..._stepBody(context),
@@ -225,16 +229,18 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
   }
 
   List<Widget> _stepBody(BuildContext context) {
-    final fieldState =
-        _submitting ? AppTextFieldState.disabled : AppTextFieldState.normal;
+    final fieldState = _submitting
+        ? AppTextFieldState.disabled
+        : AppTextFieldState.normal;
 
     switch (_step) {
       case 0:
         return [
           Text(
             'Role',
-            style: AppTypography.fieldLabel
-                .copyWith(color: context.tokens.textSecondary),
+            style: AppTypography.fieldLabel.copyWith(
+              color: context.tokens.textSecondary,
+            ),
           ),
           const SizedBox(height: AppSpacing.space3),
           Wrap(
@@ -258,7 +264,7 @@ class CreateUserWizardScreenState extends State<CreateUserWizardScreen> {
         return [
           AppTextField(
             label: 'Username',
-required: true,
+            required: true,
             value: _username,
             state: _isRecovering ? AppTextFieldState.disabled : fieldState,
             textInputAction: TextInputAction.next,
@@ -267,7 +273,7 @@ required: true,
           const SizedBox(height: AppSpacing.space5),
           AppTextField(
             label: 'Temporary password',
-required: true,
+            required: true,
             value: _password,
             obscure: true,
             state: _isRecovering ? AppTextFieldState.disabled : fieldState,
@@ -285,7 +291,7 @@ required: true,
         return [
           AppTextField(
             label: 'First name',
-required: true,
+            required: true,
             value: _firstName,
             state: fieldState,
             textInputAction: TextInputAction.next,
@@ -294,7 +300,7 @@ required: true,
           const SizedBox(height: AppSpacing.space5),
           AppTextField(
             label: 'Last name',
-required: true,
+            required: true,
             value: _lastName,
             state: fieldState,
             onChanged: (v) => setState(() => _lastName = v),
@@ -302,23 +308,23 @@ required: true,
           const SizedBox(height: AppSpacing.space5),
           switch (_role) {
             WizardRole.teacher => AppTextField(
-                label: 'Employee code',
-                value: _employeeCode,
-                state: fieldState,
-                onChanged: (v) => setState(() => _employeeCode = v),
-              ),
+              label: 'Employee code',
+              value: _employeeCode,
+              state: fieldState,
+              onChanged: (v) => setState(() => _employeeCode = v),
+            ),
             WizardRole.student => AppTextField(
-                label: 'Admission number',
-                value: _admissionNumber,
-                state: fieldState,
-                onChanged: (v) => setState(() => _admissionNumber = v),
-              ),
+              label: 'Admission number',
+              value: _admissionNumber,
+              state: fieldState,
+              onChanged: (v) => setState(() => _admissionNumber = v),
+            ),
             WizardRole.parent => AppTextField(
-                label: 'Student ID to link',
-                value: _linkedStudentId,
-                state: fieldState,
-                onChanged: (v) => setState(() => _linkedStudentId = v),
-              ),
+              label: 'Student ID to link',
+              value: _linkedStudentId,
+              state: fieldState,
+              onChanged: (v) => setState(() => _linkedStudentId = v),
+            ),
           },
         ];
     }
@@ -350,14 +356,14 @@ required: true,
             label: _submitting
                 ? 'Saving…'
                 : onLast
-                    ? (_isRecovering ? 'Resume' : 'Create')
-                    : 'Next',
+                ? (_isRecovering ? 'Resume' : 'Create')
+                : 'Next',
             fullWidth: true,
             onPressed: !canAdvance || _submitting
                 ? null
                 : onLast
-                    ? commit
-                    : () => setState(() => _step++),
+                ? commit
+                : () => setState(() => _step++),
           ),
         ),
       ],

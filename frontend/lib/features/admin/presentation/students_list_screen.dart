@@ -58,19 +58,23 @@ class StudentsListScreenState extends State<StudentsListScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _state =
-        ScreenState<List<AdminStudent>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<AdminStudent>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final students = await widget.repository.loadStudentsWithPlacement();
       if (!mounted) return;
-      setState(
-          () => _state = ScreenState<List<AdminStudent>>.data(students));
+      setState(() => _state = ScreenState<List<AdminStudent>>.data(students));
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _state = ScreenState<List<AdminStudent>>.failed(
-            e is LoadFailure ? e : const LoadFailure(),
-            cached: _state.data,
-          ));
+      setState(
+        () => _state = ScreenState<List<AdminStudent>>.failed(
+          e is LoadFailure ? e : const LoadFailure(),
+          cached: _state.data,
+        ),
+      );
     }
   }
 
@@ -144,19 +148,32 @@ class StudentsListScreenState extends State<StudentsListScreen> {
                     'Import a roster or create a student to get started.',
                 emptyIcon: Icons.groups_outlined,
                 filterDescription: filtering ? 'matching “$_query”' : null,
-                onClearFilter:
-                    filtering ? () => setState(() => _query = '') : null,
+                onClearFilter: filtering
+                    ? () => setState(() => _query = '')
+                    : null,
                 // M1 adaptive list: a table on desktop/tablet, cards on phones.
                 data: (context, rows) => AdaptiveDataView<AdminStudent>(
                   rows: rows,
                   semanticLabel: (s) => s.fullName,
                   onTap: widget.onOpenStudent,
                   columns: [
-                    DataColumnSpec(label: 'Name', value: (s) => s.fullName, flex: 3),
-                    DataColumnSpec(label: 'Admission no.', value: (s) => s.admissionNumber, flex: 2),
+                    DataColumnSpec(
+                      label: 'Name',
+                      value: (s) => s.fullName,
+                      flex: 3,
+                    ),
+                    DataColumnSpec(
+                      label: 'Admission no.',
+                      value: (s) => s.admissionNumber,
+                      flex: 2,
+                    ),
                     // Null when the student is enrolled nowhere: a real state,
                     // shown plainly rather than as a blank column.
-                    DataColumnSpec(label: 'Class', value: (s) => s.classLabel ?? 'Not enrolled', flex: 2),
+                    DataColumnSpec(
+                      label: 'Class',
+                      value: (s) => s.classLabel ?? 'Not enrolled',
+                      flex: 2,
+                    ),
                   ],
                 ),
               ),

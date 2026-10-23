@@ -21,9 +21,9 @@ class ContextStrip extends StatelessWidget {
     this.status,
     super.key,
   }) : assert(
-          tone != ContextStripTone.semantic || status != null,
-          'ContextStripTone.semantic requires a status to take its colour from.',
-        );
+         tone != ContextStripTone.semantic || status != null,
+         'ContextStripTone.semantic requires a status to take its colour from.',
+       );
 
   final IconData icon;
   final String title;
@@ -40,19 +40,19 @@ class ContextStrip extends StatelessWidget {
 
     final (Color bg, Color fg, Color titleColour) = switch (tone) {
       ContextStripTone.primary => (
-          t.primarySubtle,
-          t.primaryAction,
-          t.textPrimary,
-        ),
+        t.primarySubtle,
+        t.primaryAction,
+        t.textPrimary,
+      ),
       ContextStripTone.neutral => (
-          t.surfaceSunken,
-          t.textSecondary,
-          t.textPrimary,
-        ),
+        t.surfaceSunken,
+        t.textSecondary,
+        t.textPrimary,
+      ),
       ContextStripTone.semantic => () {
-          final c = StatusPill.coloursFor(status!, t);
-          return (c.bg, c.glyph, c.text);
-        }(),
+        final c = StatusPill.coloursFor(status!, t);
+        return (c.bg, c.glyph, c.text);
+      }(),
     };
 
     return Container(

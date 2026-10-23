@@ -423,15 +423,18 @@ class AcademyRepository {
   /// Teacher Today: the caller's own DATED sessions for one business day
   /// (server default: the institution's today), optionally narrowed to the
   /// active campus. Weekly templates are never expanded into sessions here.
-  Future<List<MySession>> mySessions({String? date, String? campusId}) async => [
-    for (final r in _list(
-      _map(await _get('/api/academy/sessions/mine', {
-        'date': ?date,
-        'campusId': ?campusId,
-      }))['sessions'],
-    ))
-      MySession.fromJson(r as Map),
-  ];
+  Future<List<MySession>> mySessions({String? date, String? campusId}) async =>
+      [
+        for (final r in _list(
+          _map(
+            await _get('/api/academy/sessions/mine', {
+              'date': ?date,
+              'campusId': ?campusId,
+            }),
+          )['sessions'],
+        ))
+          MySession.fromJson(r as Map),
+      ];
 
   Future<List<Session>> sessions(
     String batchId,

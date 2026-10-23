@@ -84,13 +84,12 @@ class PeopleDirectory {
   final bool parentsPartial;
 
   List<PersonAccount> of(PeopleGroup group) => switch (group) {
-        PeopleGroup.staff => staff,
-        PeopleGroup.students => students,
-        PeopleGroup.parents => parents,
-      };
+    PeopleGroup.staff => staff,
+    PeopleGroup.students => students,
+    PeopleGroup.parents => parents,
+  };
 
-  bool get isEmpty =>
-      staff.isEmpty && students.isEmpty && parents.isEmpty;
+  bool get isEmpty => staff.isEmpty && students.isEmpty && parents.isEmpty;
 
   int get withoutLogin =>
       [...staff, ...students, ...parents].where((p) => !p.hasLogin).length;

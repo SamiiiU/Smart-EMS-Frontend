@@ -40,7 +40,10 @@ class _SetupServer implements HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(
-      RequestOptions o, Stream<List<int>>? s, Future<void>? c) async {
+    RequestOptions o,
+    Stream<List<int>>? s,
+    Future<void>? c,
+  ) async {
     requests.add(o);
     final path = o.uri.path;
     final body = o.data is Map ? (o.data as Map).cast<String, dynamic>() : null;
@@ -54,24 +57,27 @@ class _SetupServer implements HttpClientAdapter {
         '/api/sections' => _page(sections),
         '/api/subjects' => _page(subjects),
         '/api/campuses' => _json(200, [
-            {'id': 'campus-1', 'name': 'Main'},
-          ]),
+          {'id': 'campus-1', 'name': 'Main'},
+        ]),
         '/api/staff' => _page([
-            {
-              'id': 'staff-1',
-              'firstName': 'Ayesha',
-              'lastName': 'Khan',
-              'userId': 'u-1',
-            },
-          ]),
+          {
+            'id': 'staff-1',
+            'firstName': 'Ayesha',
+            'lastName': 'Khan',
+            'userId': 'u-1',
+          },
+        ]),
         '/api/students' => _page(const []),
         '/api/timetable/periods' => _json(200, periods),
         '/api/timetable/rooms' => _json(200, const []),
-        _ when path.startsWith('/api/teaching-assignments/section/') =>
-          _page(assignments),
+        _ when path.startsWith('/api/teaching-assignments/section/') => _page(
+          assignments,
+        ),
         _ when path.startsWith('/api/timetable/section/') => _json(200, slots),
-        _ when path.startsWith('/api/guardians/student/') =>
-          _json(200, const []),
+        _ when path.startsWith('/api/guardians/student/') => _json(
+          200,
+          const [],
+        ),
         _ => _json(404, {'message': 'no route'}),
       };
     }
@@ -120,7 +126,8 @@ class _SetupServer implements HttpClientAdapter {
           if (assignmentConflict) {
             // C10: what the real server answers for an overlapping live primary.
             return _json(409, {
-              'message': 'Another primary teacher already covers this subject and section for these dates',
+              'message':
+                  'Another primary teacher already covers this subject and section for these dates',
             });
           }
           final row = {
@@ -171,26 +178,26 @@ class _SetupServer implements HttpClientAdapter {
 }
 
 ResponseBody _json(int status, Object body) => ResponseBody.fromBytes(
-      utf8.encode(jsonEncode(body)),
-      status,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+  utf8.encode(jsonEncode(body)),
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 Dio _dio(_SetupServer s) =>
     Dio(BaseOptions(baseUrl: 'http://test'))..httpClientAdapter = s;
 
 Widget _host(Widget child, {Size? size, double textScale = 1}) => MaterialApp(
-      theme: AppTheme.light(role: AppRole.admin),
-      home: MediaQuery(
-        data: MediaQueryData(
-          size: size ?? const Size(1000, 800),
-          textScaler: TextScaler.linear(textScale),
-        ),
-        child: child,
-      ),
-    );
+  theme: AppTheme.light(role: AppRole.admin),
+  home: MediaQuery(
+    data: MediaQueryData(
+      size: size ?? const Size(1000, 800),
+      textScaler: TextScaler.linear(textScale),
+    ),
+    child: child,
+  ),
+);
 
 const _year = AcademicYear(
   id: 'year-1',
@@ -222,14 +229,16 @@ void main() {
   group('Slot failures — 409 does not mean clash', () {
     test('the two known clash wordings are recognised', () {
       expect(
-        SlotFailure.fromMessage('Teacher is already scheduled at that '
-                'day/period')
-            .kind,
+        SlotFailure.fromMessage(
+          'Teacher is already scheduled at that '
+          'day/period',
+        ).kind,
         SlotFailureKind.teacherClash,
       );
       expect(
-        SlotFailure.fromMessage('Room is already booked at that day/period')
-            .kind,
+        SlotFailure.fromMessage(
+          'Room is already booked at that day/period',
+        ).kind,
         SlotFailureKind.roomClash,
       );
     });
@@ -245,8 +254,9 @@ void main() {
   });
 
   group('Academic years', () {
-    testWidgets('no set-current control — an explanation instead',
-        (tester) async {
+    testWidgets('no set-current control — an explanation instead', (
+      tester,
+    ) async {
       final s = _SetupServer()
         ..years.add({
           'id': 'y1',
@@ -255,26 +265,37 @@ void main() {
           'endDate': '2026-05-31',
           'current': true,
         });
-      await tester.pumpWidget(_host(AcademicYearsScreen(
-        repository: SetupRepository(_dio(s)),
-        campusId: 'campus-1',
-      )));
+      await tester.pumpWidget(
+        _host(
+          AcademicYearsScreen(
+            repository: SetupRepository(_dio(s)),
+            campusId: 'campus-1',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('cannot be changed in the app yet'),
-          findsOneWidget);
+      expect(
+        find.textContaining('cannot be changed in the app yet'),
+        findsOneWidget,
+      );
       expect(find.text('Set as current'), findsNothing);
       expect(find.text('Make current'), findsNothing);
       expect(find.text('Current'), findsOneWidget);
     });
 
-    testWidgets('a malformed date is caught before anything is sent',
-        (tester) async {
+    testWidgets('a malformed date is caught before anything is sent', (
+      tester,
+    ) async {
       final s = _SetupServer();
-      await tester.pumpWidget(_host(AcademicYearsScreen(
-        repository: SetupRepository(_dio(s)),
-        campusId: 'campus-1',
-      )));
+      await tester.pumpWidget(
+        _host(
+          AcademicYearsScreen(
+            repository: SetupRepository(_dio(s)),
+            campusId: 'campus-1',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Add an academic year'));
@@ -287,35 +308,44 @@ void main() {
       expect(s.requests.where((r) => r.method == 'POST'), isEmpty);
     });
 
-    test('create does not send `current` — the API ignores it anyway',
-        () async {
-      final s = _SetupServer();
-      await SetupRepository(_dio(s)).createYear(
-        campusId: 'campus-1',
-        name: '2026-27',
-        startDate: '2026-08-01',
-        endDate: '2027-05-31',
-      );
-      final body = s.requests.last.data as Map;
-      expect(body.containsKey('current'), isFalse);
-    });
+    test(
+      'create does not send `current` — the API ignores it anyway',
+      () async {
+        final s = _SetupServer();
+        await SetupRepository(_dio(s)).createYear(
+          campusId: 'campus-1',
+          name: '2026-27',
+          startDate: '2026-08-01',
+          endDate: '2027-05-31',
+        );
+        final body = s.requests.last.data as Map;
+        expect(body.containsKey('current'), isFalse);
+      },
+    );
   });
 
   group('Sections', () {
     testWidgets('states the year it writes into', (tester) async {
       final s = _SetupServer();
-      await tester.pumpWidget(_host(SectionsScreen(
-        repository: SetupRepository(_dio(s)),
-        admin: AdminRepository(_dio(s)),
-        classes: const [SchoolClass(id: 'c1', name: 'Class 9', levelOrder: 9)],
-        year: _year,
-      )));
+      await tester.pumpWidget(
+        _host(
+          SectionsScreen(
+            repository: SetupRepository(_dio(s)),
+            admin: AdminRepository(_dio(s)),
+            classes: const [
+              SchoolClass(id: 'c1', name: 'Class 9', levelOrder: 9),
+            ],
+            year: _year,
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.textContaining('belong to 2026-27'), findsOneWidget);
     });
 
-    testWidgets('sections of another year are not shown as this year’s',
-        (tester) async {
+    testWidgets('sections of another year are not shown as this year’s', (
+      tester,
+    ) async {
       final s = _SetupServer()
         ..sections.add({
           'id': 's-old',
@@ -323,12 +353,16 @@ void main() {
           'academicYearId': 'OTHER',
           'name': 'Old-A',
         });
-      await tester.pumpWidget(_host(SectionsScreen(
-        repository: SetupRepository(_dio(s)),
-        admin: AdminRepository(_dio(s)),
-        classes: const [SchoolClass(id: 'c1', name: 'Class 9')],
-        year: _year,
-      )));
+      await tester.pumpWidget(
+        _host(
+          SectionsScreen(
+            repository: SetupRepository(_dio(s)),
+            admin: AdminRepository(_dio(s)),
+            classes: const [SchoolClass(id: 'c1', name: 'Class 9')],
+            year: _year,
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Old-A'), findsNothing);
       expect(find.textContaining('exist in other years'), findsOneWidget);
@@ -336,24 +370,27 @@ void main() {
   });
 
   group('Teaching assignments — add-only, said up front', () {
-    Widget screen(_SetupServer s) => _host(TeachingAssignmentsScreen(
-          repository: SetupRepository(_dio(s)),
-          admin: AdminRepository(_dio(s)),
-          classes: const [SchoolClass(id: 'c1', name: 'Class 9')],
-          sections: const [
-            Section(
-              id: 'sec-1',
-              classId: 'c1',
-              academicYearId: 'year-1',
-              name: '9-C',
-            ),
-          ],
-          subjects: const [Subject(id: 'sub-1', name: 'Mathematics')],
-          year: _year,
-        ));
+    Widget screen(_SetupServer s) => _host(
+      TeachingAssignmentsScreen(
+        repository: SetupRepository(_dio(s)),
+        admin: AdminRepository(_dio(s)),
+        classes: const [SchoolClass(id: 'c1', name: 'Class 9')],
+        sections: const [
+          Section(
+            id: 'sec-1',
+            classId: 'c1',
+            academicYearId: 'year-1',
+            name: '9-C',
+          ),
+        ],
+        subjects: const [Subject(id: 'sub-1', name: 'Mathematics')],
+        year: _year,
+      ),
+    );
 
-    testWidgets('warns before the action, offers End but no edit or delete',
-        (tester) async {
+    testWidgets('warns before the action, offers End but no edit or delete', (
+      tester,
+    ) async {
       // The C10 type and date fields make this form taller than 800x600.
       tester.view.physicalSize = const Size(900, 2200);
       tester.view.devicePixelRatio = 1;
@@ -380,29 +417,36 @@ void main() {
       expect(find.textContaining('Ayesha Khan'), findsWidgets);
     });
 
-    testWidgets('an overlapping primary is explained with the server’s reason',
-        (tester) async {
-      // The C10 type and date fields make this form taller than 800x600.
-      tester.view.physicalSize = const Size(900, 2200);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      final s = _SetupServer()..assignmentConflict = true;
-      await tester.pumpWidget(screen(s));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'an overlapping primary is explained with the server’s reason',
+      (tester) async {
+        // The C10 type and date fields make this form taller than 800x600.
+        tester.view.physicalSize = const Size(900, 2200);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final s = _SetupServer()..assignmentConflict = true;
+        await tester.pumpWidget(screen(s));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Assign a teacher'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('cannot be edited afterwards; it can be ended'),
-          findsOneWidget);
+        await tester.tap(find.text('Assign a teacher'));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('cannot be edited afterwards; it can be ended'),
+          findsOneWidget,
+        );
 
-      await tester.tap(find.bySemanticsLabel('Mathematics').last);
-      await tester.tap(find.bySemanticsLabel('Ayesha Khan').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Mathematics').last);
+        await tester.tap(find.bySemanticsLabel('Ayesha Khan').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Another primary teacher already covers'), findsOneWidget);
-    });
+        expect(
+          find.textContaining('Another primary teacher already covers'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 
   group('Timetable', () {
@@ -427,29 +471,30 @@ void main() {
       ]);
 
     Widget screen(_SetupServer s) => TimetableBuilderScreen(
-          repository: SetupRepository(_dio(s)),
-          admin: AdminRepository(_dio(s)),
-          campusId: 'campus-1',
-          classes: const [SchoolClass(id: 'c1', name: 'Class 9')],
-          sections: const [
-            Section(
-              id: 'sec-1',
-              classId: 'c1',
-              academicYearId: 'year-1',
-              name: '9-C',
-            ),
-          ],
-          subjects: const [Subject(id: 'sub-1', name: 'Mathematics')],
-          year: _year,
-        );
+      repository: SetupRepository(_dio(s)),
+      admin: AdminRepository(_dio(s)),
+      campusId: 'campus-1',
+      classes: const [SchoolClass(id: 'c1', name: 'Class 9')],
+      sections: const [
+        Section(
+          id: 'sec-1',
+          classId: 'c1',
+          academicYearId: 'year-1',
+          name: '9-C',
+        ),
+      ],
+      subjects: const [Subject(id: 'sub-1', name: 'Mathematics')],
+      year: _year,
+    );
 
     testWidgets('wide: a grid with every weekday', (tester) async {
       tester.view.physicalSize = const Size(1366, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
-      await tester.pumpWidget(_host(screen(serverWithPeriods()),
-          size: const Size(1366, 900)));
+      await tester.pumpWidget(
+        _host(screen(serverWithPeriods()), size: const Size(1366, 900)),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Mon'), findsOneWidget);
@@ -464,7 +509,8 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-          _host(screen(serverWithPeriods()), size: const Size(360, 900)));
+        _host(screen(serverWithPeriods()), size: const Size(360, 900)),
+      );
       await tester.pumpAndSettle();
 
       // Day chips exist; the grid header row does not.
@@ -473,16 +519,16 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a clash lands on the cell, and admits what it cannot show',
-        (tester) async {
+    testWidgets('a clash lands on the cell, and admits what it cannot show', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1366, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
       final s = serverWithPeriods()
         ..slotFailure = 'Teacher is already scheduled at that day/period';
-      await tester.pumpWidget(
-          _host(screen(s), size: const Size(1366, 900)));
+      await tester.pumpWidget(_host(screen(s), size: const Size(1366, 900)));
       await tester.pumpAndSettle();
 
       await tester.tap(find.bySemanticsLabel('Mon Period 1, empty'));
@@ -493,22 +539,26 @@ void main() {
       await tester.tap(find.text('Add to timetable'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('already teaches at this time'),
-          findsOneWidget);
-      expect(find.textContaining('cannot yet show which class'),
-          findsOneWidget);
+      expect(
+        find.textContaining('already teaches at this time'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('cannot yet show which class'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('a validation 409 is shown verbatim, not as a clash',
-        (tester) async {
+    testWidgets('a validation 409 is shown verbatim, not as a clash', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1366, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
       final s = serverWithPeriods()
         ..slotFailure = 'Conflicts with existing data';
-      await tester.pumpWidget(
-          _host(screen(s), size: const Size(1366, 900)));
+      await tester.pumpWidget(_host(screen(s), size: const Size(1366, 900)));
       await tester.pumpAndSettle();
 
       await tester.tap(find.bySemanticsLabel('Mon Period 1, empty'));
@@ -520,18 +570,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('already teaches'), findsNothing);
-      expect(find.textContaining('Conflicts with existing data'),
-          findsOneWidget);
+      expect(
+        find.textContaining('Conflicts with existing data'),
+        findsOneWidget,
+      );
     });
   });
 
   group('Setup hub — dependencies explained, not failed', () {
     testWidgets('a blocked step says what is missing', (tester) async {
       final s = _SetupServer(); // nothing exists yet
-      await tester.pumpWidget(_host(SetupHomeScreen(
-        setup: SetupRepository(_dio(s)),
-        admin: AdminRepository(_dio(s)),
-      )));
+      await tester.pumpWidget(
+        _host(
+          SetupHomeScreen(
+            setup: SetupRepository(_dio(s)),
+            admin: AdminRepository(_dio(s)),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Create an academic year first'), findsWidgets);
@@ -550,10 +606,14 @@ void main() {
           'current': true,
         })
         ..classes.add({'id': 'c1', 'name': 'Class 9', 'levelOrder': 9});
-      await tester.pumpWidget(_host(SetupHomeScreen(
-        setup: SetupRepository(_dio(s)),
-        admin: AdminRepository(_dio(s)),
-      )));
+      await tester.pumpWidget(
+        _host(
+          SetupHomeScreen(
+            setup: SetupRepository(_dio(s)),
+            admin: AdminRepository(_dio(s)),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.bySemanticsLabel('Sections'), findsOneWidget);
@@ -569,20 +629,27 @@ void main() {
           'endDate': '2027-05-31',
           'current': false,
         });
-      await tester.pumpWidget(_host(SetupHomeScreen(
-        setup: SetupRepository(_dio(s)),
-        admin: AdminRepository(_dio(s)),
-      )));
+      await tester.pumpWidget(
+        _host(
+          SetupHomeScreen(
+            setup: SetupRepository(_dio(s)),
+            admin: AdminRepository(_dio(s)),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
-      expect(find.textContaining('No year is marked as current'),
-          findsOneWidget);
+      expect(
+        find.textContaining('No year is marked as current'),
+        findsOneWidget,
+      );
     });
   });
 
   group('Layout', () {
     for (final width in [360.0, 768.0, 1366.0]) {
-      testWidgets('setup screens: no overflow at $width, 2× text',
-          (tester) async {
+      testWidgets('setup screens: no overflow at $width, 2× text', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);

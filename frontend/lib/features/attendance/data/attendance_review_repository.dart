@@ -17,15 +17,17 @@ class AttendanceReview {
     required this.receivedAt,
   });
 
-  factory AttendanceReview.fromJson(Map<String, dynamic> json) => AttendanceReview(
-    id: json['id'] as String,
-    studentName: '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim(),
-    attendanceDate: json['attendanceDate']?.toString() ?? '',
-    submittedStatus: json['submittedStatus'] as String? ?? '',
-    currentServerStatus: json['currentServerStatus'] as String?,
-    reason: json['reason'] as String? ?? '',
-    receivedAt: json['receivedAt']?.toString() ?? '',
-  );
+  factory AttendanceReview.fromJson(Map<String, dynamic> json) =>
+      AttendanceReview(
+        id: json['id'] as String,
+        studentName: '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'
+            .trim(),
+        attendanceDate: json['attendanceDate']?.toString() ?? '',
+        submittedStatus: json['submittedStatus'] as String? ?? '',
+        currentServerStatus: json['currentServerStatus'] as String?,
+        reason: json['reason'] as String? ?? '',
+        receivedAt: json['receivedAt']?.toString() ?? '',
+      );
 
   final String id;
   final String studentName;
@@ -47,7 +49,9 @@ class AttendanceReviewRepository {
 
   static const _path = '/api/attendance/reviews';
 
-  Future<({List<AttendanceReview>? reviews, LoadFailure? failure})> pending({int page = 0}) async {
+  Future<({List<AttendanceReview>? reviews, LoadFailure? failure})> pending({
+    int page = 0,
+  }) async {
     try {
       final res = await dio.get<Map<String, dynamic>>(
         _path,
@@ -65,9 +69,16 @@ class AttendanceReviewRepository {
 
   /// [accept] applies the teacher's original mark; reject keeps the server
   /// record. A reason is mandatory and recorded with the reviewer.
-  Future<LoadFailure?> decide(String id, {required bool accept, required String reason}) async {
+  Future<LoadFailure?> decide(
+    String id, {
+    required bool accept,
+    required String reason,
+  }) async {
     try {
-      await dio.post<dynamic>('$_path/$id/${accept ? 'accept' : 'reject'}', data: {'reason': reason.trim()});
+      await dio.post<dynamic>(
+        '$_path/$id/${accept ? 'accept' : 'reject'}',
+        data: {'reason': reason.trim()},
+      );
       return null;
     } on DioException catch (err) {
       return mapDioError(err);

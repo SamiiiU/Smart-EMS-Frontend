@@ -249,8 +249,7 @@ class _Shell extends StatelessWidget {
         // Rail range is 600-1024 INCLUSIVE; full sidebar is strictly ABOVE
         // 1024. <= here, not <, or 1024px itself would wrongly get the full
         // sidebar.
-        final compactRail =
-            !mobile && width <= AppSizing.navRailBreakpoint;
+        final compactRail = !mobile && width <= AppSizing.navRailBreakpoint;
 
         // D-27 amendment (T16): a role with too many destinations gets a
         // drawer on a phone instead of 3 + More. Nothing is truncated, so
@@ -288,8 +287,10 @@ class _Shell extends StatelessWidget {
               institutionName: institutionName,
               syncStatus: syncStatus,
               onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
-              onNotificationsTap:
-                  _notificationsTap(chromeDestinations, onSelect),
+              onNotificationsTap: _notificationsTap(
+                chromeDestinations,
+                onSelect,
+              ),
             ),
             key: _scaffoldKey,
             drawer: PhoneNavDrawer(
@@ -307,8 +308,10 @@ class _Shell extends StatelessWidget {
             appBar: MobileAppBar(
               institutionName: institutionName,
               syncStatus: syncStatus,
-              onNotificationsTap:
-                  _notificationsTap(chromeDestinations, onSelect),
+              onNotificationsTap: _notificationsTap(
+                chromeDestinations,
+                onSelect,
+              ),
             ),
             body: IndexedStack(index: safeIndex, children: tabs),
             bottomNavigationBar: BottomNav(
@@ -365,12 +368,12 @@ class _Shell extends StatelessWidget {
 /// the D-30 requirement is visible in the shell rather than merely true by
 /// accident of the current container choice.
 List<Widget> _keptAliveTabs(List<NavDestination> destinations) => [
-      for (final d in destinations)
-        KeyedSubtree(
-          key: ValueKey(d.id),
-          child: _KeepAliveTab(builder: d.builder),
-        ),
-    ];
+  for (final d in destinations)
+    KeyedSubtree(
+      key: ValueKey(d.id),
+      child: _KeepAliveTab(builder: d.builder),
+    ),
+];
 
 class _KeepAliveTab extends StatefulWidget {
   const _KeepAliveTab({required this.builder});
@@ -466,8 +469,9 @@ class _OverflowMore extends StatelessWidget {
                       iconTheme: IconThemeData(color: t.textPrimary),
                       title: Text(
                         _labelFor(d),
-                        style: AppTypography.cardHeading
-                            .copyWith(color: t.textPrimary),
+                        style: AppTypography.cardHeading.copyWith(
+                          color: t.textPrimary,
+                        ),
                       ),
                     ),
                     body: Builder(builder: d.builder),
@@ -501,8 +505,9 @@ class _OverflowMore extends StatelessWidget {
                       Expanded(
                         child: Text(
                           _labelFor(d),
-                          style: AppTypography.personName
-                              .copyWith(color: t.textPrimary),
+                          style: AppTypography.personName.copyWith(
+                            color: t.textPrimary,
+                          ),
                         ),
                       ),
                       Icon(Icons.chevron_right, color: t.textSecondary),

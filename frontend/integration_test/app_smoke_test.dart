@@ -37,14 +37,18 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('sign in, load a screen, and write — against the real backend',
-      (tester) async {
+  testWidgets('sign in, load a screen, and write — against the real backend', (
+    tester,
+  ) async {
     app.main();
     await tester.pumpAndSettle(const Duration(seconds: 10));
 
     // --- 1 · Sign in -------------------------------------------------------
-    expect(find.text('Sign in'), findsWidgets,
-        reason: 'the app should start at the login screen');
+    expect(
+      find.text('Sign in'),
+      findsWidgets,
+      reason: 'the app should start at the login screen',
+    );
 
     final fields = find.byType(TextField);
     expect(fields, findsAtLeast(3));

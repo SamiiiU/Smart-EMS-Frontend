@@ -51,10 +51,14 @@ void main() {
     });
 
     test('primaryAction is identical in both modes (D-23)', () {
-      expect(SmartEmsTokens.light.primaryAction,
-          SmartEmsTokens.dark.primaryAction);
-      expect(SmartEmsTokens.light.primaryPressed,
-          SmartEmsTokens.dark.primaryPressed);
+      expect(
+        SmartEmsTokens.light.primaryAction,
+        SmartEmsTokens.dark.primaryAction,
+      );
+      expect(
+        SmartEmsTokens.light.primaryPressed,
+        SmartEmsTokens.dark.primaryPressed,
+      );
     });
 
     test('lerp returns a valid instance at both ends', () {

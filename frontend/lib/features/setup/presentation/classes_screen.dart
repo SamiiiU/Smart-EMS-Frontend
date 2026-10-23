@@ -43,8 +43,11 @@ class ClassesScreenState extends State<ClassesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _state =
-        ScreenState<List<SchoolClass>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<SchoolClass>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final classes = await widget.repository.loadClasses();
       if (!mounted) return;
@@ -52,12 +55,15 @@ class ClassesScreenState extends State<ClassesScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<SchoolClass>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<SchoolClass>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -91,7 +97,8 @@ class ClassesScreenState extends State<ClassesScreen> {
       title: 'Classes',
       note: const InlineAlert(
         tone: InlineAlertTone.info,
-        message: 'Order decides how classes are listed everywhere in the '
+        message:
+            'Order decides how classes are listed everywhere in the '
             'app — 1 for the youngest. Without it, Class 10 sorts before '
             'Class 2.',
       ),
@@ -116,8 +123,9 @@ class ClassesScreenState extends State<ClassesScreen> {
             if (!_orderValid)
               Text(
                 'Order must be a whole number.',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
           ],
         ),

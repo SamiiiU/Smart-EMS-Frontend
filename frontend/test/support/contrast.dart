@@ -20,7 +20,9 @@ double relativeLuminance(Color c) {
   final argb = c.toARGB32();
   double channel(int shift) {
     final v = ((argb >> shift) & 0xFF) / 255.0;
-    return v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4) as double;
+    return v <= 0.03928
+        ? v / 12.92
+        : math.pow((v + 0.055) / 1.055, 2.4) as double;
   }
 
   return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0);

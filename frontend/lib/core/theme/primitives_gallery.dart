@@ -36,7 +36,9 @@ class PrimitivesGallerySection extends StatelessWidget {
         const SizedBox(height: AppSpacing.space8),
 
         // --- StatusPill ------------------------------------------------
-        const _Heading('StatusPill — attendance (colour + letter + shape, D-21)'),
+        const _Heading(
+          'StatusPill — attendance (colour + letter + shape, D-21)',
+        ),
         const SizedBox(height: AppSpacing.space2),
         const _Note(
           'Each attendance status carries all three signals together. A '
@@ -185,10 +187,7 @@ class PrimitivesGallerySection extends StatelessWidget {
           placeholder: 'e.g. Ayesha Khan',
         ),
         const SizedBox(height: AppSpacing.space6),
-        const AppTextField(
-          label: 'Default (with value)',
-          value: 'Ayesha Khan',
-        ),
+        const AppTextField(label: 'Default (with value)', value: 'Ayesha Khan'),
         const SizedBox(height: AppSpacing.space6),
         const AppTextField(
           label: 'Focused',

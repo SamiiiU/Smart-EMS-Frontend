@@ -10,19 +10,18 @@ import 'package:smartems/core/widgets/motion_reveal.dart';
 /// parts of D-03/D-04/D-05/D-29 that a future change could quietly break.
 
 Widget _host(Widget child, {bool reducedMotion = false}) => MaterialApp(
-      home: MediaQuery(
-        data: MediaQueryData(disableAnimations: reducedMotion),
-        child: Scaffold(body: child),
-      ),
-    );
+  home: MediaQuery(
+    data: MediaQueryData(disableAnimations: reducedMotion),
+    child: Scaffold(body: child),
+  ),
+);
 
 /// The opacity actually being applied to [finder]'s subtree.
 double _opacityOf(WidgetTester tester, Finder finder) {
   final opacities = tester
-      .widgetList<Opacity>(find.descendant(
-        of: finder,
-        matching: find.byType(Opacity),
-      ))
+      .widgetList<Opacity>(
+        find.descendant(of: finder, matching: find.byType(Opacity)),
+      )
       .toList();
   return opacities.isEmpty ? 1 : opacities.first.opacity;
 }
@@ -54,8 +53,9 @@ void main() {
     test('the overshoot curve exists and is used in exactly one place', () {
       // `expressiveSettle` overshoots. D-29 allows it for submit
       // confirmation ONLY — everywhere else it would make the product bouncy.
-      final source =
-          File('lib/core/widgets/motion_reveal.dart').readAsStringSync();
+      final source = File(
+        'lib/core/widgets/motion_reveal.dart',
+      ).readAsStringSync();
       // Comments discuss it by name; only real uses count.
       final code = source
           .split('\n')
@@ -65,7 +65,8 @@ void main() {
       expect(
         uses,
         1,
-        reason: 'expressiveSettle overshoots. D-29 allows it for submit '
+        reason:
+            'expressiveSettle overshoots. D-29 allows it for submit '
             'confirmation only — $uses uses means it has started to spread.',
       );
       expect(source.contains('class MotionConfirm'), isTrue);
@@ -85,8 +86,9 @@ void main() {
 
   group('D-05 — compositor only', () {
     test('the reveal animates opacity and transform, and nothing else', () {
-      final source =
-          File('lib/core/widgets/motion_reveal.dart').readAsStringSync();
+      final source = File(
+        'lib/core/widgets/motion_reveal.dart',
+      ).readAsStringSync();
 
       // width/height/top/left force a layout pass every frame and are
       // visibly janky on the budget Android this product targets.
@@ -119,8 +121,9 @@ void main() {
       expect(_opacityOf(tester, find.byType(MotionReveal)), 1);
     });
 
-    testWidgets('is ONE-SHOT — D-29 bans looping and idle animation',
-        (tester) async {
+    testWidgets('is ONE-SHOT — D-29 bans looping and idle animation', (
+      tester,
+    ) async {
       await tester.pumpWidget(_host(const MotionReveal(child: Text('hello'))));
       await tester.pumpAndSettle();
 
@@ -130,16 +133,19 @@ void main() {
       expect(_opacityOf(tester, find.byType(MotionReveal)), 1);
     });
 
-    testWidgets('a staggered sibling starts later but still arrives',
-        (tester) async {
-      await tester.pumpWidget(_host(
-        Column(
-          children: [
-            MotionReveal.staggered(index: 0, child: const Text('first')),
-            MotionReveal.staggered(index: 3, child: const Text('fourth')),
-          ],
+    testWidgets('a staggered sibling starts later but still arrives', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          Column(
+            children: [
+              MotionReveal.staggered(index: 0, child: const Text('first')),
+              MotionReveal.staggered(index: 3, child: const Text('fourth')),
+            ],
+          ),
         ),
-      ));
+      );
 
       // Part-way through the first one's run, the delayed one has not begun.
       await tester.pump(const Duration(milliseconds: 100));
@@ -166,12 +172,15 @@ void main() {
   });
 
   group('reduced motion is an accessibility requirement, not an option', () {
-    testWidgets('scale and travel are dropped, the fade remains',
-        (tester) async {
-      await tester.pumpWidget(_host(
-        const MotionReveal(scaleFrom: 0.5, child: Text('hello')),
-        reducedMotion: true,
-      ));
+    testWidgets('scale and travel are dropped, the fade remains', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const MotionReveal(scaleFrom: 0.5, child: Text('hello')),
+          reducedMotion: true,
+        ),
+      );
       await tester.pump(const Duration(milliseconds: 1));
 
       // D-29: "expressive motion off, opacity fades only".
@@ -190,10 +199,12 @@ void main() {
     });
 
     testWidgets('the confirmation overshoot is dropped too', (tester) async {
-      await tester.pumpWidget(_host(
-        const MotionConfirm(show: true, child: Text('saved')),
-        reducedMotion: true,
-      ));
+      await tester.pumpWidget(
+        _host(
+          const MotionConfirm(show: true, child: Text('saved')),
+          reducedMotion: true,
+        ),
+      );
       await tester.pump(const Duration(milliseconds: 1));
 
       expect(
@@ -208,18 +219,21 @@ void main() {
       expect(find.text('saved'), findsOneWidget);
     });
 
-    testWidgets('content still ends up fully visible and usable',
-        (tester) async {
+    testWidgets('content still ends up fully visible and usable', (
+      tester,
+    ) async {
       var tapped = false;
-      await tester.pumpWidget(_host(
-        MotionReveal(
-          child: TextButton(
-            onPressed: () => tapped = true,
-            child: const Text('press me'),
+      await tester.pumpWidget(
+        _host(
+          MotionReveal(
+            child: TextButton(
+              onPressed: () => tapped = true,
+              child: const Text('press me'),
+            ),
           ),
+          reducedMotion: true,
         ),
-        reducedMotion: true,
-      ));
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('press me'));
@@ -232,8 +246,7 @@ void main() {
       // A surface switched dozens of times a day must not cost 200ms each
       // time. The shell uses IndexedStack, which swaps without animating;
       // an animated container here would also break D-30's keep-alive.
-      final shell =
-          File('lib/core/shell/app_shell.dart').readAsStringSync();
+      final shell = File('lib/core/shell/app_shell.dart').readAsStringSync();
       final code = shell
           .split('\n')
           .where((line) {
@@ -252,15 +265,17 @@ void main() {
         expect(
           code.contains(banned),
           isFalse,
-          reason: 'D-29 prohibits transitions on tab switching; $banned '
+          reason:
+              'D-29 prohibits transitions on tab switching; $banned '
               'would introduce one',
         );
       }
     });
 
     test('no reveal is used as a looping or idle animation', () {
-      final source =
-          File('lib/core/widgets/motion_reveal.dart').readAsStringSync();
+      final source = File(
+        'lib/core/widgets/motion_reveal.dart',
+      ).readAsStringSync();
       final code = source
           .split('\n')
           .where((line) {

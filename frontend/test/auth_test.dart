@@ -42,12 +42,12 @@ class _ScriptedAdapter implements HttpClientAdapter {
 }
 
 ResponseBody _json(int status, Object body) => ResponseBody.fromBytes(
-      utf8.encode(jsonEncode(body)),
-      status,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+  utf8.encode(jsonEncode(body)),
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 Dio _dioWith(_ScriptedAdapter adapter) {
   final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl));
@@ -65,9 +65,9 @@ Widget host(Widget child, {double textScale = 1.0, TextDirection? direction}) {
         out = Directionality(textDirection: direction, child: out);
       }
       return MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(textScale),
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: out,
       );
     },
@@ -99,7 +99,8 @@ void main() {
       expect(
         await store.readRefreshToken(),
         'refresh-xyz',
-        reason: 'the refresh token must be stored at login, or the first '
+        reason:
+            'the refresh token must be stored at login, or the first '
             'token expiry 15 minutes later signs the user out for good',
       );
       expect(adapter.requestedPaths.single, ApiConfig.loginPath);
@@ -130,69 +131,73 @@ void main() {
       });
     });
 
-    test('401 surfaces the backend message VERBATIM and stores nothing',
-        () async {
-      final store = InMemoryTokenStore();
-      final adapter = _ScriptedAdapter((o) {
-        throw DioException(
-          requestOptions: o,
-          response: Response(
+    test(
+      '401 surfaces the backend message VERBATIM and stores nothing',
+      () async {
+        final store = InMemoryTokenStore();
+        final adapter = _ScriptedAdapter((o) {
+          throw DioException(
             requestOptions: o,
-            statusCode: 401,
-            // The real body, copied from a live call.
-            data: const {
-              'status': 401,
-              'error': 'Unauthorized',
-              'message': 'Invalid credentials',
-              'path': '/auth/login',
-            },
-          ),
+            response: Response(
+              requestOptions: o,
+              statusCode: 401,
+              // The real body, copied from a live call.
+              data: const {
+                'status': 401,
+                'error': 'Unauthorized',
+                'message': 'Invalid credentials',
+                'path': '/auth/login',
+              },
+            ),
+          );
+        });
+        final repo = AuthRepository(dio: _dioWith(adapter), tokenStore: store);
+
+        final outcome = await repo.login(
+          institutionCode: 'test-school',
+          username: 'admin',
+          password: 'wrong',
         );
-      });
-      final repo = AuthRepository(dio: _dioWith(adapter), tokenStore: store);
 
-      final outcome = await repo.login(
-        institutionCode: 'test-school',
-        username: 'admin',
-        password: 'wrong',
-      );
-
-      expect(outcome, isA<LoginFailed>());
-      expect((outcome as LoginFailed).failure.message, 'Invalid credentials');
-      expect(await store.readAccessToken(), isNull);
-    });
+        expect(outcome, isA<LoginFailed>());
+        expect((outcome as LoginFailed).failure.message, 'Invalid credentials');
+        expect(await store.readAccessToken(), isNull);
+      },
+    );
   });
 
   group('AuthRepository.logout', () {
-    test('does not block logout when best-effort device cleanup stalls', () async {
-      final store = InMemoryTokenStore(accessToken: 'a', refreshToken: 'r');
-      final cleanup = Completer<void>();
-      final adapter = _ScriptedAdapter((o) => _json(200, {'status': 'ok'}));
-      final repo = AuthRepository(
-        dio: _dioWith(adapter),
-        tokenStore: store,
-        beforeLogout: () => cleanup.future,
-      );
+    test(
+      'does not block logout when best-effort device cleanup stalls',
+      () async {
+        final store = InMemoryTokenStore(accessToken: 'a', refreshToken: 'r');
+        final cleanup = Completer<void>();
+        final adapter = _ScriptedAdapter((o) => _json(200, {'status': 'ok'}));
+        final repo = AuthRepository(
+          dio: _dioWith(adapter),
+          tokenStore: store,
+          beforeLogout: () => cleanup.future,
+        );
 
-      await repo.logout();
+        await repo.logout();
 
-      expect(adapter.requestedPaths, [ApiConfig.logoutPath]);
-      expect(await store.readAccessToken(), isNull);
-      expect(await store.readRefreshToken(), isNull);
-    });
+        expect(adapter.requestedPaths, [ApiConfig.logoutPath]);
+        expect(await store.readAccessToken(), isNull);
+        expect(await store.readRefreshToken(), isNull);
+      },
+    );
     test('clears local tokens even when the network call fails — a user who '
         'asked to sign out must not be left holding a live token', () async {
-      final store = InMemoryTokenStore(
-        accessToken: 'a',
-        refreshToken: 'r',
-      );
+      final store = InMemoryTokenStore(accessToken: 'a', refreshToken: 'r');
       final repo = AuthRepository(
-        dio: _dioWith(_ScriptedAdapter((o) {
-          throw DioException(
-            requestOptions: o,
-            type: DioExceptionType.connectionError,
-          );
-        })),
+        dio: _dioWith(
+          _ScriptedAdapter((o) {
+            throw DioException(
+              requestOptions: o,
+              type: DioExceptionType.connectionError,
+            );
+          }),
+        ),
         tokenStore: store,
       );
 
@@ -204,54 +209,60 @@ void main() {
   });
 
   group('NetworkIdentityResolver — two-step resolution', () {
-    test('admin: /auth/me only, NO person-record call, resolves linked',
-        () async {
-      // POSITIVE CASE for the absence assertion below: an admin legitimately
-      // has no staff or student row (verified live — both return 404), so
-      // calling them would wrongly orphan the one person who can fix orphans.
-      final adapter = _ScriptedAdapter(
-        (o) => _json(200, {
-          'roles': ['admin'],
-          'userId': 'u-1',
-          'tenantId': 't-1',
-        }),
-      );
-
-      final result =
-          await NetworkIdentityResolver(_dioWith(adapter)).resolveIdentity();
-
-      expect(result.kind, IdentityResultKind.linked);
-      expect(result.roles, ['admin']);
-      expect(result.tenantId, 't-1');
-      expect(
-        adapter.requestedPaths,
-        [ApiConfig.mePath],
-        reason: 'an admin must not be person-record checked at all',
-      );
-    });
-
-    test('teacher WITH a staff record resolves linked, after checking it',
-        () async {
-      final adapter = _ScriptedAdapter((o) {
-        if (o.path == ApiConfig.mePath) {
-          return _json(200, {
-            'roles': ['teacher'],
-            'userId': 'u-2',
+    test(
+      'admin: /auth/me only, NO person-record call, resolves linked',
+      () async {
+        // POSITIVE CASE for the absence assertion below: an admin legitimately
+        // has no staff or student row (verified live — both return 404), so
+        // calling them would wrongly orphan the one person who can fix orphans.
+        final adapter = _ScriptedAdapter(
+          (o) => _json(200, {
+            'roles': ['admin'],
+            'userId': 'u-1',
             'tenantId': 't-1',
-          });
-        }
-        return _json(200, {'id': 'staff-1'});
-      });
+          }),
+        );
 
-      final result =
-          await NetworkIdentityResolver(_dioWith(adapter)).resolveIdentity();
+        final result = await NetworkIdentityResolver(
+          _dioWith(adapter),
+        ).resolveIdentity();
 
-      expect(result.kind, IdentityResultKind.linked);
-      expect(adapter.requestedPaths, [
-        ApiConfig.mePath,
-        ApiConfig.staffMePath,
-      ]);
-    });
+        expect(result.kind, IdentityResultKind.linked);
+        expect(result.roles, ['admin']);
+        expect(result.tenantId, 't-1');
+        expect(
+          adapter.requestedPaths,
+          [ApiConfig.mePath],
+          reason: 'an admin must not be person-record checked at all',
+        );
+      },
+    );
+
+    test(
+      'teacher WITH a staff record resolves linked, after checking it',
+      () async {
+        final adapter = _ScriptedAdapter((o) {
+          if (o.path == ApiConfig.mePath) {
+            return _json(200, {
+              'roles': ['teacher'],
+              'userId': 'u-2',
+              'tenantId': 't-1',
+            });
+          }
+          return _json(200, {'id': 'staff-1'});
+        });
+
+        final result = await NetworkIdentityResolver(
+          _dioWith(adapter),
+        ).resolveIdentity();
+
+        expect(result.kind, IdentityResultKind.linked);
+        expect(adapter.requestedPaths, [
+          ApiConfig.mePath,
+          ApiConfig.staffMePath,
+        ]);
+      },
+    );
 
     test('teacher WITHOUT a staff record resolves notLinked — the D-17 '
         'orphan case, keyed off the person endpoint not /auth/me', () async {
@@ -277,8 +288,9 @@ void main() {
         );
       });
 
-      final result =
-          await NetworkIdentityResolver(_dioWith(adapter)).resolveIdentity();
+      final result = await NetworkIdentityResolver(
+        _dioWith(adapter),
+      ).resolveIdentity();
 
       expect(result.kind, IdentityResultKind.notLinked);
     });
@@ -303,8 +315,9 @@ void main() {
         );
       });
 
-      final result =
-          await NetworkIdentityResolver(_dioWith(adapter)).resolveIdentity();
+      final result = await NetworkIdentityResolver(
+        _dioWith(adapter),
+      ).resolveIdentity();
 
       expect(result.kind, IdentityResultKind.notLinked);
       expect(adapter.requestedPaths.last, ApiConfig.studentMePath);
@@ -323,27 +336,37 @@ void main() {
         );
       });
 
-      final result =
-          await NetworkIdentityResolver(_dioWith(adapter)).resolveIdentity();
+      final result = await NetworkIdentityResolver(
+        _dioWith(adapter),
+      ).resolveIdentity();
 
       expect(result.kind, IdentityResultKind.error);
       expect(result.message, 'Access token missing or invalid');
       expect(result.temporary, isFalse);
     });
 
-    test('rate limiting (429) is temporary — a throttled restore keeps the session', () async {
-      final adapter = _ScriptedAdapter((o) {
-        throw DioException(
-          requestOptions: o,
-          response: Response(requestOptions: o, statusCode: 429, data: const {'message': 'Too many requests'}),
-        );
-      });
+    test(
+      'rate limiting (429) is temporary — a throttled restore keeps the session',
+      () async {
+        final adapter = _ScriptedAdapter((o) {
+          throw DioException(
+            requestOptions: o,
+            response: Response(
+              requestOptions: o,
+              statusCode: 429,
+              data: const {'message': 'Too many requests'},
+            ),
+          );
+        });
 
-      final result = await NetworkIdentityResolver(_dioWith(adapter)).resolveIdentity();
+        final result = await NetworkIdentityResolver(
+          _dioWith(adapter),
+        ).resolveIdentity();
 
-      expect(result.kind, IdentityResultKind.error);
-      expect(result.temporary, isTrue);
-    });
+        expect(result.kind, IdentityResultKind.error);
+        expect(result.temporary, isTrue);
+      },
+    );
   });
 
   group('LoginScreen', () {
@@ -355,92 +378,164 @@ void main() {
     // the visible label is not read a second time as separate text.
     // Overhaul M2: returning users are not asked to recall the institution code.
     group('remembered institution', () {
-      testWidgets('a remembered institution is confirmed, not retyped', (tester) async {
+      testWidgets('a remembered institution is confirmed, not retyped', (
+        tester,
+      ) async {
         final remembered = InMemoryRememberedInstitution('north-rehearsal');
-        await tester.pumpWidget(host(LoginScreen(
-          repository: repoReturning(const LoginSucceeded()),
-          rememberedInstitution: remembered,
-          onSignedIn: () {},
-        )));
+        await tester.pumpWidget(
+          host(
+            LoginScreen(
+              repository: repoReturning(const LoginSucceeded()),
+              rememberedInstitution: remembered,
+              onSignedIn: () {},
+            ),
+          ),
+        );
         await tester.pumpAndSettle();
         expect(find.text('north-rehearsal'), findsOneWidget);
-        expect(find.byType(EditableText), findsNWidgets(2), reason: 'only username + password to type');
+        expect(
+          find.byType(EditableText),
+          findsNWidgets(2),
+          reason: 'only username + password to type',
+        );
         await tester.enterText(find.byType(TextField).at(0), 'teacher');
         await tester.enterText(find.byType(TextField).at(1), 'Secret123!');
         await tester.pump();
-        expect(tester.widget<AppButton>(find.widgetWithText(AppButton, 'Sign in')).onPressed, isNotNull);
+        expect(
+          tester
+              .widget<AppButton>(find.widgetWithText(AppButton, 'Sign in'))
+              .onPressed,
+          isNotNull,
+        );
       });
 
-      testWidgets('Change reopens the field with the code prefilled', (tester) async {
-        await tester.pumpWidget(host(LoginScreen(
-          repository: repoReturning(const LoginSucceeded()),
-          rememberedInstitution: InMemoryRememberedInstitution('north-rehearsal'),
-          onSignedIn: () {},
-        )));
+      testWidgets('Change reopens the field with the code prefilled', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            LoginScreen(
+              repository: repoReturning(const LoginSucceeded()),
+              rememberedInstitution: InMemoryRememberedInstitution(
+                'north-rehearsal',
+              ),
+              onSignedIn: () {},
+            ),
+          ),
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('login-change-institution')));
         await tester.pumpAndSettle();
         expect(find.byType(EditableText), findsNWidgets(3));
-        expect(tester.widget<EditableText>(find.byType(EditableText).first).controller.text, 'north-rehearsal');
+        expect(
+          tester
+              .widget<EditableText>(find.byType(EditableText).first)
+              .controller
+              .text,
+          'north-rehearsal',
+        );
       });
 
-      testWidgets('a successful sign-in remembers the institution; a failed one does not', (tester) async {
-        final store = InMemoryRememberedInstitution();
-        await tester.pumpWidget(host(LoginScreen(
-          repository: repoReturning(const LoginFailed(LoadFailure(message: 'Invalid credentials'))),
-          rememberedInstitution: store,
-          onSignedIn: () {},
-        )));
-        await tester.pumpAndSettle();
-        await tester.enterText(find.byType(TextField).at(0), 'south-rehearsal');
-        await tester.enterText(find.byType(TextField).at(1), 'teacher');
-        await tester.enterText(find.byType(TextField).at(2), 'wrong');
-        await tester.pump();
-        await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
-        await tester.pumpAndSettle();
-        expect(store.code, isNull);
+      testWidgets(
+        'a successful sign-in remembers the institution; a failed one does not',
+        (tester) async {
+          final store = InMemoryRememberedInstitution();
+          await tester.pumpWidget(
+            host(
+              LoginScreen(
+                repository: repoReturning(
+                  const LoginFailed(
+                    LoadFailure(message: 'Invalid credentials'),
+                  ),
+                ),
+                rememberedInstitution: store,
+                onSignedIn: () {},
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.enterText(
+            find.byType(TextField).at(0),
+            'south-rehearsal',
+          );
+          await tester.enterText(find.byType(TextField).at(1), 'teacher');
+          await tester.enterText(find.byType(TextField).at(2), 'wrong');
+          await tester.pump();
+          await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
+          await tester.pumpAndSettle();
+          expect(store.code, isNull);
 
-        await tester.pumpWidget(host(LoginScreen(
-          key: const Key('second'),
-          repository: repoReturning(const LoginSucceeded()),
-          rememberedInstitution: store,
-          onSignedIn: () {},
-        )));
-        await tester.pumpAndSettle();
-        await tester.enterText(find.byType(TextField).at(0), 'south-rehearsal');
-        await tester.enterText(find.byType(TextField).at(1), 'teacher');
-        await tester.enterText(find.byType(TextField).at(2), 'right');
-        await tester.pump();
-        await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
-        await tester.pumpAndSettle();
-        expect(store.code, 'south-rehearsal');
-      });
+          await tester.pumpWidget(
+            host(
+              LoginScreen(
+                key: const Key('second'),
+                repository: repoReturning(const LoginSucceeded()),
+                rememberedInstitution: store,
+                onSignedIn: () {},
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.enterText(
+            find.byType(TextField).at(0),
+            'south-rehearsal',
+          );
+          await tester.enterText(find.byType(TextField).at(1), 'teacher');
+          await tester.enterText(find.byType(TextField).at(2), 'right');
+          await tester.pump();
+          await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
+          await tester.pumpAndSettle();
+          expect(store.code, 'south-rehearsal');
+        },
+      );
 
-      testWidgets('an institution link pre-selects the institution', (tester) async {
-        await tester.pumpWidget(host(LoginScreen(
-          repository: repoReturning(const LoginSucceeded()),
-          launchUri: Uri.parse('https://ems.example/?institution=North-Rehearsal'),
-          onSignedIn: () {},
-        )));
+      testWidgets('an institution link pre-selects the institution', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            LoginScreen(
+              repository: repoReturning(const LoginSucceeded()),
+              launchUri: Uri.parse(
+                'https://ems.example/?institution=North-Rehearsal',
+              ),
+              onSignedIn: () {},
+            ),
+          ),
+        );
         await tester.pumpAndSettle();
         expect(find.text('north-rehearsal'), findsOneWidget);
       });
 
       test('institution links accept only slugs', () {
-        expect(institutionFromLink(Uri.parse('https://x/?institution=a-b-1')), 'a-b-1');
-        expect(institutionFromLink(Uri.parse('https://x/?institution=%3Cscript%3E')), isNull);
-        expect(institutionFromLink(Uri.parse('https://x/?institution=')), isNull);
+        expect(
+          institutionFromLink(Uri.parse('https://x/?institution=a-b-1')),
+          'a-b-1',
+        );
+        expect(
+          institutionFromLink(Uri.parse('https://x/?institution=%3Cscript%3E')),
+          isNull,
+        );
+        expect(
+          institutionFromLink(Uri.parse('https://x/?institution=')),
+          isNull,
+        );
         expect(institutionFromLink(Uri.parse('https://x/')), isNull);
       });
     });
 
-    testWidgets('login inputs expose accessible names and required hints',
-        (tester) async {
+    testWidgets('login inputs expose accessible names and required hints', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
-      await tester.pumpWidget(host(LoginScreen(
-        repository: repoReturning(const LoginSucceeded()),
-        onSignedIn: () {},
-      )));
+      await tester.pumpWidget(
+        host(
+          LoginScreen(
+            repository: repoReturning(const LoginSucceeded()),
+            onSignedIn: () {},
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       final fields = find.byType(EditableText);
       expect(fields, findsNWidgets(3));
@@ -452,20 +547,33 @@ void main() {
         expect(node.hint, 'Required', reason: node.label);
       }
       expect(names, ['Institution code', 'Username', 'Password']);
-      expect(find.bySemanticsLabel('Username'), findsOneWidget,
-          reason: 'the visual label must not create a duplicate node');
+      expect(
+        find.bySemanticsLabel('Username'),
+        findsOneWidget,
+        reason: 'the visual label must not create a duplicate node',
+      );
       handle.dispose();
     });
 
-    testWidgets('an outage message is announced and never blames credentials',
-        (tester) async {
+    testWidgets('an outage message is announced and never blames credentials', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
-      await tester.pumpWidget(host(LoginScreen(
-        repository: repoReturning(const LoginFailed(LoadFailure(
-            message:
-                'The service is temporarily unavailable. Please try again shortly.'))),
-        onSignedIn: () {},
-      )));
+      await tester.pumpWidget(
+        host(
+          LoginScreen(
+            repository: repoReturning(
+              const LoginFailed(
+                LoadFailure(
+                  message:
+                      'The service is temporarily unavailable. Please try again shortly.',
+                ),
+              ),
+            ),
+            onSignedIn: () {},
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).at(0), 'north');
       await tester.enterText(find.byType(TextField).at(1), 'teacher');
@@ -480,12 +588,17 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('submit is disabled until all three fields are filled',
-        (tester) async {
-      await tester.pumpWidget(host(LoginScreen(
-        repository: repoReturning(const LoginSucceeded()),
-        onSignedIn: () {},
-      )));
+    testWidgets('submit is disabled until all three fields are filled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          LoginScreen(
+            repository: repoReturning(const LoginSucceeded()),
+            onSignedIn: () {},
+          ),
+        ),
+      );
 
       AppButton button() => tester.widget<AppButton>(find.byType(AppButton));
       expect(button().onPressed, isNull);
@@ -505,12 +618,16 @@ void main() {
 
     testWidgets('a failed sign-in shows the backend message and KEEPS the '
         'typed input', (tester) async {
-      await tester.pumpWidget(host(LoginScreen(
-        repository: repoReturning(
-          const LoginFailed(LoadFailureStub.invalidCredentials),
+      await tester.pumpWidget(
+        host(
+          LoginScreen(
+            repository: repoReturning(
+              const LoginFailed(LoadFailureStub.invalidCredentials),
+            ),
+            onSignedIn: () {},
+          ),
         ),
-        onSignedIn: () {},
-      )));
+      );
 
       await tester.enterText(find.byType(TextField).at(0), 'test-school');
       await tester.enterText(find.byType(TextField).at(1), 'admin');
@@ -527,13 +644,18 @@ void main() {
       expect(find.text('admin'), findsOneWidget);
     });
 
-    testWidgets('a successful sign-in calls onSignedIn exactly once',
-        (tester) async {
+    testWidgets('a successful sign-in calls onSignedIn exactly once', (
+      tester,
+    ) async {
       var signedIn = 0;
-      await tester.pumpWidget(host(LoginScreen(
-        repository: repoReturning(const LoginSucceeded()),
-        onSignedIn: () => signedIn++,
-      )));
+      await tester.pumpWidget(
+        host(
+          LoginScreen(
+            repository: repoReturning(const LoginSucceeded()),
+            onSignedIn: () => signedIn++,
+          ),
+        ),
+      );
 
       await tester.enterText(find.byType(TextField).at(0), 'test-school');
       await tester.enterText(find.byType(TextField).at(1), 'admin');
@@ -550,10 +672,9 @@ void main() {
         'cannot fire two logins', (tester) async {
       var calls = 0;
       final repo = _CountingRepository(() => calls++);
-      await tester.pumpWidget(host(LoginScreen(
-        repository: repo,
-        onSignedIn: () {},
-      )));
+      await tester.pumpWidget(
+        host(LoginScreen(repository: repo, onSignedIn: () {})),
+      );
 
       await tester.enterText(find.byType(TextField).at(0), 'test-school');
       await tester.enterText(find.byType(TextField).at(1), 'admin');
@@ -571,17 +692,18 @@ void main() {
 
     testWidgets('ABSENCE: there is no signup/create-account affordance, '
         'because no such endpoint exists', (tester) async {
-      await tester.pumpWidget(host(LoginScreen(
-        repository: repoReturning(const LoginSucceeded()),
-        onSignedIn: () {},
-      )));
+      await tester.pumpWidget(
+        host(
+          LoginScreen(
+            repository: repoReturning(const LoginSucceeded()),
+            onSignedIn: () {},
+          ),
+        ),
+      );
 
       // Exactly one button on the screen: Sign in.
       expect(find.byType(AppButton), findsOneWidget);
-      expect(
-        tester.widget<AppButton>(find.byType(AppButton)).label,
-        'Sign in',
-      );
+      expect(tester.widget<AppButton>(find.byType(AppButton)).label, 'Sign in');
       // POSITIVE CASE pairing the absence: the screen still TELLS the user
       // where accounts come from, rather than silently offering nothing.
       expect(
@@ -591,33 +713,39 @@ void main() {
       );
     });
 
-    testWidgets('accessibility: renders without overflow at 2x text scale',
-        (tester) async {
+    testWidgets('accessibility: renders without overflow at 2x text scale', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
-      await tester.pumpWidget(host(
-        LoginScreen(
-          repository: repoReturning(const LoginSucceeded()),
-          onSignedIn: () {},
+      await tester.pumpWidget(
+        host(
+          LoginScreen(
+            repository: repoReturning(const LoginSucceeded()),
+            onSignedIn: () {},
+          ),
+          textScale: 2,
         ),
-        textScale: 2,
-      ));
+      );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('accessibility: renders in RTL without overflow',
-        (tester) async {
-      await tester.pumpWidget(host(
-        LoginScreen(
-          repository: repoReturning(const LoginSucceeded()),
-          onSignedIn: () {},
+    testWidgets('accessibility: renders in RTL without overflow', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          LoginScreen(
+            repository: repoReturning(const LoginSucceeded()),
+            onSignedIn: () {},
+          ),
+          direction: TextDirection.rtl,
         ),
-        direction: TextDirection.rtl,
-      ));
+      );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
@@ -658,8 +786,7 @@ class _FakeRepository implements AuthRepository {
   Future<LoadFailure?> changePassword({
     required String currentPassword,
     required String newPassword,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<void> logout() async {}
@@ -691,8 +818,7 @@ class _CountingRepository implements AuthRepository {
   Future<LoadFailure?> changePassword({
     required String currentPassword,
     required String newPassword,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<void> logout() async {}

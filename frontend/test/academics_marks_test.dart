@@ -14,8 +14,9 @@ import 'package:smartems/features/academics/domain/marks.dart';
 void main() {
   group('no mark ever passes through a double', () {
     test('marks.dart mentions no floating-point type at all', () {
-      final source =
-          File('lib/features/academics/domain/marks.dart').readAsStringSync();
+      final source = File(
+        'lib/features/academics/domain/marks.dart',
+      ).readAsStringSync();
       final code = source
           .split('\n')
           .where((line) {
@@ -28,7 +29,8 @@ void main() {
         expect(
           code.contains(banned),
           isFalse,
-          reason: 'marks.dart contains "$banned". Marks are integer '
+          reason:
+              'marks.dart contains "$banned". Marks are integer '
               'hundredths; one double here reintroduces the drift the type '
               'exists to prevent.',
         );
@@ -86,74 +88,81 @@ void main() {
   });
 
   group('no result is computed client-side', () {
-    test('a result reports the server’s totals, not the sum of its subjects',
-        () {
-      // Subjects add to 150/200, but the server says 120/200 — a weighting
-      // or a dropped paper the app knows nothing about. The server wins.
-      final result = StudentResult.fromJson({
-        'student_id': 's1',
-        'student_name': 'Ali Khan',
-        'total_marks': '120.00',
-        'total_max': '200.00',
-        'percentage': '60.00',
-        'grade': 'C',
-        'grade_point': '2.00',
-        'position': 3,
-        'result_status': 'pass',
-        'subjects': [
-          {
-            'subject_name': 'Maths',
-            'max_marks': '100.00',
-            'passing_marks': '40.00',
-            'marks_obtained': '80.00',
-            'is_absent': false,
-            'grade': 'A',
-          },
-          {
-            'subject_name': 'Science',
-            'max_marks': '100.00',
-            'passing_marks': '40.00',
-            'marks_obtained': '70.00',
-            'is_absent': false,
-            'grade': 'B',
-          },
-        ],
-      });
+    test(
+      'a result reports the server’s totals, not the sum of its subjects',
+      () {
+        // Subjects add to 150/200, but the server says 120/200 — a weighting
+        // or a dropped paper the app knows nothing about. The server wins.
+        final result = StudentResult.fromJson({
+          'student_id': 's1',
+          'student_name': 'Ali Khan',
+          'total_marks': '120.00',
+          'total_max': '200.00',
+          'percentage': '60.00',
+          'grade': 'C',
+          'grade_point': '2.00',
+          'position': 3,
+          'result_status': 'pass',
+          'subjects': [
+            {
+              'subject_name': 'Maths',
+              'max_marks': '100.00',
+              'passing_marks': '40.00',
+              'marks_obtained': '80.00',
+              'is_absent': false,
+              'grade': 'A',
+            },
+            {
+              'subject_name': 'Science',
+              'max_marks': '100.00',
+              'passing_marks': '40.00',
+              'marks_obtained': '70.00',
+              'is_absent': false,
+              'grade': 'B',
+            },
+          ],
+        });
 
-      expect(result.totalMarks, Marks.parse('120.00'));
-      expect(result.totalMarks, isNot(Marks.parse('150.00')),
-          reason: 'the subject sum must never win over the server total');
-      expect(result.percentage, Marks.parse('60.00'));
-      expect(result.grade, 'C');
-      expect(result.gradePoint, Marks.parse('2.00'));
-      expect(result.position, 3);
-    });
+        expect(result.totalMarks, Marks.parse('120.00'));
+        expect(
+          result.totalMarks,
+          isNot(Marks.parse('150.00')),
+          reason: 'the subject sum must never win over the server total',
+        );
+        expect(result.percentage, Marks.parse('60.00'));
+        expect(result.grade, 'C');
+        expect(result.gradePoint, Marks.parse('2.00'));
+        expect(result.position, 3);
+      },
+    );
 
-    test('syllabus progress is the server’s percentage, not covered ÷ total',
-        () {
-      // 1 of 3 is 33.33…%, and the server says 40 — it counts partials
-      // differently. Rendering our own division would contradict it.
-      final progress = SyllabusProgress.fromJson({
-        'percentage': '40.00',
-        'coveredTopics': 1,
-        'totalTopics': 3,
-        'coveredChapters': 0,
-        'totalChapters': 1,
-        'chapters': const [],
-      });
+    test(
+      'syllabus progress is the server’s percentage, not covered ÷ total',
+      () {
+        // 1 of 3 is 33.33…%, and the server says 40 — it counts partials
+        // differently. Rendering our own division would contradict it.
+        final progress = SyllabusProgress.fromJson({
+          'percentage': '40.00',
+          'coveredTopics': 1,
+          'totalTopics': 3,
+          'coveredChapters': 0,
+          'totalChapters': 1,
+          'chapters': const [],
+        });
 
-      expect(progress.percentage, Marks.parse('40.00'));
-      expect(progress.percentage.formatPercent(), '40%');
-    });
+        expect(progress.percentage, Marks.parse('40.00'));
+        expect(progress.percentage.formatPercent(), '40%');
+      },
+    );
   });
 
   group('grade bands — gaps and overlaps are rejected', () {
     GradeBand band(String min, String max, String grade) => GradeBand(
-          minPercent: Marks.parse(min),
-          maxPercent: Marks.parse(max),
-          grade: grade,
-          gradePoint: Marks.parse('4.00'),
-        );
+      minPercent: Marks.parse(min),
+      maxPercent: Marks.parse(max),
+      grade: grade,
+      gradePoint: Marks.parse('4.00'),
+    );
 
     test('a complete set of bands is accepted', () {
       expect(
@@ -224,10 +233,12 @@ void main() {
         r('Comfortable', '75.00', 'pass'),
       ]);
 
-      expect(
-        sorted.map((x) => x.studentName),
-        ['Failed', 'Borderline', 'Comfortable', 'Top'],
-      );
+      expect(sorted.map((x) => x.studentName), [
+        'Failed',
+        'Borderline',
+        'Comfortable',
+        'Top',
+      ]);
     });
 
     test('a borderline pass is a display hint, never a status', () {
@@ -242,11 +253,11 @@ void main() {
     const max = Marks.fromHundredths(10000); // 100
 
     MarkEntry entry(String text, {bool absent = false}) => MarkEntry(
-          studentId: 's',
-          studentName: 'Ali',
-          text: text,
-          isAbsent: absent,
-        );
+      studentId: 's',
+      studentName: 'Ali',
+      text: text,
+      isAbsent: absent,
+    );
 
     test('over the maximum is caught with the maximum named', () {
       expect(entry('150').problem(max), 'Over 100');
@@ -281,19 +292,23 @@ void main() {
 
   group('exam vocabulary', () {
     test('only the six terms the backend accepts exist', () {
-      expect(
-        ExamTerm.values.map((t) => t.wire),
-        ['weekly', 'monthly', 'first_term', 'mid_term', 'final', 'annual'],
-      );
+      expect(ExamTerm.values.map((t) => t.wire), [
+        'weekly',
+        'monthly',
+        'first_term',
+        'mid_term',
+        'final',
+        'annual',
+      ]);
     });
 
     test('publishing is what locks the marks', () {
       Exam exam(String status) => Exam.fromJson({
-            'id': 'e',
-            'name': 'Term 1',
-            'status': status,
-            'academic_year_id': 'y',
-          });
+        'id': 'e',
+        'name': 'Term 1',
+        'status': status,
+        'academic_year_id': 'y',
+      });
 
       expect(exam('pending').marksLocked, isFalse);
       expect(exam('published').marksLocked, isTrue);

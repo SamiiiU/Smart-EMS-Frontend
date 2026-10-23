@@ -34,23 +34,25 @@ class ThemeController extends ValueNotifier<ThemeMode> {
   Future<void> set(ThemeMode mode) async {
     value = mode;
     try {
-      await (await SharedPreferences.getInstance())
-          .setString(_key, _toWire(mode));
+      await (await SharedPreferences.getInstance()).setString(
+        _key,
+        _toWire(mode),
+      );
     } on Object {
       // Ignored deliberately: the theme is already applied for this session.
     }
   }
 
   static String _toWire(ThemeMode mode) => switch (mode) {
-        ThemeMode.light => 'light',
-        ThemeMode.dark => 'dark',
-        ThemeMode.system => 'system',
-      };
+    ThemeMode.light => 'light',
+    ThemeMode.dark => 'dark',
+    ThemeMode.system => 'system',
+  };
 
   static ThemeMode? _fromWire(String? wire) => switch (wire) {
-        'light' => ThemeMode.light,
-        'dark' => ThemeMode.dark,
-        'system' => ThemeMode.system,
-        _ => null,
-      };
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    'system' => ThemeMode.system,
+    _ => null,
+  };
 }

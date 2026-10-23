@@ -89,78 +89,76 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
       // M1: the same sign-in frame as login.
       body: SafeArea(
         child: AuthLayout(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Set a new password',
-                    style: AppTypography.screenTitle
-                        .copyWith(color: t.textPrimary),
-                  ),
-                  const SizedBox(height: AppSpacing.space3),
-                  Text(
-                    'Your account needs a new password before you can '
-                    'continue.',
-                    style: AppTypography.bodyAdminMeta
-                        .copyWith(color: t.textSecondary),
-                  ),
-                  const SizedBox(height: AppSpacing.space6),
-                  // Stated BEFORE the action, not after: being returned to
-                  // the login screen is expected here, not a failure.
-                  const InlineAlert(
-                    tone: InlineAlertTone.info,
-                    message: 'Changing your password signs you out '
-                        'everywhere. You will sign in again with the new one.',
-                  ),
-                  const SizedBox(height: AppSpacing.space6),
-                  if (_error != null) ...[
-                    InlineAlert(
-                      tone: InlineAlertTone.danger,
-                      message: _error!,
-                    ),
-                    const SizedBox(height: AppSpacing.space6),
-                  ],
-                  AppTextField(
-                    label: 'Current password',
-required: true,
-                    value: _current,
-                    obscure: true,
-                    state: _submitting
-                        ? AppTextFieldState.disabled
-                        : AppTextFieldState.normal,
-                    onChanged: (v) => setState(() => _current = v),
-                  ),
-                  const SizedBox(height: AppSpacing.space6),
-                  AppTextField(
-                    label: 'New password',
-required: true,
-                    value: _next,
-                    obscure: true,
-                    state: _submitting
-                        ? AppTextFieldState.disabled
-                        : AppTextFieldState.normal,
-                    onChanged: (v) => setState(() => _next = v),
-                  ),
-                  const SizedBox(height: AppSpacing.space6),
-                  AppTextField(
-                    label: 'Confirm new password',
-required: true,
-                    value: _confirm,
-                    obscure: true,
-                    state: _submitting
-                        ? AppTextFieldState.disabled
-                        : AppTextFieldState.normal,
-                    onChanged: (v) => setState(() => _confirm = v),
-                  ),
-                  const SizedBox(height: AppSpacing.space8),
-                  AppButton(
-                    label: _submitting ? 'Saving…' : 'Save',
-                    fullWidth: true,
-                    onPressed: _canSubmit ? submit : null,
-                  ),
-                ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Set a new password',
+                style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
               ),
+              const SizedBox(height: AppSpacing.space3),
+              Text(
+                'Your account needs a new password before you can '
+                'continue.',
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.space6),
+              // Stated BEFORE the action, not after: being returned to
+              // the login screen is expected here, not a failure.
+              const InlineAlert(
+                tone: InlineAlertTone.info,
+                message:
+                    'Changing your password signs you out '
+                    'everywhere. You will sign in again with the new one.',
+              ),
+              const SizedBox(height: AppSpacing.space6),
+              if (_error != null) ...[
+                InlineAlert(tone: InlineAlertTone.danger, message: _error!),
+                const SizedBox(height: AppSpacing.space6),
+              ],
+              AppTextField(
+                label: 'Current password',
+                required: true,
+                value: _current,
+                obscure: true,
+                state: _submitting
+                    ? AppTextFieldState.disabled
+                    : AppTextFieldState.normal,
+                onChanged: (v) => setState(() => _current = v),
+              ),
+              const SizedBox(height: AppSpacing.space6),
+              AppTextField(
+                label: 'New password',
+                required: true,
+                value: _next,
+                obscure: true,
+                state: _submitting
+                    ? AppTextFieldState.disabled
+                    : AppTextFieldState.normal,
+                onChanged: (v) => setState(() => _next = v),
+              ),
+              const SizedBox(height: AppSpacing.space6),
+              AppTextField(
+                label: 'Confirm new password',
+                required: true,
+                value: _confirm,
+                obscure: true,
+                state: _submitting
+                    ? AppTextFieldState.disabled
+                    : AppTextFieldState.normal,
+                onChanged: (v) => setState(() => _confirm = v),
+              ),
+              const SizedBox(height: AppSpacing.space8),
+              AppButton(
+                label: _submitting ? 'Saving…' : 'Save',
+                fullWidth: true,
+                onPressed: _canSubmit ? submit : null,
+              ),
+            ],
+          ),
         ),
       ),
     );

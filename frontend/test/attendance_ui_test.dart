@@ -145,42 +145,68 @@ void main() {
   group('Attendance marking — roster and submission', () {
     // QA-14 (product owner decision A, 2026-10-14) REVERSES the old default:
     // a learner nobody has marked is UNMARKED, never a silent Present.
-    testWidgets('loads the roster; untouched learners are Unmarked, not Present (QA-14)', (
+    testWidgets(
+      'loads the roster; untouched learners are Unmarked, not Present (QA-14)',
+      (tester) async {
+        await tester.pumpWidget(host(_screen(_rosterAdapter())));
+        await tester.pumpAndSettle();
+
+        expect(find.text('1  Bilal Ahmed'), findsOneWidget);
+        expect(find.text('2  Fatima Noor'), findsOneWidget);
+        expect(find.byKey(const Key('unmarked-st1')), findsOneWidget);
+        expect(find.byKey(const Key('unmarked-st2')), findsOneWidget);
+        expect(
+          find.text('Present'),
+          findsNWidgets(2),
+          reason: 'only the two choice buttons; no Present pill',
+        );
+        expect(
+          find.byKey(const Key('count-present')),
+          findsNothing,
+          reason: 'unmarked never counts as Present',
+        );
+        expect(find.text('Unmarked 2'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'QA-14: submitting an untouched register sends NOTHING and says so',
+      (tester) async {
+        final adapter = _rosterAdapter();
+        await tester.pumpWidget(host(_screen(adapter)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(AppButton, 'Submit'));
+        await tester.pumpAndSettle();
+        expect(
+          adapter.requests.where((r) => r.path == ApiConfig.attendanceBulkPath),
+          isEmpty,
+          reason: 'no invented Present records',
+        );
+        expect(
+          find.textContaining('2 learners are still unmarked'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('QA-14: a partial register sends only the marked learner', (
       tester,
     ) async {
-      await tester.pumpWidget(host(_screen(_rosterAdapter())));
-      await tester.pumpAndSettle();
-
-      expect(find.text('1  Bilal Ahmed'), findsOneWidget);
-      expect(find.text('2  Fatima Noor'), findsOneWidget);
-      expect(find.byKey(const Key('unmarked-st1')), findsOneWidget);
-      expect(find.byKey(const Key('unmarked-st2')), findsOneWidget);
-      expect(find.text('Present'), findsNWidgets(2), reason: 'only the two choice buttons; no Present pill');
-      expect(find.byKey(const Key('count-present')), findsNothing, reason: 'unmarked never counts as Present');
-      expect(find.text('Unmarked 2'), findsOneWidget);
-    });
-
-    testWidgets('QA-14: submitting an untouched register sends NOTHING and says so', (tester) async {
-      final adapter = _rosterAdapter();
-      await tester.pumpWidget(host(_screen(adapter)));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(AppButton, 'Submit'));
-      await tester.pumpAndSettle();
-      expect(adapter.requests.where((r) => r.path == ApiConfig.attendanceBulkPath), isEmpty,
-          reason: 'no invented Present records');
-      expect(find.textContaining('2 learners are still unmarked'), findsOneWidget);
-    });
-
-    testWidgets('QA-14: a partial register sends only the marked learner', (tester) async {
       final adapter = _rosterAdapter();
       await tester.pumpWidget(host(_screen(adapter)));
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Absent for Bilal Ahmed'));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('pending-st1')), findsOneWidget, reason: 'deliberate, not yet saved');
+      expect(
+        find.byKey(const Key('pending-st1')),
+        findsOneWidget,
+        reason: 'deliberate, not yet saved',
+      );
       await tester.tap(find.widgetWithText(AppButton, 'Submit'));
       await tester.pumpAndSettle();
-      final bulk = adapter.requests.firstWhere((r) => r.path == ApiConfig.attendanceBulkPath);
+      final bulk = adapter.requests.firstWhere(
+        (r) => r.path == ApiConfig.attendanceBulkPath,
+      );
       final rows = (bulk.data as Map)['rows'] as List;
       expect(rows.map((r) => (r as Map)['studentId']), ['st1']);
       expect((rows.single as Map)['status'], 'absent');
@@ -265,34 +291,67 @@ void main() {
 
     // F15 (physical Pixel 7 Pro): a reopened register must show what the
     // server already holds, never a silent all-Present default.
-    testWidgets('reopened register shows the marks already recorded', (tester) async {
-      final adapter = _rosterAdapter(serverRecords: [
-        {'student_id': 'st1', 'status': 'absent'},
-      ]);
+    testWidgets('reopened register shows the marks already recorded', (
+      tester,
+    ) async {
+      final adapter = _rosterAdapter(
+        serverRecords: [
+          {'student_id': 'st1', 'status': 'absent'},
+        ],
+      );
       await tester.pumpWidget(host(_screen(adapter)));
       await tester.pumpAndSettle();
-      expect(tester.getSemantics(find.bySemanticsLabel('Absent for Bilal Ahmed')), isSemantics(isSelected: true));
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Absent for Bilal Ahmed')),
+        isSemantics(isSelected: true),
+      );
       // QA-14: no server record and no tap → Unmarked (formerly a default Present).
       expect(find.byKey(const Key('unmarked-st2')), findsOneWidget);
-      expect(tester.getSemantics(find.bySemanticsLabel('Present for Fatima Noor')), isSemantics(isSelected: false));
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Present for Fatima Noor')),
+        isSemantics(isSelected: false),
+      );
       expect(find.textContaining('could not be loaded'), findsNothing);
     });
 
-    testWidgets('when existing marks cannot load, the register warns instead of silently defaulting', (tester) async {
-      final adapter = _Adapter((o) {
-        if (o.path.contains(ApiConfig.enrollmentsSectionPath)) {
-          return _json(200, {'content': [{'studentId': 'st1', 'status': 'enrolled'}]});
-        }
-        if (o.path == ApiConfig.studentsPath) {
-          return _json(200, {'content': [{'id': 'st1', 'firstName': 'Bilal', 'lastName': 'Ahmed'}]});
-        }
-        throw DioException(requestOptions: o, type: DioExceptionType.connectionError);
-      });
-      await tester.pumpWidget(host(_screen(adapter)));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Marks already recorded today could not be loaded'), findsOneWidget);
-      expect(find.text('Bilal Ahmed'), findsOneWidget, reason: 'offline marking remains possible');
-    });
+    testWidgets(
+      'when existing marks cannot load, the register warns instead of silently defaulting',
+      (tester) async {
+        final adapter = _Adapter((o) {
+          if (o.path.contains(ApiConfig.enrollmentsSectionPath)) {
+            return _json(200, {
+              'content': [
+                {'studentId': 'st1', 'status': 'enrolled'},
+              ],
+            });
+          }
+          if (o.path == ApiConfig.studentsPath) {
+            return _json(200, {
+              'content': [
+                {'id': 'st1', 'firstName': 'Bilal', 'lastName': 'Ahmed'},
+              ],
+            });
+          }
+          throw DioException(
+            requestOptions: o,
+            type: DioExceptionType.connectionError,
+          );
+        });
+        await tester.pumpWidget(host(_screen(adapter)));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining(
+            'Marks already recorded today could not be loaded',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Bilal Ahmed'),
+          findsOneWidget,
+          reason: 'offline marking remains possible',
+        );
+      },
+    );
 
     testWidgets('offline submission reports that it queued — not an error', (
       tester,
@@ -326,7 +385,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Saved offline'), findsOneWidget);
-      expect(find.byKey(const Key('pending-st1')), findsOneWidget, reason: 'queued, not confirmed');
+      expect(
+        find.byKey(const Key('pending-st1')),
+        findsOneWidget,
+        reason: 'queued, not confirmed',
+      );
       expect(find.textContaining('will sync'), findsOneWidget);
     });
   });
@@ -454,29 +517,49 @@ void main() {
 
 /// Overhaul M3: register totals, bulk action, search, unsaved-change guard.
 _Adapter _bigRoster(int n) => _Adapter((o) {
-      if (o.path.contains(ApiConfig.enrollmentsSectionPath)) {
-        return _json(200, {
-          'content': [for (var i = 1; i <= n; i++) {'studentId': 'st$i', 'status': 'enrolled', 'rollNumber': '$i'}],
-        });
-      }
-      if (o.path == ApiConfig.studentsPath) {
-        return _json(200, {
-          'content': [for (var i = 1; i <= n; i++) {'id': 'st$i', 'firstName': i == 7 ? 'Zainab' : 'Learner', 'lastName': '$i'}],
-        });
-      }
-      if (o.path.contains(ApiConfig.attendanceSectionPath)) {
-        return _json(200, {'records': [{'studentId': 'st2', 'status': 'absent'}]});
-      }
-      return _json(200, {'successCount': 1, 'errorCount': 0});
+  if (o.path.contains(ApiConfig.enrollmentsSectionPath)) {
+    return _json(200, {
+      'content': [
+        for (var i = 1; i <= n; i++)
+          {'studentId': 'st$i', 'status': 'enrolled', 'rollNumber': '$i'},
+      ],
     });
+  }
+  if (o.path == ApiConfig.studentsPath) {
+    return _json(200, {
+      'content': [
+        for (var i = 1; i <= n; i++)
+          {
+            'id': 'st$i',
+            'firstName': i == 7 ? 'Zainab' : 'Learner',
+            'lastName': '$i',
+          },
+      ],
+    });
+  }
+  if (o.path.contains(ApiConfig.attendanceSectionPath)) {
+    return _json(200, {
+      'records': [
+        {'studentId': 'st2', 'status': 'absent'},
+      ],
+    });
+  }
+  return _json(200, {'successCount': 1, 'errorCount': 0});
+});
 
 void registerToolbarTests() {
   group('Register toolbar (overhaul M3)', () {
-    testWidgets('totals reflect the real marks and update as marks change', (tester) async {
+    testWidgets('totals reflect the real marks and update as marks change', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(_screen(_bigRoster(3))));
       await tester.pumpAndSettle();
       // QA-14: 1 saved (Absent from the server), 2 unmarked, no invented Present.
-      expect(find.text('Absent 1'), findsOneWidget, reason: 'prefilled from the server (F15)');
+      expect(
+        find.text('Absent 1'),
+        findsOneWidget,
+        reason: 'prefilled from the server (F15)',
+      );
       expect(find.text('Unmarked 2'), findsOneWidget);
       expect(find.byKey(const Key('count-present')), findsNothing);
       await tester.tap(find.bySemanticsLabel('Absent for Learner 1'));
@@ -486,7 +569,9 @@ void registerToolbarTests() {
       expect(find.text('Not yet saved 1'), findsOneWidget);
     });
 
-    testWidgets('Mark all present asks first and changes nothing on Cancel', (tester) async {
+    testWidgets('Mark all present asks first and changes nothing on Cancel', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(_screen(_bigRoster(3))));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('mark-all-present')));
@@ -502,41 +587,82 @@ void registerToolbarTests() {
       await tester.pumpAndSettle();
       // QA-14: only the 2 unmarked learners change; the saved Absent stays.
       expect(find.text('Present 2'), findsOneWidget);
-      expect(find.text('Absent 1'), findsOneWidget, reason: 'a saved status is never overwritten in bulk');
+      expect(
+        find.text('Absent 1'),
+        findsOneWidget,
+        reason: 'a saved status is never overwritten in bulk',
+      );
       expect(find.text('Unmarked 2'), findsNothing);
-      expect(find.byKey(const Key('mark-all-present')), findsNothing, reason: 'nobody left unmarked');
+      expect(
+        find.byKey(const Key('mark-all-present')),
+        findsNothing,
+        reason: 'nobody left unmarked',
+      );
     });
 
-    testWidgets('search appears for larger classes and filters by name or roll number', (tester) async {
-      tester.view.physicalSize = const Size(1200, 2400);
-      addTearDown(tester.view.resetPhysicalSize);
-      await tester.pumpWidget(host(_screen(_bigRoster(12))));
-      await tester.pumpAndSettle();
-      final search = find.widgetWithText(AppTextField, 'Search by name or roll number');
-      expect(search, findsOneWidget);
-      await tester.enterText(find.descendant(of: search, matching: find.byType(TextField)), 'zain');
-      await tester.pumpAndSettle();
-      expect(find.text('7  Zainab 7'), findsOneWidget);
-      expect(find.text('1  Learner 1'), findsNothing);
-      await tester.enterText(find.descendant(of: search, matching: find.byType(TextField)), '3');
-      await tester.pumpAndSettle();
-      expect(find.text('3  Learner 3'), findsOneWidget, reason: 'exact roll number');
-    });
+    testWidgets(
+      'search appears for larger classes and filters by name or roll number',
+      (tester) async {
+        tester.view.physicalSize = const Size(1200, 2400);
+        addTearDown(tester.view.resetPhysicalSize);
+        await tester.pumpWidget(host(_screen(_bigRoster(12))));
+        await tester.pumpAndSettle();
+        final search = find.widgetWithText(
+          AppTextField,
+          'Search by name or roll number',
+        );
+        expect(search, findsOneWidget);
+        await tester.enterText(
+          find.descendant(of: search, matching: find.byType(TextField)),
+          'zain',
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('7  Zainab 7'), findsOneWidget);
+        expect(find.text('1  Learner 1'), findsNothing);
+        await tester.enterText(
+          find.descendant(of: search, matching: find.byType(TextField)),
+          '3',
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text('3  Learner 3'),
+          findsOneWidget,
+          reason: 'exact roll number',
+        );
+      },
+    );
 
     testWidgets('small classes get no search box', (tester) async {
       await tester.pumpWidget(host(_screen(_bigRoster(3))));
       await tester.pumpAndSettle();
-      expect(find.widgetWithText(AppTextField, 'Search by name or roll number'), findsNothing);
+      expect(
+        find.widgetWithText(AppTextField, 'Search by name or roll number'),
+        findsNothing,
+      );
     });
 
-    testWidgets('leaving with unsubmitted marks asks before discarding them', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.light(role: AppRole.teacher),
-        home: Builder(builder: (context) => Scaffold(body: Center(child: TextButton(
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _screen(_bigRoster(3)))),
-          child: const Text('open'),
-        )))),
-      ));
+    testWidgets('leaving with unsubmitted marks asks before discarding them', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(role: AppRole.teacher),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => _screen(_bigRoster(3)),
+                    ),
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Late for Learner 1'));
@@ -546,7 +672,11 @@ void registerToolbarTests() {
       expect(find.text('Leave without submitting?'), findsOneWidget);
       await tester.tap(find.text('Keep marking'));
       await tester.pumpAndSettle();
-      expect(find.text('Class 9-C'), findsOneWidget, reason: 'still on the register');
+      expect(
+        find.text('Class 9-C'),
+        findsOneWidget,
+        reason: 'still on the register',
+      );
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('confirm-leave')));
@@ -554,61 +684,83 @@ void registerToolbarTests() {
       expect(find.text('open'), findsOneWidget);
     });
 
-    testWidgets('NOTE-QA-17: embedded in a parent flow, "Keep marking" STAYS on the register', (tester) async {
-      // The Today flow shows the register inside its own state, not as a route.
-      // Before the fix a parent back handler closed it on the same back press,
-      // so the dialog appeared over Today and unsaved marks were lost.
-      final adapter = _bigRoster(3);
-      await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.light(role: AppRole.teacher),
-        home: _EmbeddedFlow(register: (onExit) => AttendanceMarkingScreen(
-          repository: _repo(adapter),
-          sectionId: 'sec-1',
-          sectionLabel: 'Class 9-C',
-          attendanceDate: DateTime(2026, 8, 5),
-          now: () => DateTime(2026, 8, 5, 10),
-          onExit: onExit,
-        )),
-      ));
-      await tester.tap(find.text('open register'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.bySemanticsLabel('Late for Learner 1'));
-      await tester.pumpAndSettle();
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.text('Leave without submitting?'), findsOneWidget);
-      await tester.tap(find.text('Keep marking'));
-      await tester.pumpAndSettle();
-      expect(find.text('Class 9-C'), findsOneWidget, reason: 'still on the register');
-      expect(find.text('Today list'), findsNothing);
-      // The unsaved mark is still there.
-      expect(find.textContaining('Late 1'), findsWidgets);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('confirm-leave')));
-      await tester.pumpAndSettle();
-      expect(find.text('Today list'), findsOneWidget, reason: 'confirmed Leave returns to the parent');
-    });
+    testWidgets(
+      'NOTE-QA-17: embedded in a parent flow, "Keep marking" STAYS on the register',
+      (tester) async {
+        // The Today flow shows the register inside its own state, not as a route.
+        // Before the fix a parent back handler closed it on the same back press,
+        // so the dialog appeared over Today and unsaved marks were lost.
+        final adapter = _bigRoster(3);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(role: AppRole.teacher),
+            home: _EmbeddedFlow(
+              register: (onExit) => AttendanceMarkingScreen(
+                repository: _repo(adapter),
+                sectionId: 'sec-1',
+                sectionLabel: 'Class 9-C',
+                attendanceDate: DateTime(2026, 8, 5),
+                now: () => DateTime(2026, 8, 5, 10),
+                onExit: onExit,
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open register'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Late for Learner 1'));
+        await tester.pumpAndSettle();
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Leave without submitting?'), findsOneWidget);
+        await tester.tap(find.text('Keep marking'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Class 9-C'),
+          findsOneWidget,
+          reason: 'still on the register',
+        );
+        expect(find.text('Today list'), findsNothing);
+        // The unsaved mark is still there.
+        expect(find.textContaining('Late 1'), findsWidgets);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('confirm-leave')));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Today list'),
+          findsOneWidget,
+          reason: 'confirmed Leave returns to the parent',
+        );
+      },
+    );
 
-    testWidgets('NOTE-QA-17: embedded with nothing unsaved, back leaves at once', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.light(role: AppRole.teacher),
-        home: _EmbeddedFlow(register: (onExit) => AttendanceMarkingScreen(
-          repository: _repo(_bigRoster(3)),
-          sectionId: 'sec-1',
-          sectionLabel: 'Class 9-C',
-          attendanceDate: DateTime(2026, 8, 5),
-          now: () => DateTime(2026, 8, 5, 10),
-          onExit: onExit,
-        )),
-      ));
-      await tester.tap(find.text('open register'));
-      await tester.pumpAndSettle();
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.text('Leave without submitting?'), findsNothing);
-      expect(find.text('Today list'), findsOneWidget);
-    });
+    testWidgets(
+      'NOTE-QA-17: embedded with nothing unsaved, back leaves at once',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(role: AppRole.teacher),
+            home: _EmbeddedFlow(
+              register: (onExit) => AttendanceMarkingScreen(
+                repository: _repo(_bigRoster(3)),
+                sectionId: 'sec-1',
+                sectionLabel: 'Class 9-C',
+                attendanceDate: DateTime(2026, 8, 5),
+                now: () => DateTime(2026, 8, 5, 10),
+                onExit: onExit,
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open register'));
+        await tester.pumpAndSettle();
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Leave without submitting?'), findsNothing);
+        expect(find.text('Today list'), findsOneWidget);
+      },
+    );
   });
 }
 
@@ -626,9 +778,14 @@ class _EmbeddedFlowState extends State<_EmbeddedFlow> {
   Widget build(BuildContext context) => _open
       ? widget.register(() => setState(() => _open = false))
       : Scaffold(
-          body: Column(children: [
-            const Text('Today list'),
-            TextButton(onPressed: () => setState(() => _open = true), child: const Text('open register')),
-          ]),
+          body: Column(
+            children: [
+              const Text('Today list'),
+              TextButton(
+                onPressed: () => setState(() => _open = true),
+                child: const Text('open register'),
+              ),
+            ],
+          ),
         );
 }

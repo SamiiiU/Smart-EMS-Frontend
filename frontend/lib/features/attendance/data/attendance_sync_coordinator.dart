@@ -52,7 +52,8 @@ class AttendanceSyncCoordinator with WidgetsBindingObserver {
   }
 
   /// Attempts a drain now (coalesced with any drain already running).
-  Future<void> trigger() => _inFlight ??= _drain().whenComplete(() => _inFlight = null);
+  Future<void> trigger() =>
+      _inFlight ??= _drain().whenComplete(() => _inFlight = null);
 
   Future<void> _drain() async {
     _retry?.cancel();
@@ -71,7 +72,12 @@ class AttendanceSyncCoordinator with WidgetsBindingObserver {
     }
     _backoff = _backoff == Duration.zero
         ? minBackoff
-        : Duration(milliseconds: (_backoff.inMilliseconds * 2).clamp(0, maxBackoff.inMilliseconds));
+        : Duration(
+            milliseconds: (_backoff.inMilliseconds * 2).clamp(
+              0,
+              maxBackoff.inMilliseconds,
+            ),
+          );
     _retry = Timer(_backoff, trigger);
   }
 

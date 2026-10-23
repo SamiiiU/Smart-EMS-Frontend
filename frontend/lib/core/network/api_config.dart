@@ -12,7 +12,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 abstract final class ApiConfig {
   /// Explicit override at build time: `--dart-define=API_BASE_URL=https://…`.
-  static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+  );
 
   /// ADR-010: Flutter Web is served from the SAME HTTPS origin as the API, so a
   /// Web build talks to the origin it was loaded from (the refresh cookie is

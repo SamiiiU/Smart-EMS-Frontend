@@ -319,11 +319,11 @@ class _H extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: AppTypography.sectionHeading.copyWith(
-          color: context.tokens.textPrimary,
-        ),
-      );
+    text,
+    style: AppTypography.sectionHeading.copyWith(
+      color: context.tokens.textPrimary,
+    ),
+  );
 }
 
 class _N extends StatelessWidget {
@@ -333,9 +333,9 @@ class _N extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: AppTypography.bodyAdminMeta.copyWith(
-          color: context.tokens.textSecondary,
-        ),
-      );
+    text,
+    style: AppTypography.bodyAdminMeta.copyWith(
+      color: context.tokens.textSecondary,
+    ),
+  );
 }

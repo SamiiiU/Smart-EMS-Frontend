@@ -10,7 +10,8 @@ import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../setup/domain/setup_models.dart';
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/finance_repository.dart';
@@ -55,23 +56,31 @@ class DefaultersScreenState extends State<DefaultersScreen> {
   }
 
   Future<void> load() async {
-    setState(() => _state =
-        ScreenState<List<DefaulterRow>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<DefaulterRow>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final rows = await widget.repository.loadDefaulters(classId: _classId);
       if (!mounted) return;
-      setState(() => _state = ScreenState<List<DefaulterRow>>.data(
-            sortDefaulters(rows, _today),
-          ));
+      setState(
+        () => _state = ScreenState<List<DefaulterRow>>.data(
+          sortDefaulters(rows, _today),
+        ),
+      );
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<DefaulterRow>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<DefaulterRow>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -125,7 +134,8 @@ class DefaultersScreenState extends State<DefaultersScreen> {
             data: (context, rows) => AdaptiveDataView<DefaulterRow>(
               rows: rows,
               padding: EdgeInsets.zero,
-              semanticLabel: (row) => '${row.studentName}, ${row.outstanding.format()} outstanding',
+              semanticLabel: (row) =>
+                  '${row.studentName}, ${row.outstanding.format()} outstanding',
               onTap: (row) async {
                 await Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -138,20 +148,42 @@ class DefaultersScreenState extends State<DefaultersScreen> {
                 await load();
               },
               columns: [
-                DataColumnSpec(label: 'Outstanding', value: (r) => r.outstanding.format(), flex: 2),
-                DataColumnSpec(label: 'Learner', value: (r) => r.studentName, flex: 3),
-                DataColumnSpec(label: 'Admission no.', value: (r) => r.admissionNumber, flex: 2),
-                DataColumnSpec(label: 'Period', value: (r) => r.period, flex: 2),
+                DataColumnSpec(
+                  label: 'Outstanding',
+                  value: (r) => r.outstanding.format(),
+                  flex: 2,
+                ),
+                DataColumnSpec(
+                  label: 'Learner',
+                  value: (r) => r.studentName,
+                  flex: 3,
+                ),
+                DataColumnSpec(
+                  label: 'Admission no.',
+                  value: (r) => r.admissionNumber,
+                  flex: 2,
+                ),
+                DataColumnSpec(
+                  label: 'Period',
+                  value: (r) => r.period,
+                  flex: 2,
+                ),
                 DataColumnSpec(
                   label: 'Due',
-                  value: (r) => r.daysOverdue(_today) > 0 ? '${r.daysOverdue(_today)} days past due' : formatBusinessDate(context, r.dueDate),
+                  value: (r) => r.daysOverdue(_today) > 0
+                      ? '${r.daysOverdue(_today)} days past due'
+                      : formatBusinessDate(context, r.dueDate),
                   flex: 2,
                   cell: (r) {
                     final late = r.daysOverdue(_today);
                     final t = context.tokens;
                     return Text(
-                      late > 0 ? '$late days past due' : formatBusinessDate(context, r.dueDate),
-                      style: AppTypography.bodyAdminMeta.copyWith(color: late > 0 ? t.warningTextOnBg : t.textSecondary),
+                      late > 0
+                          ? '$late days past due'
+                          : formatBusinessDate(context, r.dueDate),
+                      style: AppTypography.bodyAdminMeta.copyWith(
+                        color: late > 0 ? t.warningTextOnBg : t.textSecondary,
+                      ),
                     );
                   },
                 ),
@@ -159,7 +191,10 @@ class DefaultersScreenState extends State<DefaultersScreen> {
                   label: 'Status',
                   value: (r) => StatusPill.labelFor(r.status.pill),
                   flex: 2,
-                  cell: (r) => StatusPill(status: r.status.pill, size: StatusPillSize.sm),
+                  cell: (r) => StatusPill(
+                    status: r.status.pill,
+                    size: StatusPillSize.sm,
+                  ),
                 ),
               ],
             ),

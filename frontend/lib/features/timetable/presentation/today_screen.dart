@@ -68,24 +68,31 @@ class TodayScreenState extends State<TodayScreen> {
   Future<void> _load() async {
     final staffId = widget.staffId;
     if (staffId == null) {
-      setState(() => _state =
-          const ScreenState<List<TimetablePeriod>>.data([], isEmpty: true));
+      setState(
+        () => _state = const ScreenState<List<TimetablePeriod>>.data(
+          [],
+          isEmpty: true,
+        ),
+      );
       return;
     }
-    setState(() => _state = ScreenState<List<TimetablePeriod>>.loading(
-          previous: _state.data,
-        ));
+    setState(
+      () => _state = ScreenState<List<TimetablePeriod>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final periods = await widget.repository.todayFor(staffId);
       if (!mounted) return;
-      setState(() =>
-          _state = ScreenState<List<TimetablePeriod>>.data(periods));
+      setState(() => _state = ScreenState<List<TimetablePeriod>>.data(periods));
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _state = ScreenState<List<TimetablePeriod>>.failed(
-            e is LoadFailure ? e : const LoadFailure(),
-            cached: _state.data,
-          ));
+      setState(
+        () => _state = ScreenState<List<TimetablePeriod>>.failed(
+          e is LoadFailure ? e : const LoadFailure(),
+          cached: _state.data,
+        ),
+      );
     }
   }
 
@@ -116,7 +123,7 @@ class TodayScreenState extends State<TodayScreen> {
                     : 'Nothing scheduled today',
                 emptyMessage: widget.staffId == null
                     ? 'This account is not linked to a staff record, so it '
-                        'has no teaching timetable.'
+                          'has no teaching timetable.'
                     : 'You have no periods on your timetable for today.',
                 emptyIcon: Icons.event_available_outlined,
                 data: (context, periods) => ListView.builder(
@@ -221,39 +228,40 @@ class _PeriodRow extends StatelessWidget {
   Widget _content(BuildContext context) {
     final t = context.tokens;
     return Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  [period.sectionName, period.subjectName]
-                      .whereType<String>()
-                      .join(' · '),
-                  style: AppTypography.cardHeading
-                      .copyWith(color: t.textPrimary),
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                [
+                  period.sectionName,
+                  period.subjectName,
+                ].whereType<String>().join(' · '),
+                style: AppTypography.cardHeading.copyWith(color: t.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.space2),
+              Text(
+                '${period.periodName} · ${period.timeLabel}',
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
                 ),
-                const SizedBox(height: AppSpacing.space2),
-                Text(
-                  '${period.periodName} · ${period.timeLabel}',
-                  style: AppTypography.bodyAdminMeta
-                      .copyWith(color: t.textSecondary),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          if (current)
-            Text(
-              'Now',
-              style: AppTypography.overline.copyWith(color: t.textPrimary),
-            ),
-          // Only where the row actually leads somewhere — a chevron on an
-          // inert break row would be a false affordance (D-19).
-          if (onTap != null) ...[
-            const SizedBox(width: AppSpacing.space3),
-            Icon(Icons.chevron_right, color: t.textSecondary),
-          ],
+        ),
+        if (current)
+          Text(
+            'Now',
+            style: AppTypography.overline.copyWith(color: t.textPrimary),
+          ),
+        // Only where the row actually leads somewhere — a chevron on an
+        // inert break row would be a false affordance (D-19).
+        if (onTap != null) ...[
+          const SizedBox(width: AppSpacing.space3),
+          Icon(Icons.chevron_right, color: t.textSecondary),
         ],
+      ],
     );
   }
 }

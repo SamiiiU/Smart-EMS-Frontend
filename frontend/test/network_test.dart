@@ -340,11 +340,14 @@ void main() {
           response: Response(
             requestOptions: options,
             statusCode: 503,
-            headers: Headers.fromMap({'retry-after': ['5']}),
+            headers: Headers.fromMap({
+              'retry-after': ['5'],
+            }),
             data: {
               'status': 503,
               'error': 'Service Unavailable',
-              'message': 'The service is temporarily unavailable. Please try again shortly.',
+              'message':
+                  'The service is temporarily unavailable. Please try again shortly.',
               'path': ApiConfig.loginPath,
             },
           ),
@@ -386,12 +389,27 @@ void main() {
       },
     );
 
-    test('BUG-QA-13: internal ids are stripped from server messages, the rest kept', () {
-      expect(withoutInternalIds('Campus not found: 23d08841-4963-473a-a96b-5d7269b2cc85'), 'Campus not found');
-      expect(withoutInternalIds('Attendance for this date is locked.'), 'Attendance for this date is locked.');
-      expect(withoutInternalIds(null), isNull);
-      expect(withoutInternalIds('23d08841-4963-473a-a96b-5d7269b2cc85'), isNull, reason: 'nothing left: fall back to the generic message');
-    });
+    test(
+      'BUG-QA-13: internal ids are stripped from server messages, the rest kept',
+      () {
+        expect(
+          withoutInternalIds(
+            'Campus not found: 23d08841-4963-473a-a96b-5d7269b2cc85',
+          ),
+          'Campus not found',
+        );
+        expect(
+          withoutInternalIds('Attendance for this date is locked.'),
+          'Attendance for this date is locked.',
+        );
+        expect(withoutInternalIds(null), isNull);
+        expect(
+          withoutInternalIds('23d08841-4963-473a-a96b-5d7269b2cc85'),
+          isNull,
+          reason: 'nothing left: fall back to the generic message',
+        );
+      },
+    );
 
     test('M1: a 403 is forbidden (no retry), keeping the server message', () {
       final options = RequestOptions(path: '/api/fee/plans');

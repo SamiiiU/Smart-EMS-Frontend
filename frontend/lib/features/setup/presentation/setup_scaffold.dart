@@ -147,8 +147,9 @@ class CreatePanelState extends State<CreatePanel> {
             const SizedBox(height: AppSpacing.space5),
             Text(
               widget.confirmNote!,
-              style: AppTypography.bodyAdminMeta
-                  .copyWith(color: t.warningTextOnBg),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.warningTextOnBg,
+              ),
             ),
           ],
           if (_error != null) ...[
@@ -209,8 +210,7 @@ class SetupRow extends StatelessWidget {
     final row = Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -226,26 +226,28 @@ class SetupRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 if (detail != null)
                   Text(
                     detail!,
-                    style: AppTypography.bodyAdminMeta
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.bodyAdminMeta.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                 if (trailing != null)
                   Text(
                     trailing!,
-                    style: AppTypography.overline
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.overline.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
               ],
             ),
           ),
-          if (onTap != null)
-            Icon(Icons.chevron_right, color: t.textSecondary),
+          if (onTap != null) Icon(Icons.chevron_right, color: t.textSecondary),
         ],
       ),
     );
@@ -293,8 +295,7 @@ class StepRow extends StatelessWidget {
     final row = Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.space3),
       padding: const EdgeInsets.all(AppSpacing.space5),
-      constraints:
-          const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -330,14 +331,16 @@ class StepRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppTypography.personName
-                          .copyWith(color: t.textPrimary),
+                      style: AppTypography.personName.copyWith(
+                        color: t.textPrimary,
+                      ),
                     ),
                     if (count != null)
                       Text(
                         '$count',
-                        style: AppTypography.overline
-                            .copyWith(color: t.textSecondary),
+                        style: AppTypography.overline.copyWith(
+                          color: t.textSecondary,
+                        ),
                       ),
                   ],
                 ),
@@ -351,8 +354,7 @@ class StepRow extends StatelessWidget {
               ],
             ),
           ),
-          if (onTap != null)
-            Icon(Icons.chevron_right, color: t.textSecondary),
+          if (onTap != null) Icon(Icons.chevron_right, color: t.textSecondary),
         ],
       ),
     );
@@ -394,12 +396,12 @@ class SetupField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.space4),
-        child: AppTextField(
-          label: label,
-          value: value,
-          placeholder: placeholder,
-          onChanged: onChanged,
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: AppSpacing.space4),
+    child: AppTextField(
+      label: label,
+      value: value,
+      placeholder: placeholder,
+      onChanged: onChanged,
+    ),
+  );
 }

@@ -107,7 +107,10 @@ class ExamLifecyclePanelState extends State<ExamLifecyclePanel> {
       });
       if (outcome.result != null) widget.onChanged(ExamStatus.published);
     } else {
-      final outcome = await widget.repository.transition(widget.exam.id, target);
+      final outcome = await widget.repository.transition(
+        widget.exam.id,
+        target,
+      );
       if (!mounted) return;
       setState(() {
         _busy = false;
@@ -143,7 +146,9 @@ class ExamLifecyclePanelState extends State<ExamLifecyclePanel> {
               children: [
                 Text(
                   'Stage: ${widget.status.label}',
-                  style: AppTypography.sectionHeading.copyWith(color: t.textPrimary),
+                  style: AppTypography.sectionHeading.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
                 StatusPill(status: widget.status.pill, size: StatusPillSize.sm),
               ],
@@ -152,14 +157,20 @@ class ExamLifecyclePanelState extends State<ExamLifecyclePanel> {
             Text(
               [
                 for (var i = 0; i < _stages.length; i++)
-                  i == currentIndex ? '[${_stages[i].label}]' : _stages[i].label,
+                  i == currentIndex
+                      ? '[${_stages[i].label}]'
+                      : _stages[i].label,
               ].join(' → '),
-              style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
             const SizedBox(height: AppSpacing.space3),
             Text(
               _explanation,
-              style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.space4),
@@ -186,7 +197,9 @@ class ExamLifecyclePanelState extends State<ExamLifecyclePanel> {
               else
                 Text(
                   'Only an exam manager for this campus can move the exam to the next stage.',
-                  style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+                  style: AppTypography.bodyAdminMeta.copyWith(
+                    color: t.textSecondary,
+                  ),
                 ),
             ],
           ],

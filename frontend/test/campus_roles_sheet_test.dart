@@ -15,7 +15,11 @@ class _Server implements HttpClientAdapter {
   final ResponseBody Function(RequestOptions o) respond;
   final requests = <RequestOptions>[];
   @override
-  Future<ResponseBody> fetch(RequestOptions o, Stream<List<int>>? s, Future<void>? c) async {
+  Future<ResponseBody> fetch(
+    RequestOptions o,
+    Stream<List<int>>? s,
+    Future<void>? c,
+  ) async {
     requests.add(o);
     return respond(o);
   }
@@ -24,8 +28,13 @@ class _Server implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-ResponseBody _json(int status, Object body) => ResponseBody.fromBytes(utf8.encode(jsonEncode(body)), status,
-    headers: {Headers.contentTypeHeader: [Headers.jsonContentType]});
+ResponseBody _json(int status, Object body) => ResponseBody.fromBytes(
+  utf8.encode(jsonEncode(body)),
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 const _campuses = [
   CampusOption(id: 'ca', name: 'Campus A', permissions: {}),
@@ -33,21 +42,31 @@ const _campuses = [
 ];
 
 Widget _host(_Server server) => MaterialApp(
-      theme: AppTheme.light(role: AppRole.admin),
-      home: Scaffold(
-        body: CampusRolesSheet(
-          repository: AdminRepository(Dio(BaseOptions(baseUrl: 'https://example.test'))..httpClientAdapter = server),
-          userId: 'u1',
-          personName: 'Ayesha Khan',
-          campuses: _campuses,
-        ),
+  theme: AppTheme.light(role: AppRole.admin),
+  home: Scaffold(
+    body: CampusRolesSheet(
+      repository: AdminRepository(
+        Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = server,
       ),
-    );
+      userId: 'u1',
+      personName: 'Ayesha Khan',
+      campuses: _campuses,
+    ),
+  ),
+);
 
 void main() {
-  testWidgets('lists campus roles, removes one only after confirmation', (tester) async {
+  testWidgets('lists campus roles, removes one only after confirmation', (
+    tester,
+  ) async {
     var grants = [
-      {'grantId': 'g1', 'campusId': 'ca', 'campusName': 'Campus A', 'role': 'teacher'},
+      {
+        'grantId': 'g1',
+        'campusId': 'ca',
+        'campusName': 'Campus A',
+        'role': 'teacher',
+      },
     ];
     final server = _Server((o) {
       if (o.method == 'DELETE') {
@@ -75,27 +94,40 @@ void main() {
     expect(find.textContaining('removed at Campus A'), findsOneWidget);
   });
 
-  testWidgets('adding needs a campus, posts the chosen role, and shows a server refusal verbatim', (tester) async {
-    final server = _Server((o) {
-      if (o.method == 'POST') {
-        return _json(403, {'status': 403, 'message': 'Active staff assignment to this campus is required'});
-      }
-      return _json(200, []);
-    });
-    await tester.pumpWidget(_host(server));
-    await tester.pumpAndSettle();
-    final add = find.byKey(const Key('campus-role-add'));
-    expect(tester.widget<AppButton>(add).onPressed, isNull, reason: 'no campus chosen yet');
-    await tester.tap(find.byKey(const Key('campus-role-campus')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Campus B').last);
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(add);
-    await tester.tap(add);
-    await tester.pumpAndSettle();
-    final post = server.requests.singleWhere((r) => r.method == 'POST');
-    expect(post.path, '/api/users/u1/campus-grants');
-    expect(post.data, {'campusId': 'cb', 'role': 'teacher'});
-    expect(find.text('Active staff assignment to this campus is required'), findsOneWidget);
-  });
+  testWidgets(
+    'adding needs a campus, posts the chosen role, and shows a server refusal verbatim',
+    (tester) async {
+      final server = _Server((o) {
+        if (o.method == 'POST') {
+          return _json(403, {
+            'status': 403,
+            'message': 'Active staff assignment to this campus is required',
+          });
+        }
+        return _json(200, []);
+      });
+      await tester.pumpWidget(_host(server));
+      await tester.pumpAndSettle();
+      final add = find.byKey(const Key('campus-role-add'));
+      expect(
+        tester.widget<AppButton>(add).onPressed,
+        isNull,
+        reason: 'no campus chosen yet',
+      );
+      await tester.tap(find.byKey(const Key('campus-role-campus')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Campus B').last);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(add);
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+      final post = server.requests.singleWhere((r) => r.method == 'POST');
+      expect(post.path, '/api/users/u1/campus-grants');
+      expect(post.data, {'campusId': 'cb', 'role': 'teacher'});
+      expect(
+        find.text('Active staff assignment to this campus is required'),
+        findsOneWidget,
+      );
+    },
+  );
 }

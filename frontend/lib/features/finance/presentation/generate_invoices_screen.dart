@@ -95,7 +95,8 @@ class GenerateInvoicesScreenState extends State<GenerateInvoicesScreen> {
     final confirmed = await confirmAction(
       context,
       title: 'Generate these invoices?',
-      message: 'Every student in ${_className(plan.classId)} will be invoiced '
+      message:
+          'Every student in ${_className(plan.classId)} will be invoiced '
           'for ${_period.trim()} under “${plan.name}”.\n\n'
           'There is no way to delete an invoice on this system. Running it again '
           'for the same period is safe: invoices that already exist are skipped, '

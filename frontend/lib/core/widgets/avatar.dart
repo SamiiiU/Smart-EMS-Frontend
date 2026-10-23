@@ -12,12 +12,12 @@ enum AvatarTone { neutral, primary, semantic }
 
 extension AvatarSizeDiameter on AvatarSize {
   double get diameter => switch (this) {
-        AvatarSize.s24 => AppSizing.avatar24,
-        AvatarSize.s28 => AppSizing.avatar28,
-        AvatarSize.s32 => AppSizing.avatar32,
-        AvatarSize.s40 => AppSizing.avatar40,
-        AvatarSize.s56 => AppSizing.avatar56,
-      };
+    AvatarSize.s24 => AppSizing.avatar24,
+    AvatarSize.s28 => AppSizing.avatar28,
+    AvatarSize.s32 => AppSizing.avatar32,
+    AvatarSize.s40 => AppSizing.avatar40,
+    AvatarSize.s56 => AppSizing.avatar56,
+  };
 }
 
 /// Initials on a tinted circle.
@@ -33,9 +33,9 @@ class Avatar extends StatelessWidget {
     this.status,
     super.key,
   }) : assert(
-          tone != AvatarTone.semantic || status != null,
-          'AvatarTone.semantic requires a status to take its colour from.',
-        );
+         tone != AvatarTone.semantic || status != null,
+         'AvatarTone.semantic requires a status to take its colour from.',
+       );
 
   final String initials;
   final AvatarSize size;

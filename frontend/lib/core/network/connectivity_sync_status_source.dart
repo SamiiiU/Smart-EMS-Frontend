@@ -14,7 +14,7 @@ import '../shell/sync_status.dart';
 /// exists for is exactly the one-line change T5 promised.
 class ConnectivitySyncStatusSource implements SyncStatusSource {
   ConnectivitySyncStatusSource({Connectivity? connectivity})
-      : _connectivity = connectivity ?? Connectivity() {
+    : _connectivity = connectivity ?? Connectivity() {
     // `connectivity_plus` has no synchronous initial-state API, so `current`
     // reports `synced` for the first frame until `checkConnectivity()`
     // resolves (typically sub-millisecond, but not zero) — a small deviation

@@ -15,7 +15,9 @@ Widget host(Widget child, {TargetPlatform? platform, bool dark = false}) {
   return MaterialApp(
     themeMode: dark ? ThemeMode.dark : ThemeMode.light,
     theme: AppTheme.light(role: AppRole.teacher).copyWith(platform: platform),
-    darkTheme: AppTheme.dark(role: AppRole.teacher).copyWith(platform: platform),
+    darkTheme: AppTheme.dark(
+      role: AppRole.teacher,
+    ).copyWith(platform: platform),
     home: Scaffold(body: Center(child: child)),
   );
 }
@@ -32,10 +34,8 @@ void main() {
       }
     });
 
-    test('every attendance status carries colour, letter AND shape',
-        () {
-      final attendance =
-          AppStatus.values.where((s) => s.isAttendance).toList();
+    test('every attendance status carries colour, letter AND shape', () {
+      final attendance = AppStatus.values.where((s) => s.isAttendance).toList();
       expect(attendance.length, 6, reason: 'five student + halfDay for staff');
 
       for (final s in attendance) {
@@ -60,8 +60,7 @@ void main() {
       // share a shape (present and leave are both a filled circle per the
       // spec table), so the non-colour signal is the (shape, letter) PAIR.
       // If this ever fails, a status has become colour-only-distinguishable.
-      final attendance =
-          AppStatus.values.where((s) => s.isAttendance).toList();
+      final attendance = AppStatus.values.where((s) => s.isAttendance).toList();
       final signals = <String>{};
       for (final s in attendance) {
         signals.add('${StatusPill.shapeFor(s)}|${StatusPill.letterFor(s)}');
@@ -72,7 +71,8 @@ void main() {
       expect(
         signals.length,
         attendance.length,
-        reason: 'two attendance statuses share both shape and letter, leaving '
+        reason:
+            'two attendance statuses share both shape and letter, leaving '
             'colour as the only difference',
       );
     });
@@ -88,21 +88,22 @@ void main() {
     test('shapes match the spec table exactly', () {
       expect(StatusPill.shapeFor(AppStatus.present), StatusShape.filledCircle);
       expect(StatusPill.shapeFor(AppStatus.absent), StatusShape.openCircle);
-      expect(
-        StatusPill.shapeFor(AppStatus.late),
-        StatusShape.halfFilledCircle,
-      );
+      expect(StatusPill.shapeFor(AppStatus.late), StatusShape.halfFilledCircle);
       expect(StatusPill.shapeFor(AppStatus.leave), StatusShape.filledCircle);
       expect(StatusPill.shapeFor(AppStatus.excused), StatusShape.dashedRing);
     });
 
-    testWidgets('renders in both modes for every status and size',
-        (tester) async {
+    testWidgets('renders in both modes for every status and size', (
+      tester,
+    ) async {
       for (final dark in [false, true]) {
         for (final size in StatusPillSize.values) {
           for (final s in AppStatus.values) {
             await tester.pumpWidget(
-              host(StatusPill(status: s, size: size), dark: dark),
+              host(
+                StatusPill(status: s, size: size),
+                dark: dark,
+              ),
             );
             expect(find.text(StatusPill.labelFor(s)), findsOneWidget);
           }
@@ -110,17 +111,17 @@ void main() {
       }
     });
 
-    testWidgets('md showLabel: false still renders the shape glyph AND letter',
-        (tester) async {
-      await tester.pumpWidget(
-        host(
-          const StatusPill(status: AppStatus.absent, showLabel: false),
-        ),
-      );
-      expect(find.text('Absent'), findsNothing);
-      // The letter is part of the non-colour signal and must survive.
-      expect(find.text('A'), findsOneWidget);
-    });
+    testWidgets(
+      'md showLabel: false still renders the shape glyph AND letter',
+      (tester) async {
+        await tester.pumpWidget(
+          host(const StatusPill(status: AppStatus.absent, showLabel: false)),
+        );
+        expect(find.text('Absent'), findsNothing);
+        // The letter is part of the non-colour signal and must survive.
+        expect(find.text('A'), findsOneWidget);
+      },
+    );
 
     group('D-37 — the letter clears the 12px floor, or there is no letter', () {
       test('the medium letter is 13px on a 22px glyph', () {
@@ -129,7 +130,8 @@ void main() {
         expect(
           AppSizing.statusGlyphLetterMd,
           greaterThanOrEqualTo(12),
-          reason: 'the status letter is below the 12px type floor again — this '
+          reason:
+              'the status letter is below the 12px type floor again — this '
               'is the D-21 failure D-37 fixed',
         );
         expect(
@@ -145,11 +147,15 @@ void main() {
         expect(StatusPill.letterFitsAt(StatusPillSize.md), isTrue);
       });
 
-      testWidgets('a small pill shows the WORD, never a bare glyph',
-          (tester) async {
+      testWidgets('a small pill shows the WORD, never a bare glyph', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           host(
-            const StatusPill(status: AppStatus.present, size: StatusPillSize.sm),
+            const StatusPill(
+              status: AppStatus.present,
+              size: StatusPillSize.sm,
+            ),
           ),
         );
         expect(find.text('Present'), findsOneWidget);
@@ -167,14 +173,12 @@ void main() {
             showLabel: false,
           ),
           throwsAssertionError,
-          reason: 'a small pill has no letter, so hiding the label would leave '
+          reason:
+              'a small pill has no letter, so hiding the label would leave '
               'colour as the only signal',
         );
         expect(
-          () => StatusPill(
-            status: AppStatus.active,
-            showLabel: false,
-          ),
+          () => StatusPill(status: AppStatus.active, showLabel: false),
           throwsAssertionError,
           reason: 'an entity status has no letter at all',
         );
@@ -182,10 +186,7 @@ void main() {
 
       test('md attendance pills MAY hide their label', () {
         expect(
-          () => const StatusPill(
-            status: AppStatus.present,
-            showLabel: false,
-          ),
+          () => const StatusPill(status: AppStatus.present, showLabel: false),
           returnsNormally,
         );
       });
@@ -194,8 +195,9 @@ void main() {
 
   group('Touch-target NFR (44px minimum)', () {
     for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
-      testWidgets('AppButton meets 44px at every size on ${platform.name}',
-          (tester) async {
+      testWidgets('AppButton meets 44px at every size on ${platform.name}', (
+        tester,
+      ) async {
         for (final size in AppButtonSize.values) {
           await tester.pumpWidget(
             host(
@@ -207,35 +209,34 @@ void main() {
           expect(
             box.height,
             greaterThanOrEqualTo(AppSizing.touchTargetMin),
-            reason: '$size is ${box.height}px on ${platform.name}, '
+            reason:
+                '$size is ${box.height}px on ${platform.name}, '
                 'below the ${AppSizing.touchTargetMin}px NFR',
           );
           expect(box.width, greaterThanOrEqualTo(AppSizing.touchTargetMin));
         }
       });
 
-      testWidgets('AppTextField uses the mobile height on ${platform.name}',
-          (tester) async {
+      testWidgets('AppTextField uses the mobile height on ${platform.name}', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           host(const AppTextField(label: 'L'), platform: platform),
         );
         // The field box is the second child of the column.
         final container = tester.widgetList<Container>(find.byType(Container));
         expect(container, isNotEmpty);
-        expect(AppSizing.fieldMobile, greaterThanOrEqualTo(AppSizing.touchTargetMin));
+        expect(
+          AppSizing.fieldMobile,
+          greaterThanOrEqualTo(AppSizing.touchTargetMin),
+        );
       });
     }
 
     test('sm button height is below the NFR and so is raised on touch', () {
       expect(AppButtonSize.sm.baseHeight, lessThan(AppSizing.touchTargetMin));
-      expect(
-        AppButtonSize.sm.heightFor(touch: true),
-        AppSizing.touchTargetMin,
-      );
-      expect(
-        AppButtonSize.sm.heightFor(touch: false),
-        AppSizing.buttonSm,
-      );
+      expect(AppButtonSize.sm.heightFor(touch: true), AppSizing.touchTargetMin);
+      expect(AppButtonSize.sm.heightFor(touch: false), AppSizing.buttonSm);
     });
   });
 
@@ -256,8 +257,7 @@ void main() {
       expect(find.text('Off'), findsOneWidget);
     });
 
-    testWidgets('renders every variant and size in both modes',
-        (tester) async {
+    testWidgets('renders every variant and size in both modes', (tester) async {
       for (final dark in [false, true]) {
         for (final v in AppButtonVariant.values) {
           for (final s in AppButtonSize.values) {
@@ -304,10 +304,7 @@ void main() {
 
     testWidgets('semantic tone without a status is rejected', (tester) async {
       expect(
-        () => Avatar(
-          initials: 'AK',
-          tone: AvatarTone.semantic,
-        ),
+        () => Avatar(initials: 'AK', tone: AvatarTone.semantic),
         throwsAssertionError,
       );
     });
@@ -350,8 +347,9 @@ void main() {
   });
 
   group('Overline', () {
-    testWidgets('uppercases its text and applies 0.06em tracking',
-        (tester) async {
+    testWidgets('uppercases its text and applies 0.06em tracking', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(const Overline('today at a glance')));
       expect(find.text('TODAY AT A GLANCE'), findsOneWidget);
 
@@ -403,19 +401,19 @@ void main() {
 
     test('twelve styles, still only three weights', () {
       expect(AppTypography.all.length, 12);
-      final weights =
-          AppTypography.all.map((s) => s.$3.fontWeight).toSet();
-      expect(
-        weights,
-        {FontWeight.w400, FontWeight.w500, FontWeight.w600},
-        reason: 'the constraint is three weights, not a style count',
-      );
+      final weights = AppTypography.all.map((s) => s.$3.fontWeight).toSet();
+      expect(weights, {
+        FontWeight.w400,
+        FontWeight.w500,
+        FontWeight.w600,
+      }, reason: 'the constraint is three weights, not a style count');
     });
   });
 
   group('AppTextField', () {
-    testWidgets('shows the error message only in the error state',
-        (tester) async {
+    testWidgets('shows the error message only in the error state', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(
           const AppTextField(
@@ -428,9 +426,7 @@ void main() {
       expect(find.text('Invalid'), findsOneWidget);
 
       await tester.pumpWidget(
-        host(
-          const AppTextField(label: 'Mobile', errorText: 'Invalid'),
-        ),
+        host(const AppTextField(label: 'Mobile', errorText: 'Invalid')),
       );
       expect(find.text('Invalid'), findsNothing);
     });
@@ -462,8 +458,9 @@ void main() {
       expect(find.text('abcd'), findsOneWidget);
     });
 
-    testWidgets('onChanged actually fires — it was dead code until T7',
-        (tester) async {
+    testWidgets('onChanged actually fires — it was dead code until T7', (
+      tester,
+    ) async {
       // Regression test for the defect T7 uncovered: `onChanged` was a
       // declared parameter wired to nothing, so every form built on this
       // primitive would have silently discarded user input.

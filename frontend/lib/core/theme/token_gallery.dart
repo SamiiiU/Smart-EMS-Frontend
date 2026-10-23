@@ -224,7 +224,8 @@ class _Swatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final hex = '#'
+    final hex =
+        '#'
         '${(colour.toARGB32() & 0xFFFFFF).toRadixString(16).toUpperCase().padLeft(6, '0')}';
 
     return Padding(
@@ -274,9 +275,7 @@ class _SpacingRow extends StatelessWidget {
             width: 96,
             child: Text(
               name,
-              style: AppTypography.fieldLabel.copyWith(
-                color: t.textPrimary,
-              ),
+              style: AppTypography.fieldLabel.copyWith(color: t.textPrimary),
             ),
           ),
           SizedBox(
@@ -314,9 +313,7 @@ class _RadiusRow extends StatelessWidget {
             width: 96,
             child: Text(
               name,
-              style: AppTypography.fieldLabel.copyWith(
-                color: t.textPrimary,
-              ),
+              style: AppTypography.fieldLabel.copyWith(color: t.textPrimary),
             ),
           ),
           SizedBox(
@@ -359,9 +356,7 @@ class _ElevationDemo extends StatelessWidget {
             ),
             child: Text(
               'Card — border only',
-              style: AppTypography.bodyAdminMeta.copyWith(
-                color: t.textPrimary,
-              ),
+              style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
             ),
           ),
         ),
@@ -376,9 +371,7 @@ class _ElevationDemo extends StatelessWidget {
             ),
             child: Text(
               'Overlay — shadowOverlay',
-              style: AppTypography.bodyAdminMeta.copyWith(
-                color: t.textPrimary,
-              ),
+              style: AppTypography.bodyAdminMeta.copyWith(color: t.textPrimary),
             ),
           ),
         ),
@@ -509,9 +502,7 @@ class _RoleRow extends StatelessWidget {
             width: 96,
             child: Text(
               role.name,
-              style: AppTypography.fieldLabel.copyWith(
-                color: t.textPrimary,
-              ),
+              style: AppTypography.fieldLabel.copyWith(color: t.textPrimary),
             ),
           ),
           SizedBox(

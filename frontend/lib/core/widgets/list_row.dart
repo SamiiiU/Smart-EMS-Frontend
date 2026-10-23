@@ -166,9 +166,7 @@ class PeriodRow extends StatelessWidget {
 
     // Muted break row: present, clearly not a lesson, and not tappable.
     return Container(
-      constraints: const BoxConstraints(
-        minHeight: AppSizing.listRowMinHeight,
-      ),
+      constraints: const BoxConstraints(minHeight: AppSizing.listRowMinHeight),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.space5,
         vertical: AppSpacing.space4,

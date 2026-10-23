@@ -44,7 +44,8 @@ class NetworkIdentityResolver implements IdentityResolver {
     final roles = (account['roles'] as List?)?.cast<String>() ?? const [];
     final userId = account['userId'] as String?;
     final tenantId = account['tenantId'] as String?;
-    final permissions = (account['permissions'] as List?)?.cast<String>() ?? const <String>[];
+    final permissions =
+        (account['permissions'] as List?)?.cast<String>() ?? const <String>[];
     final grants = [
       for (final g in (account['grants'] as List?) ?? const [])
         if (g is Map) GrantScope.fromJson(g),
@@ -59,8 +60,8 @@ class NetworkIdentityResolver implements IdentityResolver {
         // teaching timetable). /api/students/me and /api/guardians/me are
         // fetched for the SAME orphan check but have no equivalent use yet,
         // so nothing is extracted from them here.
-        final staff = personPath == ApiConfig.staffMePath &&
-                personResponse.data is Map
+        final staff =
+            personPath == ApiConfig.staffMePath && personResponse.data is Map
             ? personResponse.data as Map
             : null;
         final staffId = staff?['id'] as String?;
@@ -102,7 +103,7 @@ class NetworkIdentityResolver implements IdentityResolver {
           IdentityResultKind.error,
           message: failure.message,
           temporary: _temporary(err),
-        serverBusy: err.response?.statusCode == 429,
+          serverBusy: err.response?.statusCode == 429,
           roles: roles,
           userId: userId,
           tenantId: tenantId,
@@ -129,6 +130,10 @@ class NetworkIdentityResolver implements IdentityResolver {
   /// must never look like a sign-out (M1 screen sprint, reproduced in Chromium).
   static bool _temporary(DioException err) {
     final status = err.response?.statusCode;
-    return mapDioError(err).unreachable || status == 429 || status == 502 || status == 503 || status == 504;
+    return mapDioError(err).unreachable ||
+        status == 429 ||
+        status == 502 ||
+        status == 503 ||
+        status == 504;
   }
 }

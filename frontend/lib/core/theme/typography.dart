@@ -97,13 +97,13 @@ abstract final class AppTypography {
 
   /// The Overline primitive's tracked variant: 12/600 with 0.06em letter
   /// spacing, uppercase applied by the widget.
-  static TextStyle get overlineTracked => overline.copyWith(
-        letterSpacing: 12 * 0.06,
-      );
+  static TextStyle get overlineTracked =>
+      overline.copyWith(letterSpacing: 12 * 0.06);
 
   /// Initials inside an [Avatar], sized as a fraction of the circle so they
   /// fit at every avatar diameter.
-  static TextStyle avatarInitials(double diameter) => GoogleFonts.plusJakartaSans(
+  static TextStyle avatarInitials(double diameter) =>
+      GoogleFonts.plusJakartaSans(
         fontSize: diameter * _avatarInitialsRatio,
         fontWeight: FontWeight.w600,
         fontFeatures: tabularFigures,
@@ -113,23 +113,19 @@ abstract final class AppTypography {
 
   /// Every style with its spec label, in order. For the token gallery.
   static List<(String, String, TextStyle)> get all => [
-        ('parentStatusHero', '28/600 parent status hero', parentStatusHero),
-        ('screenTitle', '24/600 screen title', screenTitle),
-        ('sectionHeading', '20/500 section heading', sectionHeading),
-        ('cardHeading', '18/500 card heading', cardHeading),
-        ('personName', '16/500 person names, list primary', personName),
-        (
-          'bodyParentStudent',
-          '16/400 body — parent, student',
-          bodyParentStudent,
-        ),
-        ('bodyTeacher', '15/400 body — teacher', bodyTeacher),
-        ('bodyAdminMeta', '14/400 body — admin, metadata', bodyAdminMeta),
-        ('fieldLabel', '13/600 form field labels', fieldLabel),
-        ('timestamp', '13/500 timestamps', timestamp),
-        ('overline', '12/600 uppercase section labels', overline),
-        ('caption', '12/500 supporting text', caption),
-      ];
+    ('parentStatusHero', '28/600 parent status hero', parentStatusHero),
+    ('screenTitle', '24/600 screen title', screenTitle),
+    ('sectionHeading', '20/500 section heading', sectionHeading),
+    ('cardHeading', '18/500 card heading', cardHeading),
+    ('personName', '16/500 person names, list primary', personName),
+    ('bodyParentStudent', '16/400 body — parent, student', bodyParentStudent),
+    ('bodyTeacher', '15/400 body — teacher', bodyTeacher),
+    ('bodyAdminMeta', '14/400 body — admin, metadata', bodyAdminMeta),
+    ('fieldLabel', '13/600 form field labels', fieldLabel),
+    ('timestamp', '13/500 timestamps', timestamp),
+    ('overline', '12/600 uppercase section labels', overline),
+    ('caption', '12/500 supporting text', caption),
+  ];
 
   /// Builds the [TextTheme] for a role, mapping the styles above onto
   /// Material's slots so `Theme.of(context).textTheme` works normally.
@@ -163,11 +159,11 @@ extension AppRoleTypography on AppRole {
   /// This is the mechanism T5 applies per shell. T1 only exposes it — it does
   /// NOT build the shells or decide where they are mounted.
   double get baseBodySize => switch (this) {
-        AppRole.parent => 16,
-        AppRole.student => 16,
-        AppRole.teacher => 15,
-        AppRole.admin => 14,
-      };
+    AppRole.parent => 16,
+    AppRole.student => 16,
+    AppRole.teacher => 15,
+    AppRole.admin => 14,
+  };
 
   /// Convenience: the [TextTheme] for this role.
   TextTheme get textTheme => AppTypography.textThemeFor(this);

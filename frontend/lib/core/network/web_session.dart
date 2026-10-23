@@ -40,7 +40,10 @@ class WebSessionInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
     final path = response.requestOptions.path;
     final data = response.data;
     if ((path == ApiConfig.loginPath || path == ApiConfig.refreshPath) &&
@@ -74,21 +77,29 @@ class WebSessionTokenStore implements TokenStore {
 
   @override
   Future<String?> readRefreshToken() async =>
-      !_signedOut && (_access != null || hasCookieSession()) ? kCookieSession : null;
+      !_signedOut && (_access != null || hasCookieSession())
+      ? kCookieSession
+      : null;
 
   @override
   Future<String?> readInstitutionCode() async =>
       (await SharedPreferences.getInstance()).getString(_institutionKey);
 
   @override
-  Future<void> writeTokens({required String accessToken, String? refreshToken}) async {
+  Future<void> writeTokens({
+    required String accessToken,
+    String? refreshToken,
+  }) async {
     _access = accessToken;
     _signedOut = false;
   }
 
   @override
   Future<void> writeInstitutionCode(String institutionCode) async =>
-      (await SharedPreferences.getInstance()).setString(_institutionKey, institutionCode);
+      (await SharedPreferences.getInstance()).setString(
+        _institutionKey,
+        institutionCode,
+      );
 
   @override
   Future<void> clear() async {
@@ -105,5 +116,6 @@ class CrossTabRefresher implements TokenRefresher {
   final Future<String?> Function(Future<String?> Function()) withLock;
 
   @override
-  Future<String?> refresh(String refreshToken) => withLock(() => inner.refresh(refreshToken));
+  Future<String?> refresh(String refreshToken) =>
+      withLock(() => inner.refresh(refreshToken));
 }

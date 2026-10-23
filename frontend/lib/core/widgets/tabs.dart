@@ -8,10 +8,7 @@ import '../theme/typography.dart';
 
 /// One tab. [hasContent] is what implements D-19.
 class AppTab {
-  const AppTab({
-    required this.label,
-    this.hasContent = true,
-  });
+  const AppTab({required this.label, this.hasContent = true});
 
   final String label;
 
@@ -106,9 +103,7 @@ class _TabItem extends StatelessWidget {
             minHeight: AppSizing.touchTargetMin,
             minWidth: AppSizing.touchTargetMin,
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.space5,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space5),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(

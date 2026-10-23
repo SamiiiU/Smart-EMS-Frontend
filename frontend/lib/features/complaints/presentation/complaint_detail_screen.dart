@@ -70,11 +70,11 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
 
   Future<void> load() async {
     setState(
-        () => _state = ScreenState<Complaint>.loading(previous: _state.data));
+      () => _state = ScreenState<Complaint>.loading(previous: _state.data),
+    );
     try {
       final complaint = await widget.repository.load(widget.complaintId);
-      final comments =
-          await widget.repository.loadComments(widget.complaintId);
+      final comments = await widget.repository.loadComments(widget.complaintId);
       if (!mounted) return;
       setState(() {
         _comments = comments;
@@ -83,12 +83,15 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<Complaint>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<Complaint>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -144,8 +147,10 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
       _error = null;
     });
     try {
-      await widget.repository
-          .assign(id: widget.complaintId, staffId: person.id);
+      await widget.repository.assign(
+        id: widget.complaintId,
+        staffId: person.id,
+      );
       if (!mounted) return;
       setState(() => _busy = false);
       await load();
@@ -169,7 +174,8 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'This complaint could not be opened',
-            emptyMessage: 'It could not be read. Reopen this screen to try '
+            emptyMessage:
+                'It could not be read. Reopen this screen to try '
                 'again — if it keeps happening, tell your system '
                 'administrator.',
             data: _body,
@@ -202,14 +208,16 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
             ),
             Text(
               complaint.categoryLabel,
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             ),
             if (complaint.isOverdue(_today))
               Text(
                 'Overdue',
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.dangerTextOnBg),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.dangerTextOnBg,
+                ),
               ),
           ],
         ),
@@ -218,7 +226,8 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         if (complaint.isAnonymous)
           const InlineAlert(
             tone: InlineAlertTone.warning,
-            message: 'Sent anonymously. There is no record of who raised it, '
+            message:
+                'Sent anonymously. There is no record of who raised it, '
                 'so nobody can reply to them directly — anything written '
                 'here will not reach them.',
           ),
@@ -299,8 +308,9 @@ class ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           if (widget.staff.isEmpty)
             Text(
               'No staff records to assign this to.',
-              style:
-                  AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+              style: AppTypography.bodyAdminMeta.copyWith(
+                color: t.textSecondary,
+              ),
             )
           else
             Wrap(
@@ -390,8 +400,9 @@ class CommentBubble extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Internal note — the complainant cannot see this',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.warningTextOnBg),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.warningTextOnBg,
+                    ),
                   ),
                 ),
               ],
@@ -446,8 +457,9 @@ class InternalToggle extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Internal note',
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
               ),
               Semantics(

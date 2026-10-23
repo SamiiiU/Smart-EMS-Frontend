@@ -60,8 +60,10 @@ class MyComplaintsScreenState extends State<MyComplaintsScreen> {
   }
 
   Future<void> load() async {
-    setState(() =>
-        _state = ScreenState<List<Complaint>>.loading(previous: _state.data));
+    setState(
+      () =>
+          _state = ScreenState<List<Complaint>>.loading(previous: _state.data),
+    );
     try {
       final rows = await widget.repository.loadMine();
       if (!_campusResolved) {
@@ -69,17 +71,23 @@ class MyComplaintsScreenState extends State<MyComplaintsScreen> {
         _campusResolved = true;
       }
       if (!mounted) return;
-      setState(() =>
-          _state = ScreenState<List<Complaint>>.data(sortForOwner(rows, _today)));
+      setState(
+        () => _state = ScreenState<List<Complaint>>.data(
+          sortForOwner(rows, _today),
+        ),
+      );
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Complaint>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Complaint>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -96,7 +104,8 @@ class MyComplaintsScreenState extends State<MyComplaintsScreen> {
           // through this system today (open item 39).
           const InlineAlert(
             tone: InlineAlertTone.warning,
-            message: 'Complaints cannot be raised from a parent account yet '
+            message:
+                'Complaints cannot be raised from a parent account yet '
                 '— the app has no way to tell the institution which campus it '
                 'belongs to. Please contact the institution office directly. '
                 'Anything already raised for you is shown below.',
@@ -125,7 +134,8 @@ class MyComplaintsScreenState extends State<MyComplaintsScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'Nothing raised yet',
-            emptyMessage: 'Complaints you send appear here with their status '
+            emptyMessage:
+                'Complaints you send appear here with their status '
                 'and any reply. Anything sent anonymously will not — there '
                 'is no link back to you, which is what makes it anonymous.',
             emptyIcon: Icons.forum_outlined,

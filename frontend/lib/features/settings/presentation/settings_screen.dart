@@ -60,117 +60,127 @@ class SettingsScreen extends StatelessWidget {
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const PageHeader(title: 'More', padding: EdgeInsets.zero),
-              const SizedBox(height: AppSpacing.space6),
-              if (userLabel != null) ...[
-                Text(
-                  userLabel!,
-                  style: AppTypography.personName.copyWith(
-                    color: t.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.space2),
-              ],
-              if (institutionCode != null) ...[
-                Text(
-                  institutionCode!,
-                  style: AppTypography.bodyAdminMeta.copyWith(
-                    color: t.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.space8),
-              ],
-              if (themeController != null)
-                _SettingsSection(
-                  title: 'Display',
-                  children: [_ThemeChoice(controller: themeController!)],
-                ),
-              if (CampusScope.maybeOf(context) case final campus?
-                  when campus.options.length > 1 ||
-                      campus.allowAllCampuses)
-                _SettingsSection(title: 'Campus', children: [
-                // Only campuses granted to this account (server-listed);
-                // "All Campuses" only for institution-wide authority.
-                Semantics(
-                  label: 'Campus',
-                  child: DropdownButton<String?>(
-                    key: const Key('campus-switcher'),
-                    isExpanded: true,
-                    value: campus.selectedId,
-                    hint: const Text('Choose a campus'),
-                    items: [
-                      if (campus.allowAllCampuses)
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('All campuses'),
-                        ),
-                      for (final option in campus.options)
-                        DropdownMenuItem<String?>(
-                          value: option.id,
-                          child: Text(option.name),
-                        ),
-                    ],
-                    onChanged: (id) {
-                      if (id != null || campus.allowAllCampuses) {
-                        campus.select(id);
-                      }
-                    },
-                  ),
-                ),
-              ]),
-              _SettingsSection(title: 'Security and access', children: [
-              if (WorkspaceScope.maybeOf(context) case final ws?) ...[
-                AppButton(
-                  key: const Key('settings-switch-workspace'),
-                  label: ws.switchLabel,
-                  variant: AppButtonVariant.secondary,
-                  fullWidth: true,
-                  icon: Icons.swap_horiz_outlined,
-                  onPressed: ws.onSwitch,
-                ),
-                const SizedBox(height: AppSpacing.space3),
-              ],
-              if (MfaScope.maybeOf(context) case final mfa?) ...[
-                AppButton(
-                  key: const Key('settings-two-factor'),
-                  label: 'Two-factor authentication',
-                  variant: AppButtonVariant.secondary,
-                  fullWidth: true,
-                  icon: Icons.verified_user_outlined,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (route) => MfaScreen(
-                        repository: mfa,
-                        optionalEnrolment: true,
-                        onVerified: () => Navigator.of(route).pop(),
-                        onSignOut: onSignOut,
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const PageHeader(title: 'More', padding: EdgeInsets.zero),
+                  const SizedBox(height: AppSpacing.space6),
+                  if (userLabel != null) ...[
+                    Text(
+                      userLabel!,
+                      style: AppTypography.personName.copyWith(
+                        color: t.textPrimary,
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.space2),
+                  ],
+                  if (institutionCode != null) ...[
+                    Text(
+                      institutionCode!,
+                      style: AppTypography.bodyAdminMeta.copyWith(
+                        color: t.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.space8),
+                  ],
+                  if (themeController != null)
+                    _SettingsSection(
+                      title: 'Display',
+                      children: [_ThemeChoice(controller: themeController!)],
+                    ),
+                  if (CampusScope.maybeOf(context) case final campus?
+                      when campus.options.length > 1 || campus.allowAllCampuses)
+                    _SettingsSection(
+                      title: 'Campus',
+                      children: [
+                        // Only campuses granted to this account (server-listed);
+                        // "All Campuses" only for institution-wide authority.
+                        Semantics(
+                          label: 'Campus',
+                          child: DropdownButton<String?>(
+                            key: const Key('campus-switcher'),
+                            isExpanded: true,
+                            value: campus.selectedId,
+                            hint: const Text('Choose a campus'),
+                            items: [
+                              if (campus.allowAllCampuses)
+                                const DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('All campuses'),
+                                ),
+                              for (final option in campus.options)
+                                DropdownMenuItem<String?>(
+                                  value: option.id,
+                                  child: Text(option.name),
+                                ),
+                            ],
+                            onChanged: (id) {
+                              if (id != null || campus.allowAllCampuses) {
+                                campus.select(id);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  _SettingsSection(
+                    title: 'Security and access',
+                    children: [
+                      if (WorkspaceScope.maybeOf(context) case final ws?) ...[
+                        AppButton(
+                          key: const Key('settings-switch-workspace'),
+                          label: ws.switchLabel,
+                          variant: AppButtonVariant.secondary,
+                          fullWidth: true,
+                          icon: Icons.swap_horiz_outlined,
+                          onPressed: ws.onSwitch,
+                        ),
+                        const SizedBox(height: AppSpacing.space3),
+                      ],
+                      if (MfaScope.maybeOf(context) case final mfa?) ...[
+                        AppButton(
+                          key: const Key('settings-two-factor'),
+                          label: 'Two-factor authentication',
+                          variant: AppButtonVariant.secondary,
+                          fullWidth: true,
+                          icon: Icons.verified_user_outlined,
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (route) => MfaScreen(
+                                repository: mfa,
+                                optionalEnrolment: true,
+                                onVerified: () => Navigator.of(route).pop(),
+                                onSignOut: onSignOut,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.space3),
+                      ],
+                      if (MfaScope.maybeOf(context) case final mfa?)
+                        OwnershipTransferEntry(
+                          repository: OwnershipRepository(mfa.dio),
+                        ),
+                      if (MfaScope.maybeOf(context) case final mfa?)
+                        InstitutionAdminsEntry(dio: mfa.dio),
+                    ],
                   ),
-                ),
-                const SizedBox(height: AppSpacing.space3),
-              ],
-              if (MfaScope.maybeOf(context) case final mfa?)
-                OwnershipTransferEntry(repository: OwnershipRepository(mfa.dio)),
-              if (MfaScope.maybeOf(context) case final mfa?)
-                InstitutionAdminsEntry(dio: mfa.dio),
-              ]),
-              _SettingsSection(title: 'Account', children: [
-                AppButton(
-                  label: 'Sign out',
-                  variant: AppButtonVariant.secondary,
-                  fullWidth: true,
-                  icon: Icons.logout_outlined,
-                  onPressed: onSignOut,
-                ),
-              ]),
-            ],
-          ),
-          ),
+                  _SettingsSection(
+                    title: 'Account',
+                    children: [
+                      AppButton(
+                        label: 'Sign out',
+                        variant: AppButtonVariant.secondary,
+                        fullWidth: true,
+                        icon: Icons.logout_outlined,
+                        onPressed: onSignOut,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -306,10 +316,15 @@ class _OwnershipTransferEntryState extends State<OwnershipTransferEntry> {
   Future<void> _decide() async {
     var show = false;
     try {
-      final me = await widget.repository.dio.get<Map<String, dynamic>>('/auth/me');
+      final me = await widget.repository.dio.get<Map<String, dynamic>>(
+        '/auth/me',
+      );
       final grants = (me.data?['grants'] as List?) ?? const [];
-      show = grants.whereType<Map>().any((g) =>
-          const {'owner', 'institution_owner'}.contains(g['role']) && g['campusId'] == null);
+      show = grants.whereType<Map>().any(
+        (g) =>
+            const {'owner', 'institution_owner'}.contains(g['role']) &&
+            g['campusId'] == null,
+      );
     } on Object {
       show = false;
     }
@@ -333,7 +348,8 @@ class _OwnershipTransferEntryState extends State<OwnershipTransferEntry> {
         icon: Icons.key_outlined,
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => OwnershipTransferScreen(repository: widget.repository),
+            builder: (_) =>
+                OwnershipTransferScreen(repository: widget.repository),
           ),
         ),
       ),
@@ -366,8 +382,11 @@ class _InstitutionAdminsEntryState extends State<InstitutionAdminsEntry> {
     try {
       final me = await widget.dio.get<Map<String, dynamic>>('/auth/me');
       final grants = (me.data?['grants'] as List?) ?? const [];
-      show = grants.whereType<Map>().any((g) =>
-          const {'owner', 'institution_owner'}.contains(g['role']) && g['campusId'] == null);
+      show = grants.whereType<Map>().any(
+        (g) =>
+            const {'owner', 'institution_owner'}.contains(g['role']) &&
+            g['campusId'] == null,
+      );
     } on Object {
       show = false;
     }
@@ -387,7 +406,9 @@ class _InstitutionAdminsEntryState extends State<InstitutionAdminsEntry> {
         icon: Icons.admin_panel_settings_outlined,
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => InstitutionAdminsScreen(repository: InstitutionAdminRepository(widget.dio)),
+            builder: (_) => InstitutionAdminsScreen(
+              repository: InstitutionAdminRepository(widget.dio),
+            ),
           ),
         ),
       ),
@@ -413,7 +434,10 @@ class _SettingsSection extends StatelessWidget {
         children: [
           Semantics(
             header: true,
-            child: Text(title, style: AppTypography.overline.copyWith(color: t.textSecondary)),
+            child: Text(
+              title,
+              style: AppTypography.overline.copyWith(color: t.textSecondary),
+            ),
           ),
           const SizedBox(height: AppSpacing.space3),
           Material(
@@ -424,7 +448,10 @@ class _SettingsSection extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.space5),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
             ),
           ),
         ],

@@ -13,7 +13,8 @@ abstract interface class RememberedInstitutionStore {
   Future<void> forget();
 }
 
-class SharedPreferencesRememberedInstitution implements RememberedInstitutionStore {
+class SharedPreferencesRememberedInstitution
+    implements RememberedInstitutionStore {
   const SharedPreferencesRememberedInstitution();
 
   static const _key = 'login.remembered_institution';

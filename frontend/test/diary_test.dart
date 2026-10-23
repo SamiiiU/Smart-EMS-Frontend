@@ -37,11 +37,16 @@ class _DiaryServer implements HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(
-      RequestOptions o, Stream<List<int>>? s, Future<void>? c) async {
+    RequestOptions o,
+    Stream<List<int>>? s,
+    Future<void>? c,
+  ) async {
     requests.add(o);
     if (unreachable) {
       throw DioException(
-          requestOptions: o, type: DioExceptionType.connectionError);
+        requestOptions: o,
+        type: DioExceptionType.connectionError,
+      );
     }
     final path = o.uri.path;
     if (o.method == 'GET' && path.startsWith('/api/diary/section/')) {
@@ -56,10 +61,12 @@ class _DiaryServer implements HttpClientAdapter {
     }
     final body = o.data as Map<String, dynamic>;
     if (o.method == 'POST') {
-      final clash = rows.values.any((r) =>
-          r['sectionId'] == body['sectionId'] &&
-          r['subjectId'] == body['subjectId'] &&
-          r['diaryDate'] == body['diaryDate']);
+      final clash = rows.values.any(
+        (r) =>
+            r['sectionId'] == body['sectionId'] &&
+            r['subjectId'] == body['subjectId'] &&
+            r['diaryDate'] == body['diaryDate'],
+      );
       if (clash || raceOnPost) {
         return _json(409, {
           'status': 409,
@@ -88,42 +95,43 @@ class _DiaryServer implements HttpClientAdapter {
 
   /// Every content field is taken from the body — ABSENT means null.
   static Map<String, dynamic> _fullReplace(Map<String, dynamic> body) => {
-        'sectionId': body['sectionId'],
-        'subjectId': body['subjectId'],
-        'diaryDate': body['diaryDate'],
-        'title': body['title'],
-        'homework': body['homework'],
-        'classwork': body['classwork'],
-        'note': body['note'],
-        'authorName': 'Ayesha Khan',
-      };
+    'sectionId': body['sectionId'],
+    'subjectId': body['subjectId'],
+    'diaryDate': body['diaryDate'],
+    'title': body['title'],
+    'homework': body['homework'],
+    'classwork': body['classwork'],
+    'note': body['note'],
+    'authorName': 'Ayesha Khan',
+  };
 
   @override
   void close({bool force = false}) {}
 }
 
 ResponseBody _json(int status, Object body) => ResponseBody.fromBytes(
-      utf8.encode(jsonEncode(body)),
-      status,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+  utf8.encode(jsonEncode(body)),
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 DiaryRepository _repo(_DiaryServer s) => DiaryRepository(
-    Dio(BaseOptions(baseUrl: 'http://test'))..httpClientAdapter = s);
+  Dio(BaseOptions(baseUrl: 'http://test'))..httpClientAdapter = s,
+);
 
 Map<String, dynamic> _existingRow({String author = 'Ayesha Khan'}) => {
-      'id': 'e-existing',
-      'sectionId': _sec,
-      'subjectId': _sub,
-      'diaryDate': '2026-09-18',
-      'title': 'Fractions',
-      'homework': 'Page 12',
-      'classwork': 'Worked examples',
-      'note': 'Bring a ruler',
-      'authorName': author,
-    };
+  'id': 'e-existing',
+  'sectionId': _sec,
+  'subjectId': _sub,
+  'diaryDate': '2026-09-18',
+  'title': 'Fractions',
+  'homework': 'Page 12',
+  'classwork': 'Worked examples',
+  'note': 'Bring a ruler',
+  'authorName': author,
+};
 
 Widget _host(Widget child, {double textScale = 1, TextDirection? dir}) =>
     MaterialApp(
@@ -145,8 +153,7 @@ Widget _editor(_DiaryServer s, {String? me = 'Ayesha Khan'}) =>
       currentTeacherName: me,
     );
 
-Iterable<String> _methods(_DiaryServer s) =>
-    s.requests.map((r) => r.method);
+Iterable<String> _methods(_DiaryServer s) => s.requests.map((r) => r.method);
 
 /// A tall viewport, so the whole form is laid out: ListView builds only what
 /// is on screen, and finding an off-screen button would fail for layout
@@ -158,16 +165,20 @@ void _tall(WidgetTester tester) {
 }
 
 Future<void> _tapSave(WidgetTester tester) async {
-  await tester.scrollUntilVisible(find.text('Save'), 200,
-      scrollable: find.byType(Scrollable).first);
+  await tester.scrollUntilVisible(
+    find.text('Save'),
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
   await tester.tap(find.text('Save'));
   await tester.pumpAndSettle();
 }
 
 void main() {
   group('Edit-first — asserted both ways', () {
-    testWidgets('existing entry → opens pre-filled → save is PUT, never POST',
-        (tester) async {
+    testWidgets('existing entry → opens pre-filled → save is PUT, never POST', (
+      tester,
+    ) async {
       final s = _DiaryServer()..seed(_existingRow());
       await tester.pumpWidget(_host(_editor(s)));
       await tester.pumpAndSettle();
@@ -236,14 +247,18 @@ void main() {
 
       // And the wire body carried every key, not just the changed one.
       final body = s.requests.last.data as Map<String, dynamic>;
-      expect(body.keys,
-          containsAll(['title', 'homework', 'classwork', 'note']));
+      expect(
+        body.keys,
+        containsAll(['title', 'homework', 'classwork', 'note']),
+      );
     });
 
     test('the draft always serialises all four fields', () {
       const d = DiaryDraft(homework: 'x');
-      expect(d.toFields().keys,
-          unorderedEquals(['title', 'homework', 'classwork', 'note']));
+      expect(
+        d.toFields().keys,
+        unorderedEquals(['title', 'homework', 'classwork', 'note']),
+      );
       expect(d.toFields()['title'], isNull);
     });
   });
@@ -257,8 +272,11 @@ void main() {
       await tester.enterText(find.byType(TextField).at(2), 'Page 5');
       await _tapSave(tester);
 
-      await tester.scrollUntilVisible(find.text('Reload'), 200,
-          scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(
+        find.text('Reload'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.textContaining('was NOT saved'), findsOneWidget);
       expect(find.text('Reload'), findsOneWidget);
       expect(find.text('Saved.'), findsNothing);
@@ -298,8 +316,11 @@ void main() {
       final s = _DiaryServer();
       await tester.pumpWidget(_host(_editor(s)));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Save'), 200,
-          scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(
+        find.text('Save'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(s.requests.where((r) => r.method != 'GET'), isEmpty);
@@ -307,8 +328,9 @@ void main() {
   });
 
   group('Shared entry', () {
-    testWidgets('someone else wrote it → "Last saved by" strip',
-        (tester) async {
+    testWidgets('someone else wrote it → "Last saved by" strip', (
+      tester,
+    ) async {
       final s = _DiaryServer()..seed(_existingRow(author: 'Bilal Ahmed'));
       await tester.pumpWidget(_host(_editor(s)));
       await tester.pumpAndSettle();
@@ -332,8 +354,8 @@ void main() {
       expect((await repo.findExisting(_key))!.id, 'b');
       expect(
         (await repo.findExisting(
-                DiaryKey(sectionId: _sec, subjectId: null, date: _date)))!
-            .id,
+          DiaryKey(sectionId: _sec, subjectId: null, date: _date),
+        ))!.id,
         'a',
       );
     });
@@ -347,17 +369,22 @@ void main() {
     });
 
     test('TimetablePeriod carries subjectId (the diary key needs it)', () {
-      final p = TimetablePeriod.fromJson(
-          {'periodName': 'P2', 'sectionId': 's', 'subjectId': 'sub'});
+      final p = TimetablePeriod.fromJson({
+        'periodName': 'P2',
+        'sectionId': 's',
+        'subjectId': 'sub',
+      });
       expect(p.subjectId, 'sub');
     });
   });
 
   group('Student (sectionId blocker)', () {
-    testWidgets('Today and Timetable show "not available yet", no retry',
-        (tester) async {
+    testWidgets('Today and Timetable show "not available yet", no retry', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-          _host(const StudentTimetableUnavailable(title: 'Timetable')));
+        _host(const StudentTimetableUnavailable(title: 'Timetable')),
+      );
       expect(find.text('Timetable is not available yet'), findsOneWidget);
       expect(find.text('Retry'), findsNothing);
     });
@@ -373,45 +400,53 @@ void main() {
 
   group('Layout', () {
     for (final width in [360.0, 768.0, 1366.0]) {
-      testWidgets('diary + student screens: no overflow at $width, 2×, RTL',
-          (tester) async {
+      testWidgets('diary + student screens: no overflow at $width, 2×, RTL', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
 
         final s = _DiaryServer()..seed(_existingRow(author: 'Bilal Ahmed'));
         await tester.pumpWidget(
-            _host(_editor(s), textScale: 2, dir: TextDirection.rtl));
+          _host(_editor(s), textScale: 2, dir: TextDirection.rtl),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
-        await tester.pumpWidget(_host(
-          const StudentTimetableUnavailable(title: 'Today'),
-          textScale: 2,
-          dir: TextDirection.rtl,
-        ));
+        await tester.pumpWidget(
+          _host(
+            const StudentTimetableUnavailable(title: 'Today'),
+            textScale: 2,
+            dir: TextDirection.rtl,
+          ),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       });
     }
 
-    testWidgets('reduced motion: editor settles without animation',
-        (tester) async {
+    testWidgets('reduced motion: editor settles without animation', (
+      tester,
+    ) async {
       _tall(tester);
       final s = _DiaryServer();
-      await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.light(role: AppRole.teacher),
-        home: MediaQuery(
-          data: const MediaQueryData(disableAnimations: true),
-          child: _editor(s),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(role: AppRole.teacher),
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: _editor(s),
+          ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
       expect(find.text('Save'), findsOneWidget);
     });
 
-    testWidgets('screen reader: multi-line fields are labelled',
-        (tester) async {
+    testWidgets('screen reader: multi-line fields are labelled', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       final s = _DiaryServer();
       await tester.pumpWidget(_host(_editor(s)));

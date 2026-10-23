@@ -9,7 +9,8 @@ import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
 import '../../attendance/domain/attendance_models.dart' show RosterStudent;
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/sections_screen.dart' show PickerChip;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/academics_repository.dart';
@@ -72,11 +73,13 @@ class RemarksScreenState extends State<RemarksScreen> {
 
   Future<void> load() async {
     setState(
-        () => _state = ScreenState<List<Remark>>.loading(previous: _state.data));
+      () => _state = ScreenState<List<Remark>>.loading(previous: _state.data),
+    );
     try {
       final roster = await widget.repository.loadRoster(widget.sectionId);
-      final remarks =
-          await widget.repository.loadSectionRemarks(widget.sectionId);
+      final remarks = await widget.repository.loadSectionRemarks(
+        widget.sectionId,
+      );
       if (!mounted) return;
       setState(() {
         _roster = roster;
@@ -86,12 +89,15 @@ class RemarksScreenState extends State<RemarksScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<Remark>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<Remark>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -125,7 +131,8 @@ class RemarksScreenState extends State<RemarksScreen> {
       title: 'Remarks',
       note: InlineAlert(
         tone: InlineAlertTone.info,
-        message: '${widget.sectionName}. Remarks are the one thing here that '
+        message:
+            '${widget.sectionName}. Remarks are the one thing here that '
             'can be corrected or removed after saving.',
       ),
       children: [
@@ -141,8 +148,9 @@ class RemarksScreenState extends State<RemarksScreen> {
                 children: [
                   Text(
                     'Student',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   Wrap(
@@ -153,8 +161,7 @@ class RemarksScreenState extends State<RemarksScreen> {
                         PickerChip(
                           label: s.fullName,
                           selected: _studentId == s.studentId,
-                          onTap: () =>
-                              setState(() => _studentId = s.studentId),
+                          onTap: () => setState(() => _studentId = s.studentId),
                         ),
                     ],
                   ),
@@ -168,8 +175,9 @@ class RemarksScreenState extends State<RemarksScreen> {
                 children: [
                   Text(
                     'Type',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   Wrap(
@@ -208,7 +216,8 @@ class RemarksScreenState extends State<RemarksScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'No remarks yet',
-            emptyMessage: 'Notes written about a student in this section '
+            emptyMessage:
+                'Notes written about a student in this section '
                 'appear here.',
             emptyIcon: Icons.sticky_note_2_outlined,
             data: (context, remarks) => ListView(
@@ -261,8 +270,9 @@ class ParentVisibilityControl extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Show this to the parent',
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
               ),
               Semantics(
@@ -329,13 +339,16 @@ class _RemarkRow extends StatelessWidget {
               ),
               Text(
                 remark.remarkType,
-                style: AppTypography.bodyAdminMeta
-                    .copyWith(color: t.textSecondary),
+                style: AppTypography.bodyAdminMeta.copyWith(
+                  color: t.textSecondary,
+                ),
               ),
               // Stated in words on every row, so scanning a list never
               // requires remembering what a colour meant.
               Text(
-                remark.isParentVisible ? 'Parent can see' : 'Not shown to parent',
+                remark.isParentVisible
+                    ? 'Parent can see'
+                    : 'Not shown to parent',
                 style: AppTypography.bodyAdminMeta.copyWith(
                   color: remark.isParentVisible
                       ? t.infoTextOnBg

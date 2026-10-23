@@ -114,8 +114,5 @@ List<NavDestination> resolveBottomNavTabs(
   if (eligible.length <= 3) return eligible;
   final visible = eligible.take(3).toList(growable: false);
   final overflow = eligible.skip(3).toList(growable: false);
-  return [
-    ...visible,
-    buildMoreDestination(overflow, builder: moreBuilder),
-  ];
+  return [...visible, buildMoreDestination(overflow, builder: moreBuilder)];
 }

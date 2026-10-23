@@ -44,8 +44,9 @@ class StatCard extends StatelessWidget {
 
     // Labels share the value's colour on tinted tones so the whole card stays
     // above 4.5:1; on neutral they step down to textSecondary.
-    final labelColour =
-        tone == StatCardTone.neutral ? t.textSecondary : valueColour;
+    final labelColour = tone == StatCardTone.neutral
+        ? t.textSecondary
+        : valueColour;
 
     final card = Container(
       padding: const EdgeInsets.all(AppSpacing.space5),

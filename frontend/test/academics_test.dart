@@ -41,7 +41,8 @@ class _AcademicServer implements HttpClientAdapter {
   String sectionResultsJson = '[]';
   String studentResultJson = '{}';
   String chaptersJson = '[]';
-  String progressJson = '{"percentage":0.00,"coveredTopics":0,'
+  String progressJson =
+      '{"percentage":0.00,"coveredTopics":0,'
       '"totalTopics":0,"coveredChapters":0,"totalChapters":0,"chapters":[]}';
   final List<String> remarks = [];
 
@@ -55,7 +56,10 @@ class _AcademicServer implements HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(
-      RequestOptions o, Stream<List<int>>? s, Future<void>? c) async {
+    RequestOptions o,
+    Stream<List<int>>? s,
+    Future<void>? c,
+  ) async {
     requests.add(o);
     final path = o.uri.path;
     final body = o.data is Map ? (o.data as Map).cast<String, dynamic>() : null;
@@ -91,8 +95,10 @@ class _AcademicServer implements HttpClientAdapter {
         );
       }
       if (path == '/api/classes') {
-        return _raw(200,
-            '{"content":[{"id":"class-1","name":"Grade 5","levelOrder":5}]}');
+        return _raw(
+          200,
+          '{"content":[{"id":"class-1","name":"Grade 5","levelOrder":5}]}',
+        );
       }
       if (path == '/api/sections') {
         return _raw(
@@ -102,13 +108,16 @@ class _AcademicServer implements HttpClientAdapter {
         );
       }
       if (path == '/api/subjects') {
-        return _raw(200,
-            '{"content":[{"id":"subject-1","name":"Mathematics"}]}');
+        return _raw(
+          200,
+          '{"content":[{"id":"subject-1","name":"Mathematics"}]}',
+        );
       }
       if (path.startsWith('/api/enrollments/section/')) {
         return _raw(200, '{"content":[$rosterJson]}');
       }
-      if (path == '/api/students') return _raw(200, '{"content":[$studentsJson]}');
+      if (path == '/api/students')
+        return _raw(200, '{"content":[$studentsJson]}');
       return _raw(404, '{"message":"no route"}');
     }
 
@@ -119,7 +128,8 @@ class _AcademicServer implements HttpClientAdapter {
         return _raw(status, '{"message":"$failMessage"}');
       }
       if (path == '/api/exams') {
-        final row = '{"id":"exam-${_id++}","name":"${body?['name']}",'
+        final row =
+            '{"id":"exam-${_id++}","name":"${body?['name']}",'
             '"term":${body?['term'] == null ? 'null' : '"${body?['term']}"'},'
             '"status":"pending","result_date":null,'
             '"academic_year_id":"${body?['academicYearId']}"}';
@@ -140,8 +150,7 @@ class _AcademicServer implements HttpClientAdapter {
       if (path.endsWith('/marks/bulk')) {
         lastBody = o.data;
         final rows = (o.data as List).length;
-        return _raw(200,
-            '{"errors":[],"successCount":$rows,"errorCount":0}');
+        return _raw(200, '{"errors":[],"successCount":$rows,"errorCount":0}');
       }
       if (path.endsWith('/marks')) {
         lastBody = body;
@@ -154,12 +163,15 @@ class _AcademicServer implements HttpClientAdapter {
         );
       }
       if (path.endsWith('/publish')) {
-        return _raw(200,
-            '{"reportCardsGenerated":1,"resultsPublished":1,"status":"published"}');
+        return _raw(
+          200,
+          '{"reportCardsGenerated":1,"resultsPublished":1,"status":"published"}',
+        );
       }
       if (path == '/api/remarks') {
         lastBody = body;
-        final row = '{"id":"remark-${_id++}",'
+        final row =
+            '{"id":"remark-${_id++}",'
             '"studentId":"${body?['studentId']}","studentName":"Ali Khan",'
             '"remarkType":"${body?['remarkType']}","body":"${body?['body']}",'
             '"isParentVisible":${body?['isParentVisible']},'
@@ -175,13 +187,17 @@ class _AcademicServer implements HttpClientAdapter {
         );
       }
       if (path == '/api/syllabus/topics') {
-        return _raw(201,
-            '{"id":"topic-${_id++}","name":"${body?['name']}","sort_order":1}');
+        return _raw(
+          201,
+          '{"id":"topic-${_id++}","name":"${body?['name']}","sort_order":1}',
+        );
       }
       if (path == '/api/syllabus/coverage') {
         lastBody = body;
-        return _raw(201,
-            '{"status":"${body?['status']}","idempotent":false,"logId":"l1"}');
+        return _raw(
+          201,
+          '{"status":"${body?['status']}","idempotent":false,"logId":"l1"}',
+        );
       }
     }
     return _raw(404, '{"message":"no route"}');
@@ -190,7 +206,8 @@ class _AcademicServer implements HttpClientAdapter {
   /// A 40-student section, the size this screen is designed for.
   String rosterJson = List.generate(
     40,
-    (i) => '{"studentId":"stu-$i","sectionId":"section-1",'
+    (i) =>
+        '{"studentId":"stu-$i","sectionId":"section-1",'
         '"status":"enrolled","rollNumber":"${i + 1}"}',
   ).join(',');
 
@@ -204,12 +221,12 @@ class _AcademicServer implements HttpClientAdapter {
 }
 
 ResponseBody _raw(int status, String json) => ResponseBody.fromBytes(
-      utf8.encode(json),
-      status,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+  utf8.encode(json),
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 typedef _Wired = ({Dio dio, _AcademicServer server, AcademicsRepository repo});
 
@@ -221,11 +238,11 @@ _Wired _wire() {
 }
 
 Widget _host(Widget child, {bool dark = false}) => MaterialApp(
-      theme: dark
-          ? AppTheme.dark(role: AppRole.admin)
-          : AppTheme.light(role: AppRole.admin),
-      home: child,
-    );
+  theme: dark
+      ? AppTheme.dark(role: AppRole.admin)
+      : AppTheme.light(role: AppRole.admin),
+  home: child,
+);
 
 const _year = AcademicYear(
   id: 'year-1',
@@ -266,7 +283,8 @@ void main() {
   group('the decoding door', () {
     test('a mark from the wire becomes an exact value', () async {
       final w = _wire();
-      w.server.sectionResultsJson = '[{"student_id":"s1",'
+      w.server.sectionResultsJson =
+          '[{"student_id":"s1",'
           '"student_name":"Ali Khan","total_marks":85.50,"total_max":100.00,'
           '"percentage":85.50,"grade":"A","grade_point":3.70,"position":1,'
           '"result_status":"pass"}]';
@@ -291,22 +309,24 @@ void main() {
   });
 
   group('writes', () {
-    test('an exam carries an explicit academic year, never a resolved one',
-        () async {
-      final w = _wire();
-      await w.repo.createExam(
-        campusId: 'campus-1',
-        academicYearId: 'year-1',
-        name: 'First Term',
-        term: ExamTerm.firstTerm,
-      );
-      final body = w.server.requests.last.data as Map;
-      expect(body['academicYearId'], 'year-1');
-      expect(body['term'], 'first_term');
-      // No gradeSchemeId: there is no endpoint that can produce one, so
-      // sending a value would be a guess.
-      expect(body.containsKey('gradeSchemeId'), isFalse);
-    });
+    test(
+      'an exam carries an explicit academic year, never a resolved one',
+      () async {
+        final w = _wire();
+        await w.repo.createExam(
+          campusId: 'campus-1',
+          academicYearId: 'year-1',
+          name: 'First Term',
+          term: ExamTerm.firstTerm,
+        );
+        final body = w.server.requests.last.data as Map;
+        expect(body['academicYearId'], 'year-1');
+        expect(body['term'], 'first_term');
+        // No gradeSchemeId: there is no endpoint that can produce one, so
+        // sending a value would be a guess.
+        expect(body.containsKey('gradeSchemeId'), isFalse);
+      },
+    );
 
     test('a paper sends its marks as exact decimal text', () async {
       final w = _wire();
@@ -380,17 +400,18 @@ void main() {
   });
 
   group('marks entry — attendance ergonomics', () {
-    Widget screen(_Wired w,
-            {bool locked = false}) =>
-        _host(MarksEntryScreen(
-          repository: w.repo,
-          paper: _paper,
-          examName: 'First Term',
-          marksLocked: locked,
-        ));
+    Widget screen(_Wired w, {bool locked = false}) => _host(
+      MarksEntryScreen(
+        repository: w.repo,
+        paper: _paper,
+        examName: 'First Term',
+        marksLocked: locked,
+      ),
+    );
 
-    testWidgets('a 40-student section is entered with one field per student',
-        (tester) async {
+    testWidgets('a 40-student section is entered with one field per student', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(900, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -405,8 +426,9 @@ void main() {
       expect(find.text('0 of 40 entered'), findsOneWidget);
     });
 
-    testWidgets('the running summary is visible without scrolling',
-        (tester) async {
+    testWidgets('the running summary is visible without scrolling', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(screen(w));
       await tester.pumpAndSettle();
@@ -422,8 +444,9 @@ void main() {
       expect(find.text('39 left'), findsOneWidget);
     });
 
-    testWidgets('validation runs as they type, on the offending row',
-        (tester) async {
+    testWidgets('validation runs as they type, on the offending row', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(screen(w));
       await tester.pumpAndSettle();
@@ -450,8 +473,9 @@ void main() {
       expect(button.onPressed, isNull);
     });
 
-    testWidgets('Enter moves to the next student and does NOT submit',
-        (tester) async {
+    testWidgets('Enter moves to the next student and does NOT submit', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(screen(w));
       await tester.pumpAndSettle();
@@ -465,10 +489,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // A stray Enter halfway down a class must never save.
-      expect(
-        w.server.requests.where((r) => r.path.contains('marks')),
-        isEmpty,
-      );
+      expect(w.server.requests.where((r) => r.path.contains('marks')), isEmpty);
     });
 
     testWidgets('absent is a toggle and clears the number', (tester) async {
@@ -504,10 +525,7 @@ void main() {
       await tester.pumpWidget(screen(w));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('no way to read them back'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('no way to read them back'), findsOneWidget);
     });
 
     testWidgets('a published exam says the marks are locked', (tester) async {
@@ -515,8 +533,10 @@ void main() {
       await tester.pumpWidget(screen(w, locked: true));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('locked and can no longer be changed'),
-          findsOneWidget);
+      expect(
+        find.textContaining('locked and can no longer be changed'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('saving sends every entered row', (tester) async {
@@ -538,14 +558,18 @@ void main() {
   group('exams', () {
     testWidgets('only the six accepted terms are offered', (tester) async {
       final w = _wire();
-      await tester.pumpWidget(_host(ExamSetupScreen(
-        repository: w.repo,
-        year: _year,
-        campusId: 'campus-1',
-        sections: const [_section],
-        classes: const [_class],
-        subjects: const [_subject],
-      )));
+      await tester.pumpWidget(
+        _host(
+          ExamSetupScreen(
+            repository: w.repo,
+            year: _year,
+            campusId: 'campus-1',
+            sections: const [_section],
+            classes: const [_class],
+            subjects: const [_subject],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Add an exam'));
@@ -561,14 +585,18 @@ void main() {
 
     testWidgets('the year being written to is named', (tester) async {
       final w = _wire();
-      await tester.pumpWidget(_host(ExamSetupScreen(
-        repository: w.repo,
-        year: _year,
-        campusId: 'campus-1',
-        sections: const [_section],
-        classes: const [_class],
-        subjects: const [_subject],
-      )));
+      await tester.pumpWidget(
+        _host(
+          ExamSetupScreen(
+            repository: w.repo,
+            year: _year,
+            campusId: 'campus-1',
+            sections: const [_section],
+            classes: const [_class],
+            subjects: const [_subject],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('2025-26'), findsOneWidget);
@@ -576,32 +604,41 @@ void main() {
 
     testWidgets('papers warn that they cannot be found again', (tester) async {
       final w = _wire();
-      await tester.pumpWidget(_host(ExamPapersScreen(
-        repository: w.repo,
-        exam: _exam,
-        sections: const [_section],
-        classes: const [_class],
-        subjects: const [_subject],
-      )));
+      await tester.pumpWidget(
+        _host(
+          ExamPapersScreen(
+            repository: w.repo,
+            exam: _exam,
+            sections: const [_section],
+            classes: const [_class],
+            subjects: const [_subject],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('cannot list papers back'), findsOneWidget);
     });
 
-    testWidgets('a duplicate paper explains that it cannot be reopened',
-        (tester) async {
+    testWidgets('a duplicate paper explains that it cannot be reopened', (
+      tester,
+    ) async {
       final w = _wire();
       // The C9 stage panel makes this screen taller than the default 800x600.
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(_host(ExamPapersScreen(
-        repository: w.repo,
-        exam: _exam,
-        sections: const [_section],
-        classes: const [_class],
-        subjects: const [_subject],
-      )));
+      await tester.pumpWidget(
+        _host(
+          ExamPapersScreen(
+            repository: w.repo,
+            exam: _exam,
+            sections: const [_section],
+            classes: const [_class],
+            subjects: const [_subject],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       w.server.failStatus = 409;
@@ -617,33 +654,41 @@ void main() {
       expect(find.textContaining('no way to look a paper up'), findsOneWidget);
     });
 
-    testWidgets('C9: no direct publish; without exam.manage no stage action is offered',
-        (tester) async {
-      final w = _wire();
-      await tester.pumpWidget(_host(ExamPapersScreen(
-        repository: w.repo,
-        exam: _exam,
-        sections: const [_section],
-        classes: const [_class],
-        subjects: const [_subject],
-      )));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'C9: no direct publish; without exam.manage no stage action is offered',
+      (tester) async {
+        final w = _wire();
+        await tester.pumpWidget(
+          _host(
+            ExamPapersScreen(
+              repository: w.repo,
+              exam: _exam,
+              sections: const [_section],
+              classes: const [_class],
+              subjects: const [_subject],
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Publish results'), findsNothing);
-      expect(find.text('Stage: Marking'), findsOneWidget);
-      expect(find.textContaining('Only an exam manager'), findsOneWidget);
-      expect(
-        w.server.requests.where((r) => r.path.endsWith('/publish')),
-        isEmpty,
-      );
-    });
+        expect(find.text('Publish results'), findsNothing);
+        expect(find.text('Stage: Marking'), findsOneWidget);
+        expect(find.textContaining('Only an exam manager'), findsOneWidget);
+        expect(
+          w.server.requests.where((r) => r.path.endsWith('/publish')),
+          isEmpty,
+        );
+      },
+    );
   });
 
   group('results', () {
-    testWidgets('failures are at the top, not the first name alphabetically',
-        (tester) async {
+    testWidgets('failures are at the top, not the first name alphabetically', (
+      tester,
+    ) async {
       final w = _wire();
-      w.server.sectionResultsJson = '['
+      w.server.sectionResultsJson =
+          '['
           '{"student_id":"a","student_name":"Aisha","total_marks":95.00,'
           '"total_max":100.00,"percentage":95.00,"grade":"A",'
           '"grade_point":4.00,"position":1,"result_status":"pass"},'
@@ -651,12 +696,16 @@ void main() {
           '"total_max":100.00,"percentage":20.00,"grade":"F",'
           '"grade_point":0.00,"position":2,"result_status":"fail"}]';
 
-      await tester.pumpWidget(_host(ResultsScreen(
-        repository: w.repo,
-        exam: _exam,
-        sectionId: 'section-1',
-        sectionName: 'Grade 5 A',
-      )));
+      await tester.pumpWidget(
+        _host(
+          ResultsScreen(
+            repository: w.repo,
+            exam: _exam,
+            sectionId: 'section-1',
+            sectionName: 'Grade 5 A',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final names = tester
@@ -668,16 +717,21 @@ void main() {
 
     testWidgets('pass and fail are words, not only a colour', (tester) async {
       final w = _wire();
-      w.server.sectionResultsJson = '['
+      w.server.sectionResultsJson =
+          '['
           '{"student_id":"z","student_name":"Zara","total_marks":20.00,'
           '"total_max":100.00,"percentage":20.00,"grade":"F",'
           '"grade_point":0.00,"position":1,"result_status":"fail"}]';
 
-      await tester.pumpWidget(_host(ResultsScreen(
-        repository: w.repo,
-        exam: _exam,
-        sectionId: 'section-1',
-      )));
+      await tester.pumpWidget(
+        _host(
+          ResultsScreen(
+            repository: w.repo,
+            exam: _exam,
+            sectionId: 'section-1',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Failed'), findsOneWidget);
@@ -686,8 +740,9 @@ void main() {
   });
 
   group('report card', () {
-    testWidgets('it shows the card and offers no download or print',
-        (tester) async {
+    testWidgets('it shows the card and offers no download or print', (
+      tester,
+    ) async {
       final w = _wire();
       w.server.studentResultJson =
           '{"student_id":"s1","student_name":"Ali Khan",'
@@ -699,47 +754,60 @@ void main() {
       w.server.reportCardJson =
           '{"generatedAt":"2026-09-25","available":true,"status":"generated"}';
 
-      await tester.pumpWidget(_host(ReportCardScreen(
-        repository: w.repo,
-        exam: _exam,
-        studentId: 's1',
-        studentName: 'Ali Khan',
-      )));
+      await tester.pumpWidget(
+        _host(
+          ReportCardScreen(
+            repository: w.repo,
+            exam: _exam,
+            studentId: 's1',
+            studentName: 'Ali Khan',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Maths'), findsOneWidget);
       expect(find.text('85%'), findsOneWidget);
-      expect(find.textContaining('cannot be downloaded or printed'),
-          findsOneWidget);
+      expect(
+        find.textContaining('cannot be downloaded or printed'),
+        findsOneWidget,
+      );
       expect(find.text('Download'), findsNothing);
       expect(find.text('Print'), findsNothing);
     });
   });
 
   group('remarks — the privacy copy', () {
-    Widget screen(_Wired w) =>
-        _host(RemarksScreen(
-          repository: w.repo,
-          sectionId: 'section-1',
-          sectionName: 'Grade 5 A',
-        ));
+    Widget screen(_Wired w) => _host(
+      RemarksScreen(
+        repository: w.repo,
+        sectionId: 'section-1',
+        sectionName: 'Grade 5 A',
+      ),
+    );
 
-    testWidgets('the consequence is stated beside the control, not in a tooltip',
-        (tester) async {
-      final w = _wire();
-      await tester.pumpWidget(screen(w));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'the consequence is stated beside the control, not in a tooltip',
+      (tester) async {
+        final w = _wire();
+        await tester.pumpWidget(screen(w));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write a remark'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Write a remark'));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(ParentVisibilityControl), findsOneWidget);
-      expect(find.text('The parent will not see this remark.'), findsOneWidget);
-      expect(find.byType(Tooltip), findsNothing);
-    });
+        expect(find.byType(ParentVisibilityControl), findsOneWidget);
+        expect(
+          find.text('The parent will not see this remark.'),
+          findsOneWidget,
+        );
+        expect(find.byType(Tooltip), findsNothing);
+      },
+    );
 
-    testWidgets('it never claims a remark is private in general',
-        (tester) async {
+    testWidgets('it never claims a remark is private in general', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(screen(w));
       await tester.pumpAndSettle();
@@ -756,8 +824,9 @@ void main() {
       expect(find.textContaining('Private'), findsNothing);
     });
 
-    testWidgets('turning the toggle on changes what it promises',
-        (tester) async {
+    testWidgets('turning the toggle on changes what it promises', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(screen(w));
       await tester.pumpAndSettle();
@@ -771,8 +840,10 @@ void main() {
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
 
-      expect(find.text('The parent will see this remark in their app.'),
-          findsOneWidget);
+      expect(
+        find.text('The parent will see this remark in their app.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('every listed remark says who can see it', (tester) async {
@@ -788,8 +859,9 @@ void main() {
       expect(find.text('Not shown to parent'), findsOneWidget);
     });
 
-    testWidgets('the flag is sent as chosen, never filtered locally',
-        (tester) async {
+    testWidgets('the flag is sent as chosen, never filtered locally', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(screen(w));
       await tester.pumpAndSettle();
@@ -810,24 +882,31 @@ void main() {
   });
 
   group('syllabus', () {
-    testWidgets('progress is the server’s percentage, not covered ÷ total',
-        (tester) async {
+    testWidgets('progress is the server’s percentage, not covered ÷ total', (
+      tester,
+    ) async {
       final w = _wire();
-      w.server.chaptersJson = '[{"id":"c1","name":"Algebra","sort_order":1,'
+      w.server.chaptersJson =
+          '[{"id":"c1","name":"Algebra","sort_order":1,'
           '"topics":[{"id":"t1","name":"Quadratics","sort_order":1}]}]';
       // 1 of 3 is 33.33…%, and the server says 40.
-      w.server.progressJson = '{"percentage":40.00,"coveredTopics":1,'
+      w.server.progressJson =
+          '{"percentage":40.00,"coveredTopics":1,'
           '"totalTopics":3,"coveredChapters":0,"totalChapters":1,'
           '"chapters":[{"name":"Algebra","status":"pending","topics":3,'
           '"covered":1}]}';
 
-      await tester.pumpWidget(_host(SyllabusScreen(
-        repository: w.repo,
-        year: _year,
-        classes: const [_class],
-        sections: const [_section],
-        subjects: const [_subject],
-      )));
+      await tester.pumpWidget(
+        _host(
+          SyllabusScreen(
+            repository: w.repo,
+            year: _year,
+            classes: const [_class],
+            sections: const [_section],
+            subjects: const [_subject],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('40% covered'), findsOneWidget);
@@ -835,19 +914,25 @@ void main() {
       expect(find.text('1 of 3 topics · 0 of 1 chapters'), findsOneWidget);
     });
 
-    testWidgets('only the two accepted coverage statuses are offered',
-        (tester) async {
+    testWidgets('only the two accepted coverage statuses are offered', (
+      tester,
+    ) async {
       final w = _wire();
-      w.server.chaptersJson = '[{"id":"c1","name":"Algebra","sort_order":1,'
+      w.server.chaptersJson =
+          '[{"id":"c1","name":"Algebra","sort_order":1,'
           '"topics":[{"id":"t1","name":"Quadratics","sort_order":1}]}]';
 
-      await tester.pumpWidget(_host(SyllabusScreen(
-        repository: w.repo,
-        year: _year,
-        classes: const [_class],
-        sections: const [_section],
-        subjects: const [_subject],
-      )));
+      await tester.pumpWidget(
+        _host(
+          SyllabusScreen(
+            repository: w.repo,
+            year: _year,
+            classes: const [_class],
+            sections: const [_section],
+            subjects: const [_subject],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Covered'), findsOneWidget);
@@ -856,19 +941,25 @@ void main() {
       expect(find.text('Pending'), findsNothing);
     });
 
-    testWidgets('marking a topic sends the lowercase wire value',
-        (tester) async {
+    testWidgets('marking a topic sends the lowercase wire value', (
+      tester,
+    ) async {
       final w = _wire();
-      w.server.chaptersJson = '[{"id":"c1","name":"Algebra","sort_order":1,'
+      w.server.chaptersJson =
+          '[{"id":"c1","name":"Algebra","sort_order":1,'
           '"topics":[{"id":"t1","name":"Quadratics","sort_order":1}]}]';
 
-      await tester.pumpWidget(_host(SyllabusScreen(
-        repository: w.repo,
-        year: _year,
-        classes: const [_class],
-        sections: const [_section],
-        subjects: const [_subject],
-      )));
+      await tester.pumpWidget(
+        _host(
+          SyllabusScreen(
+            repository: w.repo,
+            year: _year,
+            classes: const [_class],
+            sections: const [_section],
+            subjects: const [_subject],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Covered'));
@@ -879,13 +970,17 @@ void main() {
   });
 
   group('the screens with no backend', () {
-    testWidgets('grade schemes explains that grading works but is fixed',
-        (tester) async {
+    testWidgets('grade schemes explains that grading works but is fixed', (
+      tester,
+    ) async {
       await tester.pumpWidget(_host(const GradeSchemesScreen()));
       await tester.pumpAndSettle();
 
       expect(find.text('Grades are applied automatically'), findsOneWidget);
-      expect(find.textContaining('cannot be viewed or changed'), findsOneWidget);
+      expect(
+        find.textContaining('cannot be viewed or changed'),
+        findsOneWidget,
+      );
       // No form that could not save, and no disabled button.
       expect(find.byType(TextField), findsNothing);
     });
@@ -895,24 +990,30 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Not available yet'), findsOneWidget);
-      expect(find.textContaining('A subject library for books, notes and links'),
-          findsOneWidget);
-      expect(find.textContaining('Share class material through the diary'),
-          findsOneWidget);
+      expect(
+        find.textContaining('A subject library for books, notes and links'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Share class material through the diary'),
+        findsOneWidget,
+      );
       expect(find.byType(TextField), findsNothing);
     });
   });
 
   group('the academics hub', () {
-    Widget hub(_Wired w) =>
-        _host(AcademicsHomeScreen(
-          academics: w.repo,
-          setup: SetupRepository(w.dio),
-          admin: AdminRepository(w.dio),
-        ));
+    Widget hub(_Wired w) => _host(
+      AcademicsHomeScreen(
+        academics: w.repo,
+        setup: SetupRepository(w.dio),
+        admin: AdminRepository(w.dio),
+      ),
+    );
 
-    testWidgets('every step is reachable when its dependencies exist',
-        (tester) async {
+    testWidgets('every step is reachable when its dependencies exist', (
+      tester,
+    ) async {
       final w = _wire();
       await tester.pumpWidget(hub(w));
       await tester.pumpAndSettle();
@@ -929,37 +1030,45 @@ void main() {
 
   group('both themes, and no overflow', () {
     for (final dark in [false, true]) {
-      testWidgets('every academic screen renders in ${dark ? 'dark' : 'light'}',
-          (tester) async {
-        final w = _wire();
-        w.server.studentResultJson =
-            '{"student_id":"s1","student_name":"Ali Khan",'
-            '"total_marks":85.00,"total_max":100.00,"percentage":85.00,'
-            '"grade":"A","grade_point":3.70,"position":1,'
-            '"result_status":"pass","subjects":[]}';
-        w.server.sectionResultsJson = '[{"student_id":"s1",'
-            '"student_name":"Ali Khan","total_marks":85.00,'
-            '"total_max":100.00,"percentage":85.00,"grade":"A",'
-            '"grade_point":3.70,"position":1,"result_status":"pass"}]';
+      testWidgets(
+        'every academic screen renders in ${dark ? 'dark' : 'light'}',
+        (tester) async {
+          final w = _wire();
+          w.server.studentResultJson =
+              '{"student_id":"s1","student_name":"Ali Khan",'
+              '"total_marks":85.00,"total_max":100.00,"percentage":85.00,'
+              '"grade":"A","grade_point":3.70,"position":1,'
+              '"result_status":"pass","subjects":[]}';
+          w.server.sectionResultsJson =
+              '[{"student_id":"s1",'
+              '"student_name":"Ali Khan","total_marks":85.00,'
+              '"total_max":100.00,"percentage":85.00,"grade":"A",'
+              '"grade_point":3.70,"position":1,"result_status":"pass"}]';
 
-        for (final entry in _allScreens(w).entries) {
-          await tester.pumpWidget(_host(entry.value, dark: dark));
-          await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull,
-              reason: '${entry.key} threw in ${dark ? 'dark' : 'light'}');
-        }
-      });
+          for (final entry in _allScreens(w).entries) {
+            await tester.pumpWidget(_host(entry.value, dark: dark));
+            await tester.pumpAndSettle();
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: '${entry.key} threw in ${dark ? 'dark' : 'light'}',
+            );
+          }
+        },
+      );
     }
 
     for (final width in [360.0, 768.0, 1366.0]) {
-      testWidgets('no academic screen overflows at ${width.toInt()}px',
-          (tester) async {
+      testWidgets('no academic screen overflows at ${width.toInt()}px', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.reset);
 
         final w = _wire();
-        w.server.sectionResultsJson = '[{"student_id":"s1",'
+        w.server.sectionResultsJson =
+            '[{"student_id":"s1",'
             '"student_name":"Muhammad Abdul Rehman","total_marks":85.50,'
             '"total_max":100.00,"percentage":85.50,"grade":"A",'
             '"grade_point":3.70,"position":1,"result_status":"pass"}]';
@@ -967,8 +1076,11 @@ void main() {
         for (final entry in _allScreens(w).entries) {
           await tester.pumpWidget(_host(entry.value));
           await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull,
-              reason: '${entry.key} overflowed at ${width.toInt()}px');
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '${entry.key} overflowed at ${width.toInt()}px',
+          );
         }
       });
     }
@@ -979,17 +1091,19 @@ void main() {
       addTearDown(tester.view.reset);
 
       final w = _wire();
-      await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.light(role: AppRole.admin),
-        home: MediaQuery(
-          data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
-          child: MarksEntryScreen(
-            repository: w.repo,
-            paper: _paper,
-            examName: 'First Term',
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(role: AppRole.admin),
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
+            child: MarksEntryScreen(
+              repository: w.repo,
+              paper: _paper,
+              examName: 'First Term',
+            ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
@@ -999,29 +1113,39 @@ void main() {
   group('accessibility', () {
     testWidgets('the absent toggle announces its state', (tester) async {
       final w = _wire();
-      await tester.pumpWidget(_host(MarksEntryScreen(
-        repository: w.repo,
-        paper: _paper,
-        examName: 'First Term',
-      )));
+      await tester.pumpWidget(
+        _host(
+          MarksEntryScreen(
+            repository: w.repo,
+            paper: _paper,
+            examName: 'First Term',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.bySemanticsLabel(RegExp('Student 1 absent')), findsOneWidget);
     });
 
-    testWidgets('a result row carries its outcome in its label',
-        (tester) async {
+    testWidgets('a result row carries its outcome in its label', (
+      tester,
+    ) async {
       final w = _wire();
-      w.server.sectionResultsJson = '[{"student_id":"z",'
+      w.server.sectionResultsJson =
+          '[{"student_id":"z",'
           '"student_name":"Zara","total_marks":20.00,"total_max":100.00,'
           '"percentage":20.00,"grade":"F","grade_point":0.00,"position":1,'
           '"result_status":"fail"}]';
 
-      await tester.pumpWidget(_host(ResultsScreen(
-        repository: w.repo,
-        exam: _exam,
-        sectionId: 'section-1',
-      )));
+      await tester.pumpWidget(
+        _host(
+          ResultsScreen(
+            repository: w.repo,
+            exam: _exam,
+            sectionId: 'section-1',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.bySemanticsLabel(RegExp('Zara.*failed')), findsOneWidget);
@@ -1029,56 +1153,55 @@ void main() {
   });
 }
 
-Map<String, Widget> _allScreens(_Wired w) =>
-    {
-      'hub': AcademicsHomeScreen(
-        academics: w.repo,
-        setup: SetupRepository(w.dio),
-        admin: AdminRepository(w.dio),
-      ),
-      'grades': const GradeSchemesScreen(),
-      'resources': const SubjectResourcesScreen(),
-      'exams': ExamSetupScreen(
-        repository: w.repo,
-        year: _year,
-        campusId: 'campus-1',
-        sections: const [_section],
-        classes: const [_class],
-        subjects: const [_subject],
-      ),
-      'papers': ExamPapersScreen(
-        repository: w.repo,
-        exam: _exam,
-        sections: const [_section],
-        classes: const [_class],
-        subjects: const [_subject],
-      ),
-      'marks': MarksEntryScreen(
-        repository: w.repo,
-        paper: _paper,
-        examName: 'First Term',
-      ),
-      'results': ResultsScreen(
-        repository: w.repo,
-        exam: _exam,
-        sectionId: 'section-1',
-      ),
-      'reportCard': ReportCardScreen(
-        repository: w.repo,
-        exam: _exam,
-        studentId: 's1',
-        studentName: 'Ali Khan',
-      ),
-      'remarks': RemarksScreen(
-        repository: w.repo,
-        sectionId: 'section-1',
-        sectionName: 'Grade 5 A',
-      ),
-      'syllabus': SyllabusScreen(
-        repository: w.repo,
-        year: _year,
-        classes: const [_class],
-        sections: const [_section],
-        subjects: const [_subject],
-      ),
-    };
+Map<String, Widget> _allScreens(_Wired w) => {
+  'hub': AcademicsHomeScreen(
+    academics: w.repo,
+    setup: SetupRepository(w.dio),
+    admin: AdminRepository(w.dio),
+  ),
+  'grades': const GradeSchemesScreen(),
+  'resources': const SubjectResourcesScreen(),
+  'exams': ExamSetupScreen(
+    repository: w.repo,
+    year: _year,
+    campusId: 'campus-1',
+    sections: const [_section],
+    classes: const [_class],
+    subjects: const [_subject],
+  ),
+  'papers': ExamPapersScreen(
+    repository: w.repo,
+    exam: _exam,
+    sections: const [_section],
+    classes: const [_class],
+    subjects: const [_subject],
+  ),
+  'marks': MarksEntryScreen(
+    repository: w.repo,
+    paper: _paper,
+    examName: 'First Term',
+  ),
+  'results': ResultsScreen(
+    repository: w.repo,
+    exam: _exam,
+    sectionId: 'section-1',
+  ),
+  'reportCard': ReportCardScreen(
+    repository: w.repo,
+    exam: _exam,
+    studentId: 's1',
+    studentName: 'Ali Khan',
+  ),
+  'remarks': RemarksScreen(
+    repository: w.repo,
+    sectionId: 'section-1',
+    sectionName: 'Grade 5 A',
+  ),
+  'syllabus': SyllabusScreen(
+    repository: w.repo,
+    year: _year,
+    classes: const [_class],
+    sections: const [_section],
+    subjects: const [_subject],
+  ),
+};

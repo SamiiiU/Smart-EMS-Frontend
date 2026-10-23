@@ -113,7 +113,8 @@ abstract final class AppMotion {
   /// The delay for item [index] in a staggered group, capped by
   /// [maxStaggeredItems].
   static Duration staggerFor(int index) => Duration(
-        milliseconds: staggerStep.inMilliseconds *
-            (index < maxStaggeredItems ? index : maxStaggeredItems),
-      );
+    milliseconds:
+        staggerStep.inMilliseconds *
+        (index < maxStaggeredItems ? index : maxStaggeredItems),
+  );
 }

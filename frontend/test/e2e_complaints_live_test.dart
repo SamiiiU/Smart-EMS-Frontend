@@ -107,10 +107,7 @@ void main() {
     expect(raised.isAnonymous, isFalse);
 
     // It is in the raiser's own list.
-    expect(
-      (await teacher.loadMine()).any((c) => c.id == raised.id),
-      isTrue,
-    );
+    expect((await teacher.loadMine()).any((c) => c.id == raised.id), isTrue);
 
     // --- 2 · It reaches the admin worklist --------------------------------
     final adminList = await admin.loadAll();
@@ -131,10 +128,7 @@ void main() {
       body: 'INTERNAL $stamp — staff eyes only',
       isInternal: true,
     );
-    await admin.comment(
-      id: raised.id,
-      body: 'PUBLIC $stamp — we are on it',
-    );
+    await admin.comment(id: raised.id, body: 'PUBLIC $stamp — we are on it');
 
     final adminSees = await admin.loadComments(raised.id);
     expect(adminSees.where((c) => c.isInternal).length, 1);
@@ -175,8 +169,9 @@ void main() {
       resolutionNote: 'Fixed by the E2E test.',
     );
 
-    final raiserView =
-        (await teacher.loadMine()).firstWhere((c) => c.id == raised.id);
+    final raiserView = (await teacher.loadMine()).firstWhere(
+      (c) => c.id == raised.id,
+    );
     expect(raiserView.status, ComplaintStatus.resolved);
 
     // --- 6 · An anonymous one carries no identity, for anyone -------------

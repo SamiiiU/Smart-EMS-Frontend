@@ -91,7 +91,7 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
             tone: InlineAlertTone.success,
             message: _anonymous
                 ? 'Sent anonymously. The institution will see it, but they cannot '
-                    'reply to you and you will not get an update.'
+                      'reply to you and you will not get an update.'
                 : 'Sent. You can follow it under “My complaints”.',
           ),
         ],
@@ -116,8 +116,9 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
                 children: [
                   Text(
                     'What is it about',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   Wrap(
@@ -157,8 +158,9 @@ class RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
                 children: [
                   Text(
                     'How urgent',
-                    style: AppTypography.fieldLabel
-                        .copyWith(color: t.textSecondary),
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: t.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   Wrap(
@@ -223,17 +225,15 @@ class AnonymityControl extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Send without my name',
-                  style:
-                      AppTypography.personName.copyWith(color: t.textPrimary),
+                  style: AppTypography.personName.copyWith(
+                    color: t.textPrimary,
+                  ),
                 ),
               ),
               Semantics(
                 label: 'Send this complaint without my name',
                 toggled: anonymous,
-                child: Switch.adaptive(
-                  value: anonymous,
-                  onChanged: onChanged,
-                ),
+                child: Switch.adaptive(value: anonymous, onChanged: onChanged),
               ),
             ],
           ),
@@ -242,10 +242,10 @@ class AnonymityControl extends StatelessWidget {
             anonymous
                 // The cost, before the choice is made.
                 ? 'The institution will not know who sent this — and because of '
-                    'that, nobody can reply to you. You will not see an '
-                    'update, and it will not appear in “My complaints”.'
+                      'that, nobody can reply to you. You will not see an '
+                      'update, and it will not appear in “My complaints”.'
                 : 'The institution will see your name and can reply to you. You '
-                    'can follow this under “My complaints”.',
+                      'can follow this under “My complaints”.',
             style: AppTypography.bodyAdminMeta.copyWith(
               color: anonymous ? t.warningTextOnBg : t.textPrimary,
             ),

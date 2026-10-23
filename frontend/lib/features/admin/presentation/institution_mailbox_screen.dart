@@ -158,7 +158,8 @@ class _InstitutionMailboxScreenState extends State<InstitutionMailboxScreen> {
       final accepted = await confirmAction(
         context,
         title: 'Disconnect institution mailbox?',
-        message: 'New emails will wait until a mailbox is enabled. Emails already being sent may still finish.',
+        message:
+            'New emails will wait until a mailbox is enabled. Emails already being sent may still finish.',
         confirmLabel: 'Disconnect',
       );
       if (!accepted || !mounted) {

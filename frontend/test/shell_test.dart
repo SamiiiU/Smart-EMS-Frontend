@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smartems/core/shell/app_shell.dart';
 import 'package:smartems/core/shell/bottom_nav.dart';
@@ -29,11 +29,12 @@ Widget host(
     darkTheme: AppTheme.dark(role: AppRole.admin),
     builder: (context, mqChild) {
       var out = mqChild!;
-      if (direction != null) out = Directionality(textDirection: direction, child: out);
+      if (direction != null)
+        out = Directionality(textDirection: direction, child: out);
       return MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(textScale),
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: out,
       );
     },
@@ -122,8 +123,9 @@ void main() {
     });
 
     test('resolveBottomNavTabs: > 3 eligible truncates to 3 + More', () {
-      final eligible =
-          [for (final id in ['a', 'b', 'c', 'd', 'e']) fakeDest(id)];
+      final eligible = [
+        for (final id in ['a', 'b', 'c', 'd', 'e']) fakeDest(id),
+      ];
       final tabs = resolveBottomNavTabs(
         eligible,
         moreBuilder: (_) => const SizedBox.shrink(),
@@ -133,8 +135,9 @@ void main() {
     });
 
     test('removing an entitlement PROMOTES the next item — no gap', () {
-      final declared =
-          [for (final id in ['a', 'b', 'c', 'd', 'e']) fakeDest(id)];
+      final declared = [
+        for (final id in ['a', 'b', 'c', 'd', 'e']) fakeDest(id),
+      ];
 
       final before = resolveBottomNavTabs(
         filterByEntitlement(declared, {'a', 'b', 'c', 'd', 'e'}),
@@ -150,7 +153,8 @@ void main() {
       expect(
         after.map((d) => d.id),
         ['a', 'c', 'd', 'more'],
-        reason: 'c and d must promote automatically — the list was already '
+        reason:
+            'c and d must promote automatically — the list was already '
             'ranked, so this requires no special-case code',
       );
     });
@@ -161,7 +165,12 @@ void main() {
         filterByEntitlement(RoleDestinations.parent, full),
         moreBuilder: (_) => const SizedBox.shrink(),
       );
-      expect(onTabs.map((d) => d.id), ['my_child', 'attendance', 'fees', 'more']);
+      expect(onTabs.map((d) => d.id), [
+        'my_child',
+        'attendance',
+        'fees',
+        'more',
+      ]);
 
       final noFinance = {...full}..remove('fees');
       final offTabs = resolveBottomNavTabs(
@@ -230,80 +239,77 @@ void main() {
   // ==========================================================================
   group('D-30: tab state and scroll survive switching', () {
     testWidgets(
-        'scroll position survives: scroll tab 2, switch to 1, switch back',
-        (tester) async {
-      final controllers = {
-        0: ScrollController(),
-        1: ScrollController(),
-      };
+      'scroll position survives: scroll tab 2, switch to 1, switch back',
+      (tester) async {
+        final controllers = {0: ScrollController(), 1: ScrollController()};
 
-      Widget buildTab(int index) {
-        return ListView.builder(
-          controller: controllers[index],
-          itemCount: 200,
-          itemBuilder: (context, i) => SizedBox(
-            height: 50,
-            child: Text('tab$index-item$i'),
+        Widget buildTab(int index) {
+          return ListView.builder(
+            controller: controllers[index],
+            itemCount: 200,
+            itemBuilder: (context, i) =>
+                SizedBox(height: 50, child: Text('tab$index-item$i')),
+          );
+        }
+
+        await tester.pumpWidget(
+          host(
+            StatefulBuilder(
+              builder: (context, setState) {
+                var selected = 0;
+                return StatefulBuilder(
+                  builder: (context, setInner) {
+                    return Scaffold(
+                      body: IndexedStack(
+                        index: selected,
+                        children: [buildTab(0), buildTab(1)],
+                      ),
+                      bottomNavigationBar: Row(
+                        children: [
+                          TextButton(
+                            onPressed: () => setInner(() => selected = 0),
+                            child: const Text('tab0'),
+                          ),
+                          TextButton(
+                            onPressed: () => setInner(() => selected = 1),
+                            child: const Text('tab1'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         );
-      }
 
-      await tester.pumpWidget(
-        host(
-          StatefulBuilder(
-            builder: (context, setState) {
-              var selected = 0;
-              return StatefulBuilder(
-                builder: (context, setInner) {
-                  return Scaffold(
-                    body: IndexedStack(
-                      index: selected,
-                      children: [buildTab(0), buildTab(1)],
-                    ),
-                    bottomNavigationBar: Row(
-                      children: [
-                        TextButton(
-                          onPressed: () => setInner(() => selected = 0),
-                          child: const Text('tab0'),
-                        ),
-                        TextButton(
-                          onPressed: () => setInner(() => selected = 1),
-                          child: const Text('tab1'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      );
+        // Scroll tab 1 (currently visible after switching).
+        await tester.tap(find.text('tab1'));
+        await tester.pump();
+        controllers[1]!.jumpTo(500);
+        await tester.pump();
+        expect(controllers[1]!.offset, 500);
 
-      // Scroll tab 1 (currently visible after switching).
-      await tester.tap(find.text('tab1'));
-      await tester.pump();
-      controllers[1]!.jumpTo(500);
-      await tester.pump();
-      expect(controllers[1]!.offset, 500);
+        // Switch to tab 0, then back to tab 1.
+        await tester.tap(find.text('tab0'));
+        await tester.pump();
+        await tester.tap(find.text('tab1'));
+        await tester.pump();
 
-      // Switch to tab 0, then back to tab 1.
-      await tester.tap(find.text('tab0'));
-      await tester.pump();
-      await tester.tap(find.text('tab1'));
-      await tester.pump();
+        expect(
+          controllers[1]!.offset,
+          500,
+          reason:
+              'IndexedStack must not have disposed tab 1, or its scroll '
+              'controller would have reset to 0',
+        );
 
-      expect(
-        controllers[1]!.offset,
-        500,
-        reason: 'IndexedStack must not have disposed tab 1, or its scroll '
-            'controller would have reset to 0',
-      );
-
-      for (final c in controllers.values) {
-        c.dispose();
-      }
-    });
+        for (final c in controllers.values) {
+          c.dispose();
+        }
+      },
+    );
 
     testWidgets('AppShell.selectTab switches the visible tab instantly, no '
         'animation frame required', (tester) async {
@@ -333,55 +339,57 @@ void main() {
     });
 
     testWidgets(
-        'switched-away tab STATE survives — AutomaticKeepAliveClientMixin '
-        'keeps it mounted rather than disposing it', (tester) async {
-      // AutomaticKeepAliveClientMixin prevents STATE DISPOSAL, not
-      // rebuild-on-ancestor-setState: Flutter calls build() again on every
-      // ancestor rebuild regardless of keep-alive status. The real D-30
-      // guarantee is that STATE (not "was build() called") survives a
-      // switch away and back, so this proves it with a counter rather than
-      // a builder-invocation count.
-      final dests = [
-        fakeDest('a'),
-        NavDestination(
-          id: 'b',
-          label: 'b',
-          icon: Icons.circle,
-          route: '/b',
-          builder: (context) => const _CounterTab(),
-        ),
-      ];
-      final key = GlobalKey<AppShellState>();
-
-      await tester.pumpWidget(
-        host(
-          AppShell(
-            key: key,
-            institutionName: 'Test School',
-            destinations: dests,
-            entitledIds: {'a', 'b'},
+      'switched-away tab STATE survives — AutomaticKeepAliveClientMixin '
+      'keeps it mounted rather than disposing it',
+      (tester) async {
+        // AutomaticKeepAliveClientMixin prevents STATE DISPOSAL, not
+        // rebuild-on-ancestor-setState: Flutter calls build() again on every
+        // ancestor rebuild regardless of keep-alive status. The real D-30
+        // guarantee is that STATE (not "was build() called") survives a
+        // switch away and back, so this proves it with a counter rather than
+        // a builder-invocation count.
+        final dests = [
+          fakeDest('a'),
+          NavDestination(
+            id: 'b',
+            label: 'b',
+            icon: Icons.circle,
+            route: '/b',
+            builder: (context) => const _CounterTab(),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        ];
+        final key = GlobalKey<AppShellState>();
 
-      key.currentState!.selectTab(1);
-      await tester.pump();
+        await tester.pumpWidget(
+          host(
+            AppShell(
+              key: key,
+              institutionName: 'Test School',
+              destinations: dests,
+              entitledIds: {'a', 'b'},
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('counter_increment')));
-      await tester.tap(find.byKey(const ValueKey('counter_increment')));
-      await tester.pump();
-      expect(find.text('count:2'), findsOneWidget);
+        key.currentState!.selectTab(1);
+        await tester.pump();
 
-      key.currentState!.selectTab(0);
-      await tester.pump();
-      key.currentState!.selectTab(1);
-      await tester.pump();
+        await tester.tap(find.byKey(const ValueKey('counter_increment')));
+        await tester.tap(find.byKey(const ValueKey('counter_increment')));
+        await tester.pump();
+        expect(find.text('count:2'), findsOneWidget);
 
-      // If the tab's State had been disposed and recreated, the counter
-      // would have reset to 0.
-      expect(find.text('count:2'), findsOneWidget);
-    });
+        key.currentState!.selectTab(0);
+        await tester.pump();
+        key.currentState!.selectTab(1);
+        await tester.pump();
+
+        // If the tab's State had been disposed and recreated, the counter
+        // would have reset to 0.
+        expect(find.text('count:2'), findsOneWidget);
+      },
+    );
   });
 
   // ==========================================================================
@@ -411,31 +419,36 @@ void main() {
       expect(find.byType(DesktopSidebar), findsNothing);
     });
 
-    testWidgets('600px -> compact DesktopSidebar (rail), not BottomNav',
-        (tester) async {
+    testWidgets('600px -> compact DesktopSidebar (rail), not BottomNav', (
+      tester,
+    ) async {
       await pumpAt(tester, AppSizing.navBottomBreakpoint);
       expect(find.byType(BottomNav), findsNothing);
-      final sidebar =
-          tester.widget<DesktopSidebar>(find.byType(DesktopSidebar));
+      final sidebar = tester.widget<DesktopSidebar>(
+        find.byType(DesktopSidebar),
+      );
       expect(sidebar.compact, isTrue);
     });
 
     testWidgets('1024px -> compact DesktopSidebar (rail)', (tester) async {
       await pumpAt(tester, AppSizing.navRailBreakpoint);
-      final sidebar =
-          tester.widget<DesktopSidebar>(find.byType(DesktopSidebar));
+      final sidebar = tester.widget<DesktopSidebar>(
+        find.byType(DesktopSidebar),
+      );
       expect(sidebar.compact, isTrue);
     });
 
     testWidgets('1025px -> full DesktopSidebar', (tester) async {
       await pumpAt(tester, AppSizing.navRailBreakpoint + 1);
-      final sidebar =
-          tester.widget<DesktopSidebar>(find.byType(DesktopSidebar));
+      final sidebar = tester.widget<DesktopSidebar>(
+        find.byType(DesktopSidebar),
+      );
       expect(sidebar.compact, isFalse);
     });
 
-    testWidgets('the SAME destination list drives all three chrome forms',
-        (tester) async {
+    testWidgets('the SAME destination list drives all three chrome forms', (
+      tester,
+    ) async {
       // 800px is the compact rail: DesktopSidebar renders icon-only there
       // (no label text), so a literal text search would fail by design —
       // assert on the resolved destination set instead of on text.
@@ -445,8 +458,9 @@ void main() {
           final nav = tester.widget<BottomNav>(find.byType(BottomNav));
           expect(nav.destinations.first.id, 'd0');
         } else {
-          final sidebar =
-              tester.widget<DesktopSidebar>(find.byType(DesktopSidebar));
+          final sidebar = tester.widget<DesktopSidebar>(
+            find.byType(DesktopSidebar),
+          );
           expect(sidebar.destinations.first.id, 'd0');
           expect(sidebar.destinations, hasLength(5));
         }
@@ -464,8 +478,9 @@ void main() {
     // hasUnreadNotifications/onNotificationsTap; adding `actions: [...]`
     // to this call would fail to compile, which is the enforcement.
     testWidgets('renders status only: title and sync indicator, no '
-        'action controls beyond the optional notifications destination',
-        (tester) async {
+        'action controls beyond the optional notifications destination', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(
           const Scaffold(
@@ -496,7 +511,10 @@ void main() {
               institutionName: 'Beaconhouse School',
               syncStatus: SyncStatus.synced(),
             ),
-            body: AppButton(label: 'Mark attendance', onPressed: () => tapped++),
+            body: AppButton(
+              label: 'Mark attendance',
+              onPressed: () => tapped++,
+            ),
           ),
         ),
       );
@@ -505,8 +523,9 @@ void main() {
     });
 
     testWidgets('notifications bell is a DESTINATION (navigates), optional, '
-        'omitted entirely when there is nothing for it to do (D-19)',
-        (tester) async {
+        'omitted entirely when there is nothing for it to do (D-19)', (
+      tester,
+    ) async {
       // Omitted: no bell renders. Not a disabled bell — an ABSENT one.
       await tester.pumpWidget(
         host(
@@ -538,8 +557,9 @@ void main() {
       expect(tapped, 1);
     });
 
-    testWidgets('SyncIndicator renders all three states inside the app bar',
-        (tester) async {
+    testWidgets('SyncIndicator renders all three states inside the app bar', (
+      tester,
+    ) async {
       for (final status in [
         const SyncStatus.synced(),
         const SyncStatus.syncing(),
@@ -548,10 +568,7 @@ void main() {
         await tester.pumpWidget(
           host(
             Scaffold(
-              appBar: MobileAppBar(
-                institutionName: 'x',
-                syncStatus: status,
-              ),
+              appBar: MobileAppBar(institutionName: 'x', syncStatus: status),
             ),
           ),
         );
@@ -565,8 +582,9 @@ void main() {
   // `/me` gate — evaluated before any tab renders.
   // ==========================================================================
   group('/me identity gate', () {
-    testWidgets('notLinked renders UnlinkedProfileState, not a tab, no retry',
-        (tester) async {
+    testWidgets('notLinked renders UnlinkedProfileState, not a tab, no retry', (
+      tester,
+    ) async {
       var tabBuilds = 0;
       await tester.pumpWidget(
         host(
@@ -592,13 +610,17 @@ void main() {
       );
     });
 
-    testWidgets('error renders ErrorState with a WORKING retry',
-        (tester) async {
+    testWidgets('error renders ErrorState with a WORKING retry', (
+      tester,
+    ) async {
       var attempts = 0;
       final resolver = _CountingIdentityResolver(() {
         attempts++;
         return attempts == 1
-            ? const IdentityResult(IdentityResultKind.error, message: 'Timed out')
+            ? const IdentityResult(
+                IdentityResultKind.error,
+                message: 'Timed out',
+              )
             : const IdentityResult(IdentityResultKind.linked);
       });
 
@@ -624,8 +646,9 @@ void main() {
       expect(find.text('content:a'), findsOneWidget);
     });
 
-    testWidgets('linked renders the shell, with the tab visible',
-        (tester) async {
+    testWidgets('linked renders the shell, with the tab visible', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(
           AppShell(
@@ -703,8 +726,9 @@ void main() {
       );
     });
 
-    testWidgets('RTL: icon/label order mirrors in DesktopSidebar',
-        (tester) async {
+    testWidgets('RTL: icon/label order mirrors in DesktopSidebar', (
+      tester,
+    ) async {
       Future<double> iconThenLabelDx(TextDirection dir) async {
         await tester.pumpWidget(
           host(
@@ -729,7 +753,8 @@ void main() {
       expect(
         ltrDelta.sign,
         isNot(rtlDelta.sign),
-        reason: 'icon sits before the label in LTR and after it in RTL — if '
+        reason:
+            'icon sits before the label in LTR and after it in RTL — if '
             'the sign is the same, the row did not mirror',
       );
     });
@@ -779,8 +804,9 @@ void main() {
   // ==========================================================================
   group('No overflow at 360, 768 and 1366px', () {
     for (final width in <double>[360, 768, 1366]) {
-      testWidgets('AppShell renders clean at ${width.toInt()}px',
-          (tester) async {
+      testWidgets('AppShell renders clean at ${width.toInt()}px', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
@@ -809,42 +835,42 @@ void main() {
   // the drawer group them under headings that match the hubs.
   group('nav grouping', () {
     List<NavDestination> grouped() => [
-          NavDestination(
-            id: 'a',
-            label: 'Dashboard',
-            icon: Icons.circle_outlined,
-            route: '/a',
-            group: 'Overview',
-            builder: (_) => const Text('a'),
-          ),
-          NavDestination(
-            id: 'b',
-            label: 'Setup',
-            icon: Icons.circle_outlined,
-            route: '/b',
-            group: 'School',
-            builder: (_) => const Text('b'),
-          ),
-          NavDestination(
-            id: 'c',
-            label: 'Fees',
-            icon: Icons.circle_outlined,
-            route: '/c',
-            group: 'School',
-            builder: (_) => const Text('c'),
-          ),
-        ];
+      NavDestination(
+        id: 'a',
+        label: 'Dashboard',
+        icon: Icons.circle_outlined,
+        route: '/a',
+        group: 'Overview',
+        builder: (_) => const Text('a'),
+      ),
+      NavDestination(
+        id: 'b',
+        label: 'Setup',
+        icon: Icons.circle_outlined,
+        route: '/b',
+        group: 'School',
+        builder: (_) => const Text('b'),
+      ),
+      NavDestination(
+        id: 'c',
+        label: 'Fees',
+        icon: Icons.circle_outlined,
+        route: '/c',
+        group: 'School',
+        builder: (_) => const Text('c'),
+      ),
+    ];
 
     List<NavDestination> ungrouped() => [
-          for (var i = 0; i < 3; i++)
-            NavDestination(
-              id: 'u$i',
-              label: 'Plain $i',
-              icon: Icons.circle_outlined,
-              route: '/u$i',
-              builder: (_) => Text('u$i'),
-            ),
-        ];
+      for (var i = 0; i < 3; i++)
+        NavDestination(
+          id: 'u$i',
+          label: 'Plain $i',
+          icon: Icons.circle_outlined,
+          route: '/u$i',
+          builder: (_) => Text('u$i'),
+        ),
+    ];
 
     Widget sidebar(List<NavDestination> destinations, {bool compact = false}) =>
         MaterialApp(
@@ -859,8 +885,9 @@ void main() {
           ),
         );
 
-    testWidgets('a heading appears once per group, not once per item',
-        (tester) async {
+    testWidgets('a heading appears once per group, not once per item', (
+      tester,
+    ) async {
       await tester.pumpWidget(sidebar(grouped()));
       await tester.pumpAndSettle();
 
@@ -870,8 +897,9 @@ void main() {
       expect(find.bySemanticsLabel('School'), findsOneWidget);
     });
 
-    testWidgets('an UNGROUPED list renders exactly as it always did',
-        (tester) async {
+    testWidgets('an UNGROUPED list renders exactly as it always did', (
+      tester,
+    ) async {
       await tester.pumpWidget(sidebar(ungrouped()));
       await tester.pumpAndSettle();
 
@@ -883,8 +911,9 @@ void main() {
       }
     });
 
-    testWidgets('the compact rail shows no headings — 72px has no room',
-        (tester) async {
+    testWidgets('the compact rail shows no headings — 72px has no room', (
+      tester,
+    ) async {
       await tester.pumpWidget(sidebar(grouped(), compact: true));
       await tester.pumpAndSettle();
 
@@ -895,17 +924,19 @@ void main() {
       final destinations = grouped();
       var selected = -1;
 
-      await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.light(role: AppRole.admin),
-        home: Scaffold(
-          body: DesktopSidebar(
-            destinations: destinations,
-            selectedIndex: 0,
-            onSelect: (i) => selected = i,
-            compact: false,
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(role: AppRole.admin),
+          home: Scaffold(
+            body: DesktopSidebar(
+              destinations: destinations,
+              selectedIndex: 0,
+              onSelect: (i) => selected = i,
+              compact: false,
+            ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       // 'Fees' is index 2 in the CALLER's list. Headings are interleaved at

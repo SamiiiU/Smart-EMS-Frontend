@@ -233,11 +233,7 @@ class SmartEmsTokens extends ThemeExtension<SmartEmsTokens> {
     rowTintDanger: Color(0xFFFEF9F9),
     rowTintWarning: Color(0xFFFFFCF6),
     shadowOverlay: [
-      BoxShadow(
-        color: Color(0x1F171715),
-        blurRadius: 16,
-        offset: Offset(0, 4),
-      ),
+      BoxShadow(color: Color(0x1F171715), blurRadius: 16, offset: Offset(0, 4)),
     ],
     brightness: Brightness.light,
   );
@@ -277,11 +273,7 @@ class SmartEmsTokens extends ThemeExtension<SmartEmsTokens> {
     rowTintDanger: Color(0xFF241412),
     rowTintWarning: Color(0xFF231C11),
     shadowOverlay: [
-      BoxShadow(
-        color: Color(0x66000000),
-        blurRadius: 16,
-        offset: Offset(0, 4),
-      ),
+      BoxShadow(color: Color(0x66000000), blurRadius: 16, offset: Offset(0, 4)),
     ],
     brightness: Brightness.dark,
   );
@@ -291,52 +283,67 @@ class SmartEmsTokens extends ThemeExtension<SmartEmsTokens> {
   /// The token gallery renders from this, so a token added above but not
   /// listed here is visibly missing from the gallery.
   List<(String, List<(String, Color)>)> get colourGroups => [
-        ('Surface', [
-          ('page', page),
-          ('surface', surface),
-          ('surfaceSunken', surfaceSunken),
-          ('border', border),
-          ('borderStrong', borderStrong),
-        ]),
-        ('Text', [
-          ('textPrimary', textPrimary),
-          ('textSecondary', textSecondary),
-          ('textMuted', textMuted),
-          ('textDisabled', textDisabled),
-        ]),
-        ('Action', [
-          ('primaryAction', primaryAction),
-          ('primaryPressed', primaryPressed),
-          ('primaryAccent', primaryAccent),
-          ('primaryTextOnSurface', primaryTextOnSurface),
-          ('primarySubtle', primarySubtle),
-          ('onPrimary', onPrimary),
-        ]),
-        ('Brand — decorative surfaces only, no actions ever sit on these', [
-          ('brandSurface', brandSurface),
-          ('brandSurfaceDeep', brandSurfaceDeep),
-          ('onBrand', onBrand),
-          ('onBrandMuted', onBrandMuted),
-        ]),
-        ('Semantic', [
-          ('success', success),
-          ('successBg', successBg),
-          ('warning', warning),
-          ('warningBg', warningBg),
-          ('danger', danger),
-          ('dangerBg', dangerBg),
-          ('info', info),
-          ('infoBg', infoBg),
-          ('successTextOnBg', successTextOnBg),
-          ('warningTextOnBg', warningTextOnBg),
-          ('dangerTextOnBg', dangerTextOnBg),
-          ('infoTextOnBg', infoTextOnBg),
-        ]),
-        ('Row tint', [
-          ('rowTintDanger', rowTintDanger),
-          ('rowTintWarning', rowTintWarning),
-        ]),
-      ];
+    (
+      'Surface',
+      [
+        ('page', page),
+        ('surface', surface),
+        ('surfaceSunken', surfaceSunken),
+        ('border', border),
+        ('borderStrong', borderStrong),
+      ],
+    ),
+    (
+      'Text',
+      [
+        ('textPrimary', textPrimary),
+        ('textSecondary', textSecondary),
+        ('textMuted', textMuted),
+        ('textDisabled', textDisabled),
+      ],
+    ),
+    (
+      'Action',
+      [
+        ('primaryAction', primaryAction),
+        ('primaryPressed', primaryPressed),
+        ('primaryAccent', primaryAccent),
+        ('primaryTextOnSurface', primaryTextOnSurface),
+        ('primarySubtle', primarySubtle),
+        ('onPrimary', onPrimary),
+      ],
+    ),
+    (
+      'Brand — decorative surfaces only, no actions ever sit on these',
+      [
+        ('brandSurface', brandSurface),
+        ('brandSurfaceDeep', brandSurfaceDeep),
+        ('onBrand', onBrand),
+        ('onBrandMuted', onBrandMuted),
+      ],
+    ),
+    (
+      'Semantic',
+      [
+        ('success', success),
+        ('successBg', successBg),
+        ('warning', warning),
+        ('warningBg', warningBg),
+        ('danger', danger),
+        ('dangerBg', dangerBg),
+        ('info', info),
+        ('infoBg', infoBg),
+        ('successTextOnBg', successTextOnBg),
+        ('warningTextOnBg', warningTextOnBg),
+        ('dangerTextOnBg', dangerTextOnBg),
+        ('infoTextOnBg', infoTextOnBg),
+      ],
+    ),
+    (
+      'Row tint',
+      [('rowTintDanger', rowTintDanger), ('rowTintWarning', rowTintWarning)],
+    ),
+  ];
 
   @override
   SmartEmsTokens copyWith({
@@ -431,12 +438,19 @@ class SmartEmsTokens extends ThemeExtension<SmartEmsTokens> {
       primaryAction: Color.lerp(primaryAction, other.primaryAction, t)!,
       primaryPressed: Color.lerp(primaryPressed, other.primaryPressed, t)!,
       primaryAccent: Color.lerp(primaryAccent, other.primaryAccent, t)!,
-      primaryTextOnSurface:
-          Color.lerp(primaryTextOnSurface, other.primaryTextOnSurface, t)!,
+      primaryTextOnSurface: Color.lerp(
+        primaryTextOnSurface,
+        other.primaryTextOnSurface,
+        t,
+      )!,
       primarySubtle: Color.lerp(primarySubtle, other.primarySubtle, t)!,
       onPrimary: Color.lerp(onPrimary, other.onPrimary, t)!,
       brandSurface: Color.lerp(brandSurface, other.brandSurface, t)!,
-      brandSurfaceDeep: Color.lerp(brandSurfaceDeep, other.brandSurfaceDeep, t)!,
+      brandSurfaceDeep: Color.lerp(
+        brandSurfaceDeep,
+        other.brandSurfaceDeep,
+        t,
+      )!,
       onBrand: Color.lerp(onBrand, other.onBrand, t)!,
       onBrandMuted: Color.lerp(onBrandMuted, other.onBrandMuted, t)!,
       success: Color.lerp(success, other.success, t)!,
@@ -453,8 +467,7 @@ class SmartEmsTokens extends ThemeExtension<SmartEmsTokens> {
       infoTextOnBg: Color.lerp(infoTextOnBg, other.infoTextOnBg, t)!,
       rowTintDanger: Color.lerp(rowTintDanger, other.rowTintDanger, t)!,
       rowTintWarning: Color.lerp(rowTintWarning, other.rowTintWarning, t)!,
-      shadowOverlay:
-          BoxShadow.lerpList(shadowOverlay, other.shadowOverlay, t)!,
+      shadowOverlay: BoxShadow.lerpList(shadowOverlay, other.shadowOverlay, t)!,
       // Brightness is discrete; snap at the midpoint.
       brightness: t < 0.5 ? brightness : other.brightness,
     );

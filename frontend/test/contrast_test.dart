@@ -29,7 +29,8 @@ void main() {
       expect(
         r,
         greaterThanOrEqualTo(floor),
-        reason: '$label in $mode is ${r.toStringAsFixed(2)}:1, '
+        reason:
+            '$label in $mode is ${r.toStringAsFixed(2)}:1, '
             'below the $floor floor',
       );
     }
@@ -37,9 +38,17 @@ void main() {
 
   group('Text pairings — 4.5:1', () {
     test('body and label text on surfaces', () {
-      bothModes('textPrimary on surface', (t) => t.textPrimary, (t) => t.surface);
+      bothModes(
+        'textPrimary on surface',
+        (t) => t.textPrimary,
+        (t) => t.surface,
+      );
       bothModes('textPrimary on page', (t) => t.textPrimary, (t) => t.page);
-      bothModes('textSecondary on surface', (t) => t.textSecondary, (t) => t.surface);
+      bothModes(
+        'textSecondary on surface',
+        (t) => t.textSecondary,
+        (t) => t.surface,
+      );
       bothModes('textSecondary on page', (t) => t.textSecondary, (t) => t.page);
       bothModes(
         'textSecondary on surfaceSunken',
@@ -50,11 +59,16 @@ void main() {
 
     test('Overline uses textSecondary, not textMuted (RULING 2.1)', () {
       // The regression this guards: textMuted on surface measured 2.39:1.
-      bothModes('Overline on surface', (t) => t.textSecondary, (t) => t.surface);
+      bothModes(
+        'Overline on surface',
+        (t) => t.textSecondary,
+        (t) => t.surface,
+      );
       expect(
         contrastRatio(light.textMuted, light.surface),
         lessThan(aaText),
-        reason: 'textMuted now passes on surface — if the palette changed, '
+        reason:
+            'textMuted now passes on surface — if the palette changed, '
             'revisit RULING 2.1 rather than silently reverting Overline',
       );
     });
@@ -114,7 +128,8 @@ void main() {
           expect(
             r,
             greaterThanOrEqualTo(aaText),
-            reason: '$name letter on its filled glyph in $mode is '
+            reason:
+                '$name letter on its filled glyph in $mode is '
                 '${r.toStringAsFixed(2)}:1',
           );
         }
@@ -176,90 +191,154 @@ void main() {
     });
 
     test('row tints do not break the text on top of them', () {
-      bothModes('title on danger row', (t) => t.textPrimary,
-          (t) => t.rowTintDanger);
-      bothModes('title on warning row', (t) => t.textPrimary,
-          (t) => t.rowTintWarning);
-      bothModes('subtitle on danger row', (t) => t.textSecondary,
-          (t) => t.rowTintDanger);
-      bothModes('subtitle on warning row', (t) => t.textSecondary,
-          (t) => t.rowTintWarning);
+      bothModes(
+        'title on danger row',
+        (t) => t.textPrimary,
+        (t) => t.rowTintDanger,
+      );
+      bothModes(
+        'title on warning row',
+        (t) => t.textPrimary,
+        (t) => t.rowTintWarning,
+      );
+      bothModes(
+        'subtitle on danger row',
+        (t) => t.textSecondary,
+        (t) => t.rowTintDanger,
+      );
+      bothModes(
+        'subtitle on warning row',
+        (t) => t.textSecondary,
+        (t) => t.rowTintWarning,
+      );
     });
   });
 
   group('Non-text pairings — 3:1', () {
     test('focused ring and Tabs indicator use primaryAccent (D-T3-05)', () {
-      bothModes('focused ring on surface', (t) => t.primaryAccent,
-          (t) => t.surface, floor: aaNonText);
-      bothModes('Tabs indicator on page', (t) => t.primaryAccent,
-          (t) => t.page, floor: aaNonText);
-      bothModes('Tabs indicator on surface', (t) => t.primaryAccent,
-          (t) => t.surface, floor: aaNonText);
+      bothModes(
+        'focused ring on surface',
+        (t) => t.primaryAccent,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
+      bothModes(
+        'Tabs indicator on page',
+        (t) => t.primaryAccent,
+        (t) => t.page,
+        floor: aaNonText,
+      );
+      bothModes(
+        'Tabs indicator on surface',
+        (t) => t.primaryAccent,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
     });
 
     test('secondary button border uses primaryAccent (D-35)', () {
-      bothModes('secondary border on surface', (t) => t.primaryAccent,
-          (t) => t.surface, floor: aaNonText);
-      bothModes('secondary border on page', (t) => t.primaryAccent,
-          (t) => t.page, floor: aaNonText);
+      bothModes(
+        'secondary border on surface',
+        (t) => t.primaryAccent,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
+      bothModes(
+        'secondary border on page',
+        (t) => t.primaryAccent,
+        (t) => t.page,
+        floor: aaNonText,
+      );
 
       // The regression D-35 fixes: primaryAction as this border measured
       // 2.91:1 in dark, so the no-fill button had no perceivable edge.
       expect(
         contrastRatio(dark.primaryAction, dark.surface),
         lessThan(aaNonText),
-        reason: 'primaryAction now clears 3:1 on the dark surface — if the '
+        reason:
+            'primaryAction now clears 3:1 on the dark surface — if the '
             'palette changed, revisit D-35 rather than silently reverting '
             'the secondary border',
       );
     });
 
     test('StatusPill glyph shapes', () {
-      bothModes('Present glyph', (t) => t.success, (t) => t.successBg,
-          floor: aaNonText);
-      bothModes('Absent glyph', (t) => t.danger, (t) => t.dangerBg,
-          floor: aaNonText);
-      bothModes('Late glyph', (t) => t.warning, (t) => t.warningBg,
-          floor: aaNonText);
-      bothModes('Leave glyph', (t) => t.info, (t) => t.infoBg,
-          floor: aaNonText);
+      bothModes(
+        'Present glyph',
+        (t) => t.success,
+        (t) => t.successBg,
+        floor: aaNonText,
+      );
+      bothModes(
+        'Absent glyph',
+        (t) => t.danger,
+        (t) => t.dangerBg,
+        floor: aaNonText,
+      );
+      bothModes(
+        'Late glyph',
+        (t) => t.warning,
+        (t) => t.warningBg,
+        floor: aaNonText,
+      );
+      bothModes(
+        'Leave glyph',
+        (t) => t.info,
+        (t) => t.infoBg,
+        floor: aaNonText,
+      );
     });
 
     test('borders are discernible against their surfaces', () {
-      bothModes('borderStrong on surface', (t) => t.borderStrong,
-          (t) => t.surface, floor: 1.2);
-      bothModes('border on surface', (t) => t.border, (t) => t.surface,
-          floor: 1.05);
+      bothModes(
+        'borderStrong on surface',
+        (t) => t.borderStrong,
+        (t) => t.surface,
+        floor: 1.2,
+      );
+      bothModes(
+        'border on surface',
+        (t) => t.border,
+        (t) => t.surface,
+        floor: 1.05,
+      );
     });
   });
 
   group('D-36 — primaryTextOnSurface placement is constrained', () {
     test('valid on surface and page', () {
       for (final (mode, t) in [('light', light), ('dark', dark)]) {
-        expect(contrastRatio(t.primaryTextOnSurface, t.surface),
-            greaterThanOrEqualTo(aaText),
-            reason: 'primaryTextOnSurface on surface failed in $mode');
-        expect(contrastRatio(t.primaryTextOnSurface, t.page),
-            greaterThanOrEqualTo(aaText),
-            reason: 'primaryTextOnSurface on page failed in $mode');
+        expect(
+          contrastRatio(t.primaryTextOnSurface, t.surface),
+          greaterThanOrEqualTo(aaText),
+          reason: 'primaryTextOnSurface on surface failed in $mode',
+        );
+        expect(
+          contrastRatio(t.primaryTextOnSurface, t.page),
+          greaterThanOrEqualTo(aaText),
+          reason: 'primaryTextOnSurface on page failed in $mode',
+        );
       }
     });
 
-    test('NOT valid on surfaceSunken — this is why the placement is banned',
-        () {
+    test('NOT valid on surfaceSunken — this is why the placement is banned', () {
       final r = contrastRatio(dark.primaryTextOnSurface, dark.surfaceSunken);
       expect(
         r,
         lessThan(aaText),
-        reason: 'primaryTextOnSurface now clears 4.5:1 on surfaceSunken in '
+        reason:
+            'primaryTextOnSurface now clears 4.5:1 on surfaceSunken in '
             'dark (${r.toStringAsFixed(2)}:1). The palette must have changed — '
             'revisit D-36 deliberately rather than assuming the ban is stale.',
       );
     });
 
     test('textPrimary IS the correct choice on surfaceSunken', () {
-      bothModes('textPrimary on surfaceSunken', (t) => t.textPrimary,
-          (t) => t.surfaceSunken);
+      bothModes(
+        'textPrimary on surfaceSunken',
+        (t) => t.textPrimary,
+        (t) => t.surfaceSunken,
+      );
     });
 
     test('the guarded accessor rejects surfaceSunken', () {
@@ -284,13 +363,15 @@ void main() {
     test('no single colour can be primary-as-text at 4.5:1 in both modes', () {
       // Encoded so the reasoning survives: if the surfaces are ever
       // re-tuned, this either still holds or D-32 needs revisiting.
-      final maxLightL = (relativeLuminance(light.surface) + 0.05) / aaText - 0.05;
+      final maxLightL =
+          (relativeLuminance(light.surface) + 0.05) / aaText - 0.05;
       final minDarkL = aaText * (relativeLuminance(dark.surface) + 0.05) - 0.05;
 
       expect(
         maxLightL,
         lessThan(minDarkL),
-        reason: 'the luminance windows now overlap, so a single '
+        reason:
+            'the luminance windows now overlap, so a single '
             'primary-as-text colour is possible — D-32 can be simplified',
       );
     });
@@ -314,65 +395,93 @@ void main() {
 
     test('SyncIndicator: synced (successBg/successTextOnBg)', () {
       bothModes('synced label', (t) => t.successTextOnBg, (t) => t.successBg);
-      bothModes('synced icon', (t) => t.success, (t) => t.successBg,
-          floor: aaNonText);
+      bothModes(
+        'synced icon',
+        (t) => t.success,
+        (t) => t.successBg,
+        floor: aaNonText,
+      );
     });
 
     test('SyncIndicator: syncing (textSecondary/surfaceSunken)', () {
       bothModes(
-          'syncing label', (t) => t.textSecondary, (t) => t.surfaceSunken);
+        'syncing label',
+        (t) => t.textSecondary,
+        (t) => t.surfaceSunken,
+      );
       bothModes(
-          'syncing icon', (t) => t.textSecondary, (t) => t.surfaceSunken,
-          floor: aaNonText);
+        'syncing icon',
+        (t) => t.textSecondary,
+        (t) => t.surfaceSunken,
+        floor: aaNonText,
+      );
     });
 
     test('SyncIndicator: offline (warningBg/warningTextOnBg)', () {
+      bothModes('offline label', (t) => t.warningTextOnBg, (t) => t.warningBg);
       bothModes(
-          'offline label', (t) => t.warningTextOnBg, (t) => t.warningBg);
-      bothModes('offline icon', (t) => t.warning, (t) => t.warningBg,
-          floor: aaNonText);
+        'offline icon',
+        (t) => t.warning,
+        (t) => t.warningBg,
+        floor: aaNonText,
+      );
     });
 
-    test('BottomNav selected label/icon (primaryTextOnSurface on surface)',
-        () {
-      bothModes('selected tab label', (t) => t.primaryTextOnSurface,
-          (t) => t.surface);
+    test('BottomNav selected label/icon (primaryTextOnSurface on surface)', () {
+      bothModes(
+        'selected tab label',
+        (t) => t.primaryTextOnSurface,
+        (t) => t.surface,
+      );
     });
 
     test('BottomNav indicator bar (primaryAccent, non-text)', () {
-      bothModes('indicator bar', (t) => t.primaryAccent, (t) => t.surface,
-          floor: aaNonText);
+      bothModes(
+        'indicator bar',
+        (t) => t.primaryAccent,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
     });
 
     test('BottomNav unselected label/icon (textSecondary on surface)', () {
-      bothModes(
-          'unselected tab', (t) => t.textSecondary, (t) => t.surface);
+      bothModes('unselected tab', (t) => t.textSecondary, (t) => t.surface);
     });
 
-    test('DesktopSidebar selected item label (textPrimary on primarySubtle)',
-        () {
+    test('DesktopSidebar selected item label (textPrimary on primarySubtle)', () {
       // NOT primaryTextOnSurface: D-36 confines it to surface/page, and
       // primarySubtle is neither — that pairing measured 3.88:1 in dark,
       // caught here before it shipped. See the comment in desktop_sidebar.dart.
       bothModes(
-          'sidebar selected label', (t) => t.textPrimary, (t) => t.primarySubtle);
+        'sidebar selected label',
+        (t) => t.textPrimary,
+        (t) => t.primarySubtle,
+      );
       expect(
         contrastRatio(dark.primaryTextOnSurface, dark.primarySubtle),
         lessThan(aaText),
-        reason: 'primaryTextOnSurface now clears primarySubtle in dark — if '
+        reason:
+            'primaryTextOnSurface now clears primarySubtle in dark — if '
             'the palette changed, this is fine to use again; otherwise the '
             'guard above is still doing real work',
       );
     });
 
     test('DesktopSidebar active border (primaryAccent, non-text)', () {
-      bothModes('sidebar active border', (t) => t.primaryAccent,
-          (t) => t.surface, floor: aaNonText);
+      bothModes(
+        'sidebar active border',
+        (t) => t.primaryAccent,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
     });
 
     test('DesktopSidebar unselected item (textSecondary on surface)', () {
-      bothModes('sidebar unselected label', (t) => t.textSecondary,
-          (t) => t.surface);
+      bothModes(
+        'sidebar unselected label',
+        (t) => t.textSecondary,
+        (t) => t.surface,
+      );
     });
 
     test('MobileAppBar title (textPrimary on surface)', () {
@@ -380,8 +489,12 @@ void main() {
     });
 
     test('MobileAppBar unread dot is non-text and needs only 3:1', () {
-      bothModes('unread dot', (t) => t.danger, (t) => t.surface,
-          floor: aaNonText);
+      bothModes(
+        'unread dot',
+        (t) => t.danger,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
     });
   });
 
@@ -393,13 +506,19 @@ void main() {
       // textPrimary, NOT primaryTextOnSurface: D-36 confines that token to
       // `surface`/`page`, and primarySubtle is neither — the same trap the
       // DesktopSidebar hit in T5.
-      bothModes('status choice selected', (t) => t.textPrimary,
-          (t) => t.primarySubtle);
+      bothModes(
+        'status choice selected',
+        (t) => t.textPrimary,
+        (t) => t.primarySubtle,
+      );
     });
 
     test('unselected status choice label (textSecondary on surface)', () {
-      bothModes('status choice unselected', (t) => t.textSecondary,
-          (t) => t.surface);
+      bothModes(
+        'status choice unselected',
+        (t) => t.textSecondary,
+        (t) => t.surface,
+      );
     });
 
     test('SELECTED status choice border clears the non-text floor', () {
@@ -410,8 +529,12 @@ void main() {
       // identified by its own text label, so WCAG 1.4.11 does not bind it.
       // Asserting 3:1 there would not find a bug, it would just force a
       // design change the spec never asked for.
-      bothModes('status choice selected border', (t) => t.primaryAccent,
-          (t) => t.surface, floor: aaNonText);
+      bothModes(
+        'status choice selected border',
+        (t) => t.primaryAccent,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
     });
 
     test('roster student name (textPrimary on page)', () {
@@ -419,10 +542,16 @@ void main() {
     });
 
     test('Today current-period card: heading and meta on primarySubtle', () {
-      bothModes('today current heading', (t) => t.textPrimary,
-          (t) => t.primarySubtle);
-      bothModes('today current meta', (t) => t.textSecondary,
-          (t) => t.primarySubtle);
+      bothModes(
+        'today current heading',
+        (t) => t.textPrimary,
+        (t) => t.primarySubtle,
+      );
+      bothModes(
+        'today current meta',
+        (t) => t.textSecondary,
+        (t) => t.primarySubtle,
+      );
     });
 
     test('Today non-current period card on surface', () {
@@ -431,8 +560,12 @@ void main() {
     });
 
     test('Today current-period left border is non-text', () {
-      bothModes('today current border', (t) => t.primaryAccent,
-          (t) => t.page, floor: aaNonText);
+      bothModes(
+        'today current border',
+        (t) => t.primaryAccent,
+        (t) => t.page,
+        floor: aaNonText,
+      );
     });
   });
 
@@ -443,18 +576,28 @@ void main() {
     test('selected child chip label (textPrimary on primarySubtle)', () {
       // Same D-36 trap as the sidebar and the status chips: primarySubtle is
       // neither `surface` nor `page`, so primaryTextOnSurface is banned here.
-      bothModes('child chip selected', (t) => t.textPrimary,
-          (t) => t.primarySubtle);
+      bothModes(
+        'child chip selected',
+        (t) => t.textPrimary,
+        (t) => t.primarySubtle,
+      );
     });
 
     test('unselected child chip label (textSecondary on surface)', () {
-      bothModes('child chip unselected', (t) => t.textSecondary,
-          (t) => t.surface);
+      bothModes(
+        'child chip unselected',
+        (t) => t.textSecondary,
+        (t) => t.surface,
+      );
     });
 
     test('selected child chip border clears the non-text floor', () {
-      bothModes('child chip selected border', (t) => t.primaryAccent,
-          (t) => t.surface, floor: aaNonText);
+      bothModes(
+        'child chip selected border',
+        (t) => t.primaryAccent,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
     });
 
     test('child name and class on the today card (surface)', () {
@@ -470,34 +613,54 @@ void main() {
 
     test('attendance day row: date on surface, over the page', () {
       bothModes('day row date', (t) => t.textPrimary, (t) => t.surface);
-      bothModes('day row card border', (t) => t.border, (t) => t.page,
-          floor: 1);
+      bothModes(
+        'day row card border',
+        (t) => t.border,
+        (t) => t.page,
+        floor: 1,
+      );
     });
 
     test('history link chevron is non-text', () {
-      bothModes('history chevron', (t) => t.textSecondary, (t) => t.surface,
-          floor: aaNonText);
+      bothModes(
+        'history chevron',
+        (t) => t.textSecondary,
+        (t) => t.surface,
+        floor: aaNonText,
+      );
     });
   });
 
   group('T11 — diary and student surfaces', () {
     test('diary field label (textSecondary) and text (textPrimary)', () {
-      bothModes('diary field label on page', (t) => t.textSecondary,
-          (t) => t.page);
-      bothModes('diary text on surface', (t) => t.textPrimary,
-          (t) => t.surface);
-      bothModes('diary text while saving (surfaceSunken)',
-          (t) => t.textPrimary, (t) => t.surfaceSunken);
+      bothModes(
+        'diary field label on page',
+        (t) => t.textSecondary,
+        (t) => t.page,
+      );
+      bothModes(
+        'diary text on surface',
+        (t) => t.textPrimary,
+        (t) => t.surface,
+      );
+      bothModes(
+        'diary text while saving (surfaceSunken)',
+        (t) => t.textPrimary,
+        (t) => t.surfaceSunken,
+      );
     });
 
     test('"not available yet" state: info icon on the page', () {
       // Same pairing UnlinkedProfileState has used since T4 without ever
       // being asserted. A 40px glyph — non-text, so 3:1.
-      bothModes('info state icon on page', (t) => t.info, (t) => t.page,
-          floor: aaNonText);
+      bothModes(
+        'info state icon on page',
+        (t) => t.info,
+        (t) => t.page,
+        floor: aaNonText,
+      );
       bothModes('state title on page', (t) => t.textPrimary, (t) => t.page);
-      bothModes('state message on page', (t) => t.textSecondary,
-          (t) => t.page);
+      bothModes('state message on page', (t) => t.textSecondary, (t) => t.page);
     });
   });
 }

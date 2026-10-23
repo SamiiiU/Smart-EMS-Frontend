@@ -49,8 +49,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- ContextStrip ---------------------------------------------
         const _H('ContextStrip'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('Login school strip, diary editing strip, wizard link strip, '
-            'CSV file row.'),
+        const _N(
+          'Login school strip, diary editing strip, wizard link strip, '
+          'CSV file row.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         const ContextStrip(
           icon: Icons.school_outlined,
@@ -83,8 +85,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- InlineAlert ----------------------------------------------
         const _H('InlineAlert'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('Always inline and persistent — never a snackbar. No '
-            'duration, no auto-dismiss, no overlay variant.'),
+        const _N(
+          'Always inline and persistent — never a snackbar. No '
+          'duration, no auto-dismiss, no overlay variant.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         for (final tone in InlineAlertTone.values) ...[
           InlineAlert(tone: tone, message: _alertMessage(tone)),
@@ -95,8 +99,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- StatCard -------------------------------------------------
         const _H('StatCard'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('Attendance summary strip, admin KPIs, student profile '
-            'counters, CSV import counters. Tabular figures throughout.'),
+        const _N(
+          'Attendance summary strip, admin KPIs, student profile '
+          'counters, CSV import counters. Tabular figures throughout.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         Wrap(
           spacing: AppSpacing.space4,
@@ -120,8 +126,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- ListRow --------------------------------------------------
         const _H('ListRow'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('The whole row is the tap target, not just the trailing '
-            'control — asserted in a test.'),
+        const _N(
+          'The whole row is the tap target, not just the trailing '
+          'control — asserted in a test.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         SectionCard(
           padded: false,
@@ -163,8 +171,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- PeriodRow ------------------------------------------------
         const _H('PeriodRow'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('Fixed 44px time column. Breaks render as a MUTED ROW rather '
-            'than being omitted — a gap in a timetable reads as missing data.'),
+        const _N(
+          'Fixed 44px time column. Breaks render as a MUTED ROW rather '
+          'than being omitted — a gap in a timetable reads as missing data.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         SectionCard(
           padded: false,
@@ -186,11 +196,7 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
                 subtitle: 'Lab 2 · Mr Adnan',
                 onTap: () {},
               ),
-              const PeriodRow(
-                time: '09:30',
-                title: 'Break',
-                isBreak: true,
-              ),
+              const PeriodRow(time: '09:30', title: 'Break', isBreak: true),
               PeriodRow(
                 time: '09:50',
                 title: 'English',
@@ -209,8 +215,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- HeroCard -------------------------------------------------
         const _H('HeroCard — brand (NO action, D-23)'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('brandSurface. Structurally cannot carry an action: the class '
-            'has no action parameter at all.'),
+        const _N(
+          'brandSurface. Structurally cannot carry an action: the class '
+          'has no action parameter at all.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         const HeroCardBrand(
           eyebrow: 'Today',
@@ -220,8 +228,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         const SizedBox(height: AppSpacing.space6),
         const _H('HeroCard — tinted (carries an action)'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('primarySubtle. A primary button on brandSurface would fail '
-            'contrast, so an action-carrying hero must be tinted.'),
+        const _N(
+          'primarySubtle. A primary button on brandSurface would fail '
+          'contrast, so an action-carrying hero must be tinted.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         HeroCardTinted(
           eyebrow: 'Current period',
@@ -238,8 +248,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- SectionCard ----------------------------------------------
         const _H('SectionCard'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('Bordered, never shadowed (D-28). Optional header + trailing '
-            'action.'),
+        const _N(
+          'Bordered, never shadowed (D-28). Optional header + trailing '
+          'action.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         SectionCard(
           title: 'Attendance this month',
@@ -275,8 +287,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- Tabs -----------------------------------------------------
         const _H('Tabs'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('Underline indicator. D-19: a tab with no content is not '
-            'rendered — the "Fees" tab below is hidden, not greyed out.'),
+        const _N(
+          'Underline indicator. D-19: a tab with no content is not '
+          'rendered — the "Fees" tab below is hidden, not greyed out.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         Tabs(
           tabs: const [
@@ -293,8 +307,10 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
         // --- AppDataTable ---------------------------------------------
         const _H('AppDataTable'),
         const SizedBox(height: AppSpacing.space2),
-        const _N('Collapses to stacked cards below 600px and NEVER scrolls '
-            'horizontally. Resize the window to see it switch.'),
+        const _N(
+          'Collapses to stacked cards below 600px and NEVER scrolls '
+          'horizontally. Resize the window to see it switch.',
+        ),
         const SizedBox(height: AppSpacing.space5),
         SectionCard(
           padded: false,
@@ -327,14 +343,14 @@ class _CompositesGallerySectionState extends State<CompositesGallerySection> {
   }
 
   static String _alertMessage(InlineAlertTone tone) => switch (tone) {
-        InlineAlertTone.info =>
-          'Re-importing will update existing students, not duplicate them.',
-        InlineAlertTone.warning =>
-          'Attendance is below 75%. This may affect exam eligibility.',
-        InlineAlertTone.danger =>
-          'Incorrect mobile number or password. Please try again.',
-        InlineAlertTone.success => 'All 412 rows imported successfully.',
-      };
+    InlineAlertTone.info =>
+      'Re-importing will update existing students, not duplicate them.',
+    InlineAlertTone.warning =>
+      'Attendance is below 75%. This may affect exam eligibility.',
+    InlineAlertTone.danger =>
+      'Incorrect mobile number or password. Please try again.',
+    InlineAlertTone.success => 'All 412 rows imported successfully.',
+  };
 }
 
 class _H extends StatelessWidget {
@@ -344,11 +360,11 @@ class _H extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: AppTypography.sectionHeading.copyWith(
-          color: context.tokens.textPrimary,
-        ),
-      );
+    text,
+    style: AppTypography.sectionHeading.copyWith(
+      color: context.tokens.textPrimary,
+    ),
+  );
 }
 
 class _N extends StatelessWidget {
@@ -358,9 +374,9 @@ class _N extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: AppTypography.bodyAdminMeta.copyWith(
-          color: context.tokens.textSecondary,
-        ),
-      );
+    text,
+    style: AppTypography.bodyAdminMeta.copyWith(
+      color: context.tokens.textSecondary,
+    ),
+  );
 }

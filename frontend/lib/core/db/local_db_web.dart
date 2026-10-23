@@ -20,8 +20,7 @@ class _NoopWebExecutor extends QueryExecutor {
   Future<List<Map<String, Object?>>> runSelect(
     String statement,
     List<Object?> args,
-  ) async =>
-      const [];
+  ) async => const [];
 
   @override
   Future<int> runInsert(String statement, List<Object?> args) async => 0;

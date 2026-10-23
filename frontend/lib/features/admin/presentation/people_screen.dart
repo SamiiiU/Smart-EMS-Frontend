@@ -40,7 +40,11 @@ import 'campus_roles_sheet.dart';
 /// on phones). "Campus roles" is a row action, kept outside the row's tap
 /// target; rows do not navigate.
 class PeopleScreen extends StatefulWidget {
-  const PeopleScreen({required this.repository, this.currentIdentity, super.key});
+  const PeopleScreen({
+    required this.repository,
+    this.currentIdentity,
+    super.key,
+  });
 
   final AdminRepository repository;
 
@@ -58,15 +62,29 @@ class PeopleScreen extends StatefulWidget {
 /// rule: institution-wide managers — no restriction (null); a campus admin —
 /// teacher/attendance staff on its own user.manage campuses. Null when the
 /// identity is unknown (the server decides, as before).
-({Set<String>? roles, Set<String>? campusIds}) campusRolePolicy(IdentityResult? identity) {
-  if (identity == null || !identity.permissionsKnown) return (roles: null, campusIds: null);
-  const institutionWideRoles = {'owner', 'institution_owner', 'admin', 'institution_admin', 'super_admin'};
-  if (identity.grants.any((g) => g.campusId == null && institutionWideRoles.contains(g.role))) {
+({Set<String>? roles, Set<String>? campusIds}) campusRolePolicy(
+  IdentityResult? identity,
+) {
+  if (identity == null || !identity.permissionsKnown)
+    return (roles: null, campusIds: null);
+  const institutionWideRoles = {
+    'owner',
+    'institution_owner',
+    'admin',
+    'institution_admin',
+    'super_admin',
+  };
+  if (identity.grants.any(
+    (g) => g.campusId == null && institutionWideRoles.contains(g.role),
+  )) {
     return (roles: null, campusIds: null);
   }
   final campuses = {
     for (final g in identity.grants)
-      if (g.role == 'campus_admin' && g.campusId != null && g.permissions.contains('user.manage')) g.campusId!,
+      if (g.role == 'campus_admin' &&
+          g.campusId != null &&
+          g.permissions.contains('user.manage'))
+        g.campusId!,
   };
   return (roles: const {'teacher', 'attendance_staff'}, campusIds: campuses);
 }
@@ -77,10 +95,20 @@ class PeopleScreen extends StatefulWidget {
 /// when it cannot be known (no identity, or permissions not loaded).
 bool? canAdministerCampusRoles(IdentityResult? identity) {
   if (identity == null || !identity.permissionsKnown) return null;
-  const institutionWideRoles = {'owner', 'institution_owner', 'admin', 'institution_admin', 'super_admin'};
-  return identity.grants.any((g) =>
-      (g.campusId == null && institutionWideRoles.contains(g.role)) ||
-      (g.role == 'campus_admin' && g.campusId != null && g.permissions.contains('user.manage')));
+  const institutionWideRoles = {
+    'owner',
+    'institution_owner',
+    'admin',
+    'institution_admin',
+    'super_admin',
+  };
+  return identity.grants.any(
+    (g) =>
+        (g.campusId == null && institutionWideRoles.contains(g.role)) ||
+        (g.role == 'campus_admin' &&
+            g.campusId != null &&
+            g.permissions.contains('user.manage')),
+  );
 }
 
 class PeopleScreenState extends State<PeopleScreen> {
@@ -148,7 +176,10 @@ class PeopleScreenState extends State<PeopleScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const PageHeader(title: 'Accounts', padding: EdgeInsets.zero),
+                    const PageHeader(
+                      title: 'Accounts',
+                      padding: EdgeInsets.zero,
+                    ),
                     const SizedBox(height: AppSpacing.space2),
                     Text(
                       data == null
@@ -262,7 +293,9 @@ class PeopleScreenState extends State<PeopleScreen> {
                     padding: const EdgeInsets.only(top: AppSpacing.space6),
                     child: Text(
                       'No ${_group.label.toLowerCase()} to show.',
-                      style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+                      style: AppTypography.bodyAdminMeta.copyWith(
+                        color: t.textSecondary,
+                      ),
                     ),
                   )
                 : AdaptiveDataView<PersonAccount>(
@@ -270,25 +303,32 @@ class PeopleScreenState extends State<PeopleScreen> {
                     padding: EdgeInsets.zero,
                     semanticLabel: (p) => [
                       p.fullName.isEmpty ? 'Unnamed' : p.fullName,
-                      if (p.identifier != null && p.identifier!.isNotEmpty) p.identifier!,
+                      if (p.identifier != null && p.identifier!.isNotEmpty)
+                        p.identifier!,
                       if (p.detail != null && p.detail!.isNotEmpty) p.detail!,
                       p.hasLogin ? 'has login' : 'no login',
                     ].join(', '),
                     columns: [
                       DataColumnSpec(
                         label: 'Name',
-                        value: (p) => p.fullName.isEmpty ? 'Unnamed' : p.fullName,
+                        value: (p) =>
+                            p.fullName.isEmpty ? 'Unnamed' : p.fullName,
                         flex: 3,
                       ),
                       if (_group != PeopleGroup.parents)
                         DataColumnSpec(
                           label: idLabel,
-                          value: (p) => p.identifier == null || p.identifier!.isEmpty ? '—' : p.identifier!,
+                          value: (p) =>
+                              p.identifier == null || p.identifier!.isEmpty
+                              ? '—'
+                              : p.identifier!,
                           flex: 2,
                         ),
                       DataColumnSpec(
                         label: 'Details',
-                        value: (p) => p.detail == null || p.detail!.isEmpty ? '—' : p.detail!,
+                        value: (p) => p.detail == null || p.detail!.isEmpty
+                            ? '—'
+                            : p.detail!,
                         flex: 3,
                       ),
                       DataColumnSpec(
@@ -312,13 +352,17 @@ class PeopleScreenState extends State<PeopleScreen> {
                         // read "Campus roles…" while the sheet is open.
                         isLoading: (_) => false,
                         onPressed: (p) {
-                          final policy = campusRolePolicy(widget.currentIdentity?.call());
+                          final policy = campusRolePolicy(
+                            widget.currentIdentity?.call(),
+                          );
                           return showCampusRolesSheet(
                             context,
                             repository: widget.repository,
                             userId: p.userId!,
                             personName: p.fullName,
-                            campuses: CampusScope.maybeOf(context)?.options ?? const [],
+                            campuses:
+                                CampusScope.maybeOf(context)?.options ??
+                                const [],
                             allowedRoles: policy.roles,
                             allowedCampusIds: policy.campusIds,
                           );

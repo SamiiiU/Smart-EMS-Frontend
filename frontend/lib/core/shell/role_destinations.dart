@@ -22,9 +22,7 @@ abstract final class RoleDestinations {
         return Center(
           child: Text(
             '$label — built in a later task',
-            style: AppTypography.bodyAdminMeta.copyWith(
-              color: t.textSecondary,
-            ),
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
           ),
         );
       },
@@ -114,8 +112,13 @@ abstract final class RoleDestinations {
   /// Explicitly administrative roles. `finance_staff` uses the admin shell
   /// too, but only sees what its permissions allow (see [visibleFor]).
   static const adminRoles = {
-    'owner', 'institution_owner', 'admin', 'institution_admin',
-    'super_admin', 'campus_admin', 'finance_staff',
+    'owner',
+    'institution_owner',
+    'admin',
+    'institution_admin',
+    'super_admin',
+    'campus_admin',
+    'finance_staff',
   };
   static const teacherRoles = {'teacher', 'staff', 'attendance_staff'};
 
@@ -137,11 +140,21 @@ abstract final class RoleDestinations {
     'students': {'student.view', 'student.manage'},
     'setup': {'campus.manage', 'student.manage', 'timetable.manage'},
     'fees': {'fee.view', 'fee.manage'},
-    'academics': {'exam.manage', 'syllabus.manage', 'timetable.manage', 'exam.results.view'},
+    'academics': {
+      'exam.manage',
+      'syllabus.manage',
+      'timetable.manage',
+      'exam.results.view',
+    },
     'complaints': {'complaint.manage', 'complaint.view.all'},
     'attendance_reviews': {'attendance.manage'},
     'staff_attendance': {'attendance.manage', 'staff.manage'},
-    'people': {'staff.manage', 'student.manage', 'user.manage', 'user.provision'},
+    'people': {
+      'staff.manage',
+      'student.manage',
+      'user.manage',
+      'user.provision',
+    },
     'add_user': {'user.provision'},
     'import': {'student.manage'},
     // The dashboard reads student/staff/section counts, which need student.view;
@@ -161,11 +174,16 @@ abstract final class RoleDestinations {
   /// [institutionWide] = permissions held by grants with no campus. Null when
   /// unknown (no grant detail from the server): the institution-wide gate is
   /// then skipped and the server remains the authority.
-  static List<NavDestination> visibleFor(List<NavDestination> destinations, Set<String> permissions,
-          {Set<String>? institutionWide}) => [
+  static List<NavDestination> visibleFor(
+    List<NavDestination> destinations,
+    Set<String> permissions, {
+    Set<String>? institutionWide,
+  }) => [
     for (final d in destinations)
       if ((requiredAny[d.id]?.any(permissions.contains) ?? true) &&
-          (institutionWide == null || (institutionWideAny[d.id]?.any(institutionWide.contains) ?? true)))
+          (institutionWide == null ||
+              (institutionWideAny[d.id]?.any(institutionWide.contains) ??
+                  true)))
         d,
   ];
 

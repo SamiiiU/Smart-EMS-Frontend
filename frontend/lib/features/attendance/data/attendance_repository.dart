@@ -51,11 +51,15 @@ class AttendanceRepository {
     try {
       final res = await dio.get<List<dynamic>>('/api/attendance/my-sections');
       return [
-        for (final r in (res.data ?? const []).whereType<Map<dynamic, dynamic>>())
+        for (final r
+            in (res.data ?? const []).whereType<Map<dynamic, dynamic>>())
           if (r['sectionId'] is String)
             MyRegister(
               sectionId: r['sectionId'] as String,
-              label: [r['className'], r['sectionName']].whereType<String>().join(' · '),
+              label: [
+                r['className'],
+                r['sectionName'],
+              ].whereType<String>().join(' · '),
             ),
       ];
     } on DioException catch (e) {
@@ -260,7 +264,8 @@ class AttendanceRepository {
           // satisfied: nothing is lost by dropping it, and keeping it would
           // retry forever. A row that genuinely differs stays queued.
           for (final m in toSend) {
-            if (!accepted.contains(m.clientUuid) && before[m.studentId] == m.status) {
+            if (!accepted.contains(m.clientUuid) &&
+                before[m.studentId] == m.status) {
               sent.add(m.clientUuid);
               accepted.add(m.clientUuid);
             }
@@ -268,12 +273,14 @@ class AttendanceRepository {
           for (final m in toSend.where((m) => held.contains(m.clientUuid))) {
             final serverHeld = before[m.studentId];
             if (serverHeld != null && serverHeld != m.status) {
-              conflicts.add(AttendanceConflict(
-                studentId: m.studentId,
-                attendanceDate: date,
-                localStatus: m.status,
-                serverStatus: serverHeld,
-              ));
+              conflicts.add(
+                AttendanceConflict(
+                  studentId: m.studentId,
+                  attendanceDate: date,
+                  localStatus: m.status,
+                  serverStatus: serverHeld,
+                ),
+              );
             }
           }
           incomplete = incomplete || accepted.length != toSend.length;
@@ -365,7 +372,8 @@ class AttendanceRepository {
         }
         accepted.add(id);
       } else if (item['outcome'] == 'review_required') {
-        if (item['reviewId'] is! String || (item['reviewId'] as String).isEmpty) {
+        if (item['reviewId'] is! String ||
+            (item['reviewId'] as String).isEmpty) {
           return {};
         }
         accepted.add(id);

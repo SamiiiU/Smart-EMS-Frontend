@@ -213,7 +213,8 @@ class StatesGallerySection extends StatelessWidget {
     );
   }
 
-  static const List<(int, String, ScreenState<List<String>>)> _precedenceRows = [
+  static const List<(int, String, ScreenState<List<String>>)>
+  _precedenceRows = [
     (
       1,
       'Offline, no cached data -> OfflineState',
@@ -266,11 +267,7 @@ class StatesGallerySection extends StatelessWidget {
         LoadFailure(kind: LoadFailureKind.notLinked),
       ),
     ),
-    (
-      10,
-      'Otherwise -> the data',
-      ScreenState.data(_rows),
-    ),
+    (10, 'Otherwise -> the data', ScreenState.data(_rows)),
   ];
 }
 
@@ -303,11 +300,11 @@ class _H extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: AppTypography.sectionHeading.copyWith(
-          color: context.tokens.textPrimary,
-        ),
-      );
+    text,
+    style: AppTypography.sectionHeading.copyWith(
+      color: context.tokens.textPrimary,
+    ),
+  );
 }
 
 class _N extends StatelessWidget {
@@ -317,9 +314,9 @@ class _N extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: AppTypography.bodyAdminMeta.copyWith(
-          color: context.tokens.textSecondary,
-        ),
-      );
+    text,
+    style: AppTypography.bodyAdminMeta.copyWith(
+      color: context.tokens.textSecondary,
+    ),
+  );
 }

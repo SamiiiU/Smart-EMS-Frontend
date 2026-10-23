@@ -8,7 +8,8 @@ import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/inline_alert.dart';
 import '../../../core/widgets/states/screen_state.dart';
 import '../../../core/widgets/states/screen_state_builder.dart';
-import '../../setup/presentation/academic_years_screen.dart' show setupListHeight;
+import '../../setup/presentation/academic_years_screen.dart'
+    show setupListHeight;
 import '../../setup/presentation/setup_scaffold.dart';
 import '../data/finance_repository.dart';
 import '../domain/finance_models.dart';
@@ -90,8 +91,11 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
   }
 
   Future<void> load() async {
-    setState(() => _state =
-        ScreenState<List<PendingPayment>>.loading(previous: _state.data));
+    setState(
+      () => _state = ScreenState<List<PendingPayment>>.loading(
+        previous: _state.data,
+      ),
+    );
     try {
       final pending = await widget.repository.loadPending();
       if (!mounted) return;
@@ -99,12 +103,15 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final f = e is LoadFailure ? e : const LoadFailure();
-      setState(() => _state = ScreenState<List<PendingPayment>>.failed(
-            f,
-            cached: _state.data,
-            connection:
-                f.unreachable ? NetworkStatus.offline : NetworkStatus.online,
-          ));
+      setState(
+        () => _state = ScreenState<List<PendingPayment>>.failed(
+          f,
+          cached: _state.data,
+          connection: f.unreachable
+              ? NetworkStatus.offline
+              : NetworkStatus.online,
+        ),
+      );
     }
   }
 
@@ -112,7 +119,8 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
     final confirmed = await confirmAction(
       context,
       title: 'Approve this payment?',
-      message: '${payment.amount.format()} from ${payment.studentName} will be '
+      message:
+          '${payment.amount.format()} from ${payment.studentName} will be '
           'counted against the invoice and a receipt will be issued. There is '
           'no way to reverse an approved payment on this system.',
       confirmLabel: 'Approve',
@@ -131,7 +139,9 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
     setState(() {
       _busyId = null;
       // Not retried: the server already answered for this payment.
-      _warning = outcome.alreadyProcessed ? _alreadyProcessed(payment, outcome.error!) : null;
+      _warning = outcome.alreadyProcessed
+          ? _alreadyProcessed(payment, outcome.error!)
+          : null;
       _error = outcome.alreadyProcessed ? null : outcome.error;
     });
 
@@ -157,7 +167,10 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
     // Escape return null and send nothing.
     final reason = await showDialog<String>(
       context: context,
-      builder: (_) => RejectPaymentDialog(amount: payment.amount, studentName: payment.studentName),
+      builder: (_) => RejectPaymentDialog(
+        amount: payment.amount,
+        studentName: payment.studentName,
+      ),
     );
     if (reason == null || !mounted) return;
 
@@ -167,7 +180,10 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
       _notice = null;
       _warning = null;
     });
-    final outcome = await widget.repository.rejectPaymentWithReason(payment.id, reason);
+    final outcome = await widget.repository.rejectPaymentWithReason(
+      payment.id,
+      reason,
+    );
     if (!mounted) return;
     setState(() {
       _busyId = null;
@@ -195,7 +211,8 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
       title: 'Awaiting approval',
       note: const InlineAlert(
         tone: InlineAlertTone.warning,
-        message: 'None of this money is counted against its invoice yet. '
+        message:
+            'None of this money is counted against its invoice yet. '
             'Approving is permanent; rejecting is only possible before then.',
       ),
       children: [
@@ -217,7 +234,8 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
             state: _state,
             onRetry: load,
             emptyTitle: 'Nothing awaiting approval',
-            emptyMessage: 'Payments appear here as soon as they are recorded '
+            emptyMessage:
+                'Payments appear here as soon as they are recorded '
                 'at the counter.',
             emptyIcon: Icons.payments_outlined,
             data: (context, payments) => AdaptiveDataView<PendingPayment>(
@@ -226,15 +244,33 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
               semanticLabel: (p) =>
                   '${p.amount.format()} from ${p.studentName}, ${p.source}, not yet counted',
               columns: [
-                DataColumnSpec(label: 'Amount', value: (p) => p.amount.format(), flex: 2),
-                DataColumnSpec(label: 'Learner', value: (p) => p.studentName, flex: 3),
-                DataColumnSpec(label: 'Method', value: (p) => p.source, flex: 2),
                 DataColumnSpec(
-                  label: 'Reference',
-                  value: (p) => p.reference == null || p.reference!.isEmpty ? '—' : p.reference!,
+                  label: 'Amount',
+                  value: (p) => p.amount.format(),
                   flex: 2,
                 ),
-                DataColumnSpec(label: 'Received', value: (p) => _received(p.receivedAt), flex: 2),
+                DataColumnSpec(
+                  label: 'Learner',
+                  value: (p) => p.studentName,
+                  flex: 3,
+                ),
+                DataColumnSpec(
+                  label: 'Method',
+                  value: (p) => p.source,
+                  flex: 2,
+                ),
+                DataColumnSpec(
+                  label: 'Reference',
+                  value: (p) => p.reference == null || p.reference!.isEmpty
+                      ? '—'
+                      : p.reference!,
+                  flex: 2,
+                ),
+                DataColumnSpec(
+                  label: 'Received',
+                  value: (p) => _received(p.receivedAt),
+                  flex: 2,
+                ),
               ],
               actionsFlex: 4,
               rowActions: [
@@ -244,20 +280,24 @@ class PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
                   variant: AppButtonVariant.primary,
                   loadingLabel: 'Approving…',
                   key: (p) => Key('approve-${p.id}'),
-                  semanticLabel: (p) => 'Approve ${p.amount.format()} from ${p.studentName}',
+                  semanticLabel: (p) =>
+                      'Approve ${p.amount.format()} from ${p.studentName}',
                   isVisible: (_) => widget.canDecide,
                   isLoading: (p) => _busyId == p.id,
                   isEnabled: (_) => !busy,
-                  disabledReason: (_) => busy ? 'Another payment is being processed' : null,
+                  disabledReason: (_) =>
+                      busy ? 'Another payment is being processed' : null,
                   onPressed: _approve,
                 ),
                 RowAction<PendingPayment>(
                   label: 'Reject',
                   key: (p) => Key('reject-${p.id}'),
-                  semanticLabel: (p) => 'Reject ${p.amount.format()} from ${p.studentName}',
+                  semanticLabel: (p) =>
+                      'Reject ${p.amount.format()} from ${p.studentName}',
                   isVisible: (_) => widget.canDecide,
                   isEnabled: (_) => !busy,
-                  disabledReason: (_) => busy ? 'Another payment is being processed' : null,
+                  disabledReason: (_) =>
+                      busy ? 'Another payment is being processed' : null,
                   onPressed: _reject,
                 ),
               ],

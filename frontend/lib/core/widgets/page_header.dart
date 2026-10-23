@@ -45,11 +45,17 @@ class PageHeader extends StatelessWidget {
       children: [
         Semantics(
           header: true,
-          child: Text(title, style: AppTypography.screenTitle.copyWith(color: t.textPrimary)),
+          child: Text(
+            title,
+            style: AppTypography.screenTitle.copyWith(color: t.textPrimary),
+          ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: AppSpacing.space2),
-          Text(subtitle!, style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary)),
+          Text(
+            subtitle!,
+            style: AppTypography.bodyAdminMeta.copyWith(color: t.textSecondary),
+          ),
         ],
       ],
     );
@@ -68,7 +74,11 @@ class PageHeader extends StatelessWidget {
           if (constraints.maxWidth < stackBelow) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [heading, const SizedBox(height: AppSpacing.space5), actionBar],
+              children: [
+                heading,
+                const SizedBox(height: AppSpacing.space5),
+                actionBar,
+              ],
             );
           }
           return Row(
