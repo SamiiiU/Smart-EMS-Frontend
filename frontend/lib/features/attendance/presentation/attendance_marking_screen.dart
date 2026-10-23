@@ -995,32 +995,3 @@ class _CountChip extends StatelessWidget {
     );
   }
 }
-
-/// A small neutral pill for "Unmarked" / "Pending" / counts.
-class _CountChip extends StatelessWidget {
-  const _CountChip({required this.text, this.muted = false, super.key});
-  final String text;
-  final bool muted;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.space4,
-        vertical: AppSpacing.space2,
-      ),
-      decoration: BoxDecoration(
-        color: muted ? t.surfaceSunken : t.surface,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: t.border),
-      ),
-      child: Text(
-        text,
-        style: AppTypography.bodyAdminMeta.copyWith(
-          color: muted ? t.textSecondary : t.textPrimary,
-        ),
-      ),
-    );
-  }
-}
